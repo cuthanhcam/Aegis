@@ -1,373 +1,391 @@
-# **Aegis – Centralized Access Control Service**
+# **Aegis – Authorization Platform (RBAC + ReBAC)**
 
 ## 1. Introduction
 
-**Aegis** is a **centralized access control system** built on top of **.NET Core**, designed to manage and enforce authorization across multiple applications and services.
+**Aegis** is a **centralized authorization platform** built with **.NET**, designed to provide **fine-grained access control** across multiple applications and services.
 
-The system provides:
+Inspired by systems like OpenFGA, Aegis evolves beyond traditional RBAC into a **hybrid authorization engine** that supports:
 
-* **RBAC Core**: Management of Users, Roles, and Permissions
-* **Public APIs**: For permission validation and access control integration
-* **Admin UI**: Interface for managing users, roles, permissions, and tenants
-* **Audit Logging**: Tracks critical system activities
-* **Multi-tenancy Support**: Isolated access control per organization
-* **Microservice-ready Architecture**: Easily scalable and extensible
-
-The goal is to deliver an **enterprise-ready**, maintainable, and scalable authorization platform.
+* **RBAC (Role-Based Access Control)** for coarse-grained permissions
+* **ReBAC (Relationship-Based Access Control)** for fine-grained, resource-level access
 
 ---
 
-## 2. System Architecture
+## 🎯 Core Vision
 
-### 2.1 Microservices Architecture (Recommended)
-
-Aegis can be deployed as a **monolith (MVP)** or gradually evolved into a **microservices architecture**.
-
-| Service                 | Responsibility                                  | Suggested Technology                       |
-| ----------------------- | ----------------------------------------------- | ------------------------------------------ |
-| **Auth Service**        | Authentication (JWT, OAuth2, Refresh Tokens)    | ASP.NET Core + IdentityServer              |
-| **RBAC Service**        | Manage Users, Roles, Permissions, Multi-tenancy | ASP.NET Core Web API + EF Core             |
-| **Audit Service**       | Logging, search, and filtering                  | ASP.NET Core + MongoDB/SQL + Elasticsearch |
-| **API Gateway**         | Routing, authentication, rate limiting          | Ocelot / YARP                              |
-| **Frontend UI**         | Admin dashboard for access management           | React + TypeScript + Ant Design            |
-| **Integration Service** | External API for permission validation          | ASP.NET Core Web API                       |
-
-> **MVP Scope**: Auth Service + RBAC Service + Frontend UI + Audit Service
-> Microservices separation can be introduced during scaling.
+> Aegis is not just an access control system —
+> it is a **centralized authorization service** that other systems rely on.
 
 ---
 
-### 2.2 High-Level Architecture
+## 2. System Capabilities
 
-```
-[Frontend UI] <--REST/gRPC--> [API Gateway] <---> [RBAC Service]
-                                        |
-                                        +--> [Auth Service]
-                                        |
-                                        +--> [Audit Service]
-                                        |
-                                        +--> [Integration Service]
+### 🔐 Authentication (Optional Layer)
+
+* JWT-based authentication
+* Access & Refresh tokens
+* Tenant-aware identity
+
+---
+
+### 🔥 Authorization Engine (Core)
+
+Aegis provides a **centralized permission evaluation engine**:
+
+```text
+Can user U perform relation R on resource X?
 ```
 
----
+Supports:
 
-## 3. Domain Model (RBAC Core)
+#### 1. RBAC
 
-### 3.1 Core Entities
-
-| Entity         | Description                                      |
-| -------------- | ------------------------------------------------ |
-| Tenant         | Represents an organization (multi-tenant system) |
-| User           | End-user belonging to a tenant                   |
-| Role           | Role assigned within a tenant                    |
-| Permission     | Action-based access control (global or scoped)   |
-| UserRole       | Many-to-many mapping between User and Role       |
-| RolePermission | Many-to-many mapping between Role and Permission |
-| AuditLog       | Records system activities                        |
-
----
-
-### 3.2 Simplified ERD
-
-```
-Tenant 1---* User
-Tenant 1---* Role
-Role *---* Permission
-User *---* Role
-AuditLog -> User, Tenant, Action
+```text
+user → role → permission
 ```
 
-> All entities should include standard fields such as:
-> `CreatedAt`, `UpdatedAt`, and `Status` for production readiness.
+#### 2. ReBAC (OpenFGA-inspired)
+
+```text
+user → relation → resource
+```
+
+Example:
+
+```text
+user:1 owner document:10
+user:2 viewer document:10
+```
 
 ---
 
-## 4. Design Patterns & Principles
+### 🌐 Public APIs
 
-* **Clean Architecture**: Separation into API / Application / Domain / Infrastructure layers
-* **Repository Pattern + Unit of Work**: Data access abstraction using EF Core
-* **Dependency Injection**: Built-in .NET Core DI container
-* **DTO + AutoMapper**: Prevent domain leakage to API layer
-* **Policy-Based Authorization**: Flexible authorization using .NET policies
-* **Specification Pattern**: Advanced filtering and multi-tenant queries
-* **Event-driven Architecture (Optional)**: For audit logs and integrations
+* `/check` → Evaluate permission
+* `/relationships` → Manage relationships
+* `/roles` → RBAC management
+* `/permissions` → Permission definitions
 
 ---
 
-## 5. Multi-Tenancy Strategy
+### 🖥 Admin UI
 
-* Include `TenantId` in all core tables (User, Role, Permission)
-* **Soft Isolation**: Shared database, filtered by TenantId
-* **Hard Isolation (Advanced)**: Separate database per tenant
-* **Frontend Flow**: User logs in → selects tenant → token includes TenantId
-* **Backend Enforcement**: All queries are scoped by TenantId
+* Manage users, roles, permissions
+* Assign relationships (ReBAC)
+* View audit logs
+
+---
+
+### 📊 Audit Logging
+
+* Track:
+
+  * Permission checks
+  * Role assignments
+  * Relationship changes
+
+---
+
+### 🏢 Multi-Tenancy
+
+* Tenant-based isolation
+* All data scoped by `TenantId`
+* Supports:
+
+  * Shared DB (MVP)
+  * Isolated DB (advanced)
+
+---
+
+## 3. Architecture Overview
+
+### 3.1 MVP Architecture
+
+```text
+                +----------------------+
+                |     Admin UI         |
+                |  (React + TS)        |
+                +----------+-----------+
+                           |
+                           v
+                +----------------------+
+                |     Aegis API        |
+                |   (ASP.NET Core)     |
+                +----------+-----------+
+                           |
+        -----------------------------------------
+        |                    |                   |
+        v                    v                   v
+   PostgreSQL           Redis (optional)     Logging
+   (main DB)            (cache)              (file/ELK)
+```
+
+---
+
+### 3.2 Future Architecture (Scalable)
+
+```text
+           +------------------+
+           |   API Gateway    |
+           +--------+---------+
+                    |
+     -----------------------------------
+     |                |                |
+     v                v                v
+ Auth Service   Authorization     Audit Service
+               Engine (Aegis)
+```
+
+---
+
+## 4. Domain Model
+
+### 4.1 RBAC Core
+
+| Entity         | Description                  |
+| -------------- | ---------------------------- |
+| Tenant         | Organization boundary        |
+| User           | System user                  |
+| Role           | Group of permissions         |
+| Permission     | Action (e.g., `user:create`) |
+| UserRole       | User-role mapping            |
+| RolePermission | Role-permission mapping      |
+
+---
+
+### 4.2 ReBAC (NEW – Core Innovation)
+
+| Entity       | Description                              |
+| ------------ | ---------------------------------------- |
+| Relationship | Defines access between user and resource |
+
+---
+
+### Relationship Model
+
+```text
+(user, relation, object)
+```
+
+Example:
+
+```text
+user:1 owner document:10
+user:2 viewer document:10
+```
+
+---
+
+### Suggested Schema
+
+```text
+Relationships
+- Id
+- TenantId
+- Subject (e.g., user:1, team:dev)
+- Relation (owner, viewer, editor, member)
+- Object (e.g., document:10, repo:1)
+- Effect (allow | deny)
+- CreatedAt
+```
+
+---
+
+## 5. Authorization Model
+
+### Hybrid Model (RBAC + ReBAC)
+
+Aegis evaluates permissions using:
+
+```text
+1. Evaluate explicit deny tuples first
+2. Evaluate ReBAC allow tuples
+3. Evaluate RBAC allow fallback
+4. Default deny
+```
+
+---
+
+### Evaluation Flow
+
+```text
+1. Check explicit deny
+2. Check ReBAC direct allow
+3. Check RBAC allow fallback
+4. Return final decision + reason code
+```
+
+---
+
+### Future Extensions
+
+* Conditional access (ABAC-lite)
+* Hierarchical relationships (group → user)
+* Permission composition
 
 ---
 
 ## 6. API Design
 
-### 6.1 Authentication API
+### 6.1 Authentication
 
-| Endpoint        | Method | Request Body             | Description                 |
-| --------------- | ------ | ------------------------ | --------------------------- |
-| `/auth/login`   | POST   | `{ username, password }` | Authenticate and return JWT |
-| `/auth/refresh` | POST   | `{ refreshToken }`       | Issue new access token      |
-
----
-
-### 6.2 RBAC API
-
-| Endpoint                                         | Method   | Description                  |
-| ------------------------------------------------ | -------- | ---------------------------- |
-| `/tenants/{tenantId}/users`                      | GET/POST | Retrieve/Create users        |
-| `/tenants/{tenantId}/roles`                      | GET/POST | Retrieve/Create roles        |
-| `/tenants/{tenantId}/roles/{roleId}/permissions` | POST     | Assign permissions to a role |
+| Endpoint        | Method | Description   |
+| --------------- | ------ | ------------- |
+| `/auth/login`   | POST   | Issue JWT     |
+| `/auth/refresh` | POST   | Refresh token |
 
 ---
 
-### 6.3 Permission Check API
+### 6.2 Authorization (Core)
 
-| Endpoint            | Method | Request Body                   | Response                  |
-| ------------------- | ------ | ------------------------------ | ------------------------- |
-| `/check-permission` | POST   | `{ userId, action, resource }` | `{ allowed: true/false }` |
+#### Check Permission
 
----
-
-### 6.4 Audit Log API
-
-| Endpoint                    | Method | Query Params      | Description         |
-| --------------------------- | ------ | ----------------- | ------------------- |
-| `/tenants/{tenantId}/audit` | GET    | filter parameters | Retrieve audit logs |
-
-> All APIs follow RESTful principles and use JWT-based authentication.
-
----
-
-## 7. Frontend (React + TypeScript)
-
-### Pages
-
-* Dashboard (Tenants, Users, Roles, Permissions overview)
-* User Management
-* Role Management
-* Permission Management
-* Audit Log Viewer
-
----
-
-### Key Components
-
-* `<PermissionGuard permission="xyz" />` → Conditionally render UI based on permissions
-* State Management: **Redux Toolkit** or **Zustand**
-* UI Framework: **Ant Design** or **Material UI**
-
----
-
-## 8. Audit Logging
-
-### Captured Events
-
-* CRUD operations on Users, Roles, Permissions
-* Optional: Permission checks
-
----
-
-### Sample Schema
+```http
+POST /check
+```
 
 ```json
 {
-  "id": "...",
-  "tenantId": "...",
-  "userId": "...",
-  "action": "CREATE_USER",
-  "target": "User#123",
-  "timestamp": "...",
-  "metadata": {}
+  "user": "user:1",
+  "relation": "viewer",
+  "object": "document:10"
 }
 ```
 
-* Supports filtering and search via SQL indexing or Elasticsearch
+Response:
 
----
-
-## 9. Microservice Communication
-
-* **Synchronous**: REST / HTTP (e.g., RBAC → Integration Service)
-* **Asynchronous**: RabbitMQ / Kafka (audit logs, notifications)
-* **API Gateway**: Handles authentication, routing, and throttling
-
----
-
-## 10. Security & Best Practices
-
-* JWT Access Tokens + Refresh Tokens
-* Secure password hashing (**Argon2** or **PBKDF2**)
-* Role-based + Policy-based Authorization
-* Rate limiting / throttling
-* Optional Multi-Factor Authentication (MFA)
-* Encryption at rest + TLS in transit
-
----
-
-## 11. Development Roadmap
-
-| Phase             | Scope                                                   |
-| ----------------- | ------------------------------------------------------- |
-| **Phase 1 (MVP)** | Auth Service, RBAC core, Admin UI, Multi-tenancy        |
-| **Phase 2**       | Audit logging, Permission check API, Policy-based auth  |
-| **Phase 3**       | Microservices split, API Gateway, Integration service   |
-| **Phase 4**       | UI improvements, dashboards, real-time audit monitoring |
-| **Phase 5**       | Production hardening, scaling, and operational readiness |
-
----
-
-## 12. Entity-Relationship Diagram (ERD)
-
-```text
-+------------------+         +------------------+        +------------------+
-|      Tenant      | 1-----* |       User       | *----* |      Role        |
-+------------------+         +------------------+        +------------------+
-| TenantId (PK)    |         | UserId (PK)      |        | RoleId (PK)      |
-| Name             |         | TenantId (FK)    |        | TenantId (FK)    |
-| CreatedAt        |         | Username         |        | Name             |
-| UpdatedAt        |         | Email            |        | Description      |
-| Status           |         | PasswordHash     |        | CreatedAt        |
-+------------------+         | CreatedAt        |        | UpdatedAt        |
-                             | UpdatedAt        |        | Status           |
-                             | Status           |        +------------------+
-                             +------------------+
-                                   |
-                                   |
-                                   * 
-                              +------------------+
-                              |    UserRole      |
-                              +------------------+
-                              | UserId (FK, PK)  |
-                              | RoleId (FK, PK)  |
-                              +------------------+
-
-+------------------+         +------------------+
-|   Permission     | *-----* |   RolePermission |
-+------------------+         +------------------+
-| PermissionId (PK)|         | RoleId (FK, PK)  |
-| Name             |         | PermissionId(FK,PK)|
-| Description      |         +------------------+
-| Scope (Global/Tenant) |
-| CreatedAt        |
-| UpdatedAt        |
-| Status           |
-+------------------+
-
-+------------------+
-|    AuditLog      |
-+------------------+
-| AuditLogId (PK)  |
-| TenantId (FK)    |
-| UserId (FK)      |
-| Action           |
-| Target           |
-| Timestamp        |
-| Metadata         |
-+------------------+
-```
-
-> This ERD includes **Tenant, User, Role, Permission, mapping tables, and AuditLog**.
-> All entities are multi-tenant aware and production-ready with timestamps and status fields.
-
----
-
-## 13. Microservice Architecture Diagram
-
-```text
-                                      +-------------------+
-                                      |   Frontend UI     |
-                                      | (React + TS)      |
-                                      +---------+---------+
-                                                |
-                                                v
-                                        +-----------------+
-                                        |   API Gateway   |
-                                        | (Ocelot / YARP) |
-                                        +--------+--------+
-                                                 |
-       ---------------------------------------------------------------------------------
-       |                    |                       |                      |
-       v                    v                       v                      v
-+---------------+     +---------------+       +---------------+     +----------------+
-| Auth Service  |     | RBAC Service  |       | Audit Service |     | Integration    |
-| JWT/OAuth2    |     | Users/Roles   |       | Logs storage  |     | Service        |
-| IdentityServer|     | Permissions   |       | Elastic/SQL   |     | Check-permission|
-+---------------+     +---------------+       +---------------+     +----------------+
-```
-
-> **Flow**: Frontend → API Gateway → respective microservices (Auth, RBAC, Audit, Integration).
-> All services enforce **TenantId scoping** for multi-tenancy.
-
----
-
-## 14. API Flow Diagram
-
-```text
-[Frontend UI] 
-    |
-    | POST /auth/login { username, password }
-    v
-[Auth Service] ---> returns JWT + TenantId
-    |
-    v
-[Frontend stores JWT]
-    |
-    | POST /check-permission { userId, action, resource }
-    v
-[Integration Service / RBAC Service]
-    |
-    | Evaluate permission
-    v
-[RBAC Service / Database]
-    |
-    | Return { allowed: true/false }
-    v
-[Frontend UI]
-    |
-    | Render feature according to permission
-```
-
-**Audit Flow**:
-
-```text
-[RBAC / Integration Service]
-    |
-    | Emit event (User CRUD / Role assignment / Permission check)
-    v
-[Audit Service] -> Store log in SQL/MongoDB/Elasticsearch
+```json
+{
+  "allowed": true
+}
 ```
 
 ---
 
-## 15. Sequence Diagram: Permission Check Flow
+#### Manage Relationships
 
-```text
-User -> Frontend UI: Trigger action (e.g., Delete Post)
-Frontend UI -> API Gateway: POST /check-permission
-API Gateway -> Integration Service: Forward request
-Integration Service -> RBAC Service: Evaluate user permissions
-RBAC Service -> Database: Query UserRole and RolePermission
-Database -> RBAC Service: Return roles and permissions
-RBAC Service -> Integration Service: Return allowed=true/false
-Integration Service -> API Gateway: Return allowed=true/false
-API Gateway -> Frontend UI: Return allowed=true/false
-Frontend UI -> User: Allow or deny action based on result
-RBAC/Integration Service -> Audit Service: Log permission check event
+```http
+POST /relationships
 ```
-
-> This sequence shows **end-to-end flow** from the user triggering an action to permission evaluation and audit logging.
 
 ---
 
-## 16. Notes for Development Team
+### 6.3 RBAC APIs
 
-1. **Tenant-aware enforcement**: Every request and database query is scoped by `TenantId`.
-2. **Centralized permission check**: RBAC logic lives in RBAC Service / Integration Service API.
-3. **Audit logging**: Asynchronous for low-latency requests.
-4. **Frontend Guard**: `<PermissionGuard permission="xyz" />` handles conditional rendering.
-5. **JWT tokens**: Include `UserId` and `TenantId` for service authorization.
+* `/roles`
+* `/permissions`
+* `/users`
+
+---
+
+### 6.4 Audit API
+
+* `/audit`
+
+---
+
+## 7. Design Principles
+
+* **Clean Architecture**
+* **Separation of Concerns**
+* **API-first design**
+* **Extensibility (ReBAC-first mindset)**
+* **Multi-tenant safety**
+
+---
+
+## 8. Technology Stack
+
+### Backend
+
+* .NET (ASP.NET Core)
+* EF Core
+
+### Database
+
+* PostgreSQL (primary)
+* Redis (cache, optional)
+
+### Frontend
+
+* React + TypeScript
+
+---
+
+## 9. Deployment Strategy
+
+### Minimum Setup
+
+* API Server (.NET)
+* PostgreSQL
+
+---
+
+### Recommended Setup
+
+* Docker Compose
+* Redis
+* Reverse Proxy (Nginx)
+
+---
+
+### Future
+
+* Kubernetes
+* Horizontal scaling
+* Observability (Prometheus, Grafana)
+
+---
+
+## 10. Development Roadmap
+
+| Phase       | Scope                            |
+| ----------- | -------------------------------- |
+| **Phase 1** | RBAC + Basic Auth                |
+| **Phase 2** | ReBAC (relationships + `/check`) |
+| **Phase 3** | Hybrid engine (RBAC + ReBAC)     |
+| **Phase 4** | Audit logging + UI               |
+| **Phase 5** | Performance + caching            |
+| **Phase 6** | SDK + integrations               |
+
+---
+
+## 11. Key Design Decisions
+
+1. **Authorization-first system**
+2. **OpenFGA-inspired relationship model**
+3. **Hybrid RBAC + ReBAC approach**
+4. **Centralized permission evaluation**
+5. **Tenant-aware architecture**
+
+---
+
+## 12. Key Insights
+
+> Traditional RBAC is not sufficient for modern systems.
+
+Aegis solves this by:
+
+* Introducing **relationship-based access**
+* Supporting **resource-level permissions**
+* Enabling **centralized authorization across services**
+
+---
+
+## 13. Architecture Document Map
+
+Use this section as the entry point for implementation-level architecture details:
+
+- `docs/architecture/project-structure.md` - production-ready project structure and module boundaries
+- `docs/architecture/permission-engine.md` - evaluation model, conflict rules, and engine contracts
+- `docs/architecture/database-design.md` - tuple store schema, indexing, and hot-path queries
+- `docs/architecture/api-spec.md` - endpoint contracts, check/explain APIs, and response model
+
+---
+
+## 14. Notes for Development
+
+* Always scope queries by `TenantId`
+* Permission check is a **hot path → optimize early**
+* Avoid over-engineering (no microservices in MVP)
+* Keep permission model stable (backward compatibility)

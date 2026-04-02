@@ -1,35 +1,47 @@
 # Aegis
 
-**Tagline:** Guarding your access, securing your world.
+Tagline: Guarding access with a practical authorization engine.
 
-**Aegis** is a **centralized access control platform** built on **.NET Core**, designed to manage and enforce authorization across multiple applications and services.
+Aegis is a ReBAC-first authorization platform blueprint with RBAC fallback, designed for multi-tenant systems that need deterministic permission checks and clear engine boundaries.
 
----
+## What Aegis Focuses On
 
-## Features
+- Centralized authorization APIs (`/check`, `/explain`, tuple management)
+- ReBAC canonical tuple model: `(subject, relation, object)`
+- Explicit deny precedence (`deny > allow`)
+- Tenant-scoped data and evaluation paths
+- Engine/application separation to avoid lock-in to transport or persistence
 
-* **RBAC Core** – Manage Users, Roles, and Permissions.
-* **Public APIs** – Validate permissions for integrated applications.
-* **Admin UI** – Interface to manage users, roles, permissions, and tenants.
-* **Audit Logging** – Track critical system activities.
-* **Multi-tenancy Support** – Isolated access control per organization.
-* **Microservice-ready Architecture** – Easily scalable and extensible.
+## Architecture Direction
 
----
+Aegis is structured as an authorization platform, not only a Web API project.
 
-## Current Status
+- Authorization engine as an isolated module
+- Application layer for use-case orchestration
+- Infrastructure layer for DB/cache/adapters
+- API layer for transport and contracts
 
-* Core architecture and domain model defined.
-* MVP of Auth, RBAC, and Admin UI is in development.
-* Audit logging and permission check API under construction.
-* Documentation and ERD diagrams ready for reference.
+See full blueprint in `docs/architecture/project-structure.md`.
 
----
+## Documentation Map
 
-## Product Roadmap
+- `docs/Overview.md`: Product and platform overview
+- `docs/architecture/project-structure.md`: Production-ready project structure
+- `docs/architecture/permission-engine.md`: Evaluation model and conflict resolution
+- `docs/architecture/database-design.md`: Tuple schema, indexes, and query patterns
+- `docs/architecture/api-spec.md`: Endpoint contracts and response model
 
-1. MVP: Auth Service + RBAC Service + Admin UI + Audit Service
-2. Multi-tenancy enforcement
-3. Microservices decomposition & API Gateway
-4. Real-time audit and dashboards
-5. Production hardening, scaling, and operational readiness
+## Current Repository State
+
+- Documentation-first foundation is complete
+- Architecture and data model are aligned to ReBAC tuple semantics
+- API and engine docs are aligned on explicit deny precedence
+- Implementation can start directly from the documented module boundaries
+
+## Development Principles
+
+- ReBAC primary, RBAC fallback
+- Deterministic authorization decisions
+- Tenant isolation in every hot path
+- Explainability for support and incident analysis
+- MVP first, graph-ready next
