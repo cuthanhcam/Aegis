@@ -1,6 +1,5 @@
 # Aegis
 
-
 **Tagline:** Guarding your access, securing your world.
 
 **Aegis** is a **centralized access control platform** built on **.NET Core**, designed to manage and enforce authorization across multiple applications and services.
@@ -33,4 +32,4 @@
 2. Multi-tenancy enforcement
 3. Microservices decomposition & API Gateway
 4. Real-time audit and dashboards
-5. Production hardening, scaling, CI/CD integration
+5. Production hardening, scaling, and operational readiness
