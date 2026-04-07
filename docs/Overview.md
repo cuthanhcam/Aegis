@@ -1,120 +1,497 @@
-# **Aegis – Authorization Platform (RBAC + ReBAC)**
+# Aegis Overview
 
-## 1. Introduction
+**Aegis** is a **centralized authorization platform** that provides deterministic permission decisions for modern, multi-tenant systems.
 
-**Aegis** is a **centralized authorization platform** built with **.NET**, designed to provide **fine-grained access control** across multiple applications and services.
+## Quick Definition
 
-Inspired by systems like OpenFGA, Aegis evolves beyond traditional RBAC into a **hybrid authorization engine** that supports:
+Aegis answers this question:
 
-* **RBAC (Role-Based Access Control)** for coarse-grained permissions
-* **ReBAC (Relationship-Based Access Control)** for fine-grained, resource-level access
-
----
-
-## 🎯 Core Vision
-
-> Aegis is not just an access control system —
-> it is a **centralized authorization service** that other systems rely on.
-
----
-
-## 2. System Capabilities
-
-### 🔐 Authentication (Optional Layer)
-
-* JWT-based authentication
-* Access & Refresh tokens
-* Tenant-aware identity
-
----
-
-### 🔥 Authorization Engine (Core)
-
-Aegis provides a **centralized permission evaluation engine**:
-
-```text
-Can user U perform relation R on resource X?
-```
-
-Supports:
-
-#### 1. RBAC
-
-```text
-user → role → permission
-```
-
-#### 2. ReBAC (OpenFGA-inspired)
-
-```text
-user → relation → resource
-```
+> Can `subject` perform `relation` on `object` within this `tenant`?
 
 Example:
-
-```text
-user:1 owner document:10
-user:2 viewer document:10
+```
+Can user:alice edit document:report within tenant:acme?
+ Aegis returns: { "allowed": true, "reasonCode": "ALLOW_REBAC_DIRECT" }
 ```
 
 ---
 
-### 🌐 Public APIs
+## Why Aegis?
 
-* `/check` → Evaluate permission
-* `/relationships` → Manage relationships
-* `/roles` → RBAC management
-* `/permissions` → Permission definitions
+### The Problem
 
----
+Traditional monolithic systems scatter authorization logic throughout code:
 
-### 🖥 Admin UI
+```
+App A  embedded auth logic
+App B  different auth logic
+App C  yet another auth logic
 
-* Manage users, roles, permissions
-* Assign relationships (ReBAC)
-* View audit logs
+Result: Inconsistent decisions, hard to audit, maintenance nightmare
+```
 
----
+### The Aegis Solution
 
-### 📊 Audit Logging
+Centralized, decoupled authorization engine:
 
-* Track:
+```
+App A 
+App B  Aegis (single source of truth)
+App C 
+```
 
-  * Permission checks
-  * Role assignments
-  * Relationship changes
-
----
-
-### 🏢 Multi-Tenancy
-
-* Tenant-based isolation
-* All data scoped by `TenantId`
-* Supports:
-
-  * Shared DB (MVP)
-  * Isolated DB (advanced)
+**Benefits:**
+-  **Consistency**  Same decisions across all apps
+-  **Auditability**  Complete trail of who has access
+-  **Debuggability**  `/explain` API shows why decisions were made
+-  **Scalability**  Evolves with your system
+-  **Flexibility**  ReBAC + RBAC hybrid model
 
 ---
 
-## 3. Architecture Overview
+## Key Features
+
+### 1. Permission Checks
+
+**Real-time permission evaluation:**
+
+```http
+POST /api/v1/check
+{
+  "subject": "user:alice",
+  "relation": "editor",
+  "object": "document:report"
+}
+
+Response:
+{
+  "allowed": true,
+  "decision": "ALLOW",
+  "reasonCode": "ALLOW_REBAC_DIRECT"
+}
+```
+
+### 2. Debugging with Explain API
+
+**Understand why a permission was granted or denied:**
+
+```http
+POST /api/v1/explain
+
+Response:
+{
+  "allowed": false,
+  "trace": [
+    { "step": "CHECK_DENY", "result": "NOT_MATCHED" },
+    { "step": "CHECK_REBAC", "result": "NOT_MATCHED" },
+    { "step": "CHECK_RBAC", "result": "NOT_MATCHED" },
+    { "step": "FINAL", "result": "DENY_NOT_FOUND" }
+  ]
+}
+```
+
+### 3. Relationship Management (ReBAC Tuples)
+
+**Define fine-grained relationships:**
+
+```http
+POST /api/v1/relationships
+{
+  "subject": "user:alice",
+  "relation": "owner",
+  "object": "document:report",
+  "effect": "allow"
+}
+```
+
+### 4. Role-Based Access (RBAC Fallback)
+
+**Define role-based permissions:**
+
+```http
+POST /api/v1/roles
+{ "name": "document-editor", "description": "Can edit documents" }
+
+POST /api/v1/roles/{roleId}/permissions/{permissionId}
+```
+
+### 5. Multi-Tenancy
+
+**Tenant isolation built-in:**
+
+```http
+X-Tenant-Id: tenant-acme
+
+All data is scoped by tenant
+ Tenant A never sees Tenant B's relationships
+```
+
+### 6. Audit Logs
+
+**Complete compliance trail:**
+
+```http
+GET /api/v1/audit-logs
+
+Response:
+[
+  {
+    "timestamp": "2026-04-07T10:30:00Z",
+    "action": "RELATIONSHIP_CREATED",
+    "subject": "user:alice",
+    "relation": "editor",
+    "object": "document:report",
+    "initiatedBy": "admin:system"
+  },
+  ...
+]
+```
+
+---
+
+## Core Concepts at a Glance
+
+### The Tuple Model
+
+**Canonical tuple:** `(subject, relation, object)`
+
+```
+(user:alice, owner, document:report)
+  What: Alice is the owner of the report
+
+(team:engineering, member, user:bob)
+  What: Bob is a member of the engineering team
+
+(team:product, own, codebase:roadmap)
+  What: Product team owns the roadmap codebase
+```
+
+### ReBAC (Primary Model)
+
+*Relationship-Based Access Control*
+
+Fine-grained permissions via relationships:
+
+```
+User A shares a document (creates relationship)
+ System checks relationship for permission
+ Deterministic decision (allow or deny)
+```
+
+### RBAC (Fallback Model)
+
+*Role-Based Access Control*
+
+Coarse-grained permissions via roles:
+
+```
+User has role:admin
+ Admin role has permission:document:delete
+ Therefore user can delete documents
+```
+
+### Hybrid Evaluation
+
+Aegis checks both:
+
+```
+1. Is there an explicit DENY?  DENY (wins)
+2. Is there a ReBAC ALLOW?  ALLOW
+3. Is there an RBAC ALLOW?  ALLOW
+4. Otherwise  DENY (default)
+```
+
+---
+
+## Architecture at a Glance
+
+```
+
+ HTTP API Layer (Controllers)            
+ (/check, /explain, /relationships)      
+
+                   
+
+ Application Layer (Use Cases)           
+ (command handling, orchestration)       
+
+                   
+
+ Authorization Engine                    
+ (ReBAC + RBAC evaluation, NO HTTP/EF)  
+
+                   
+
+ Domain Model (DDD)                      
+ (Relationship, Store, User entities)    
+
+                   
+
+ Infrastructure & Persistence            
+ (EF Core, PostgreSQL, audit logs)       
+
+```
+
+---
+
+## Data Model
+
+### Tenants
+
+Isolation boundary for multi-tenancy:
+
+```sql
+Tenants
+ Id (UUID)
+ Name
+ Status (active, archived)
+```
+
+### Stores
+
+Authorization contexts (per app, per environment):
+
+```sql
+Stores
+ Id (string, ULID-like)
+ Name (e.g., "document-service")
+ TenantId (FK)
+ CreatedAt / UpdatedAt
+```
+
+### Relationships (Core)
+
+The permission tuples:
+
+```sql
+Relationships
+ Id (UUID)
+ TenantId (FK)
+ Subject (string: "user:1", "team:dev")
+ Relation (string: "owner", "editor", "viewer")
+ Object (string: "document:10", "repo:code")
+ Effect (enum: allow, deny)
+ CreatedAt / UpdatedAt
+
+UNIQUE(TenantId, Subject, Relation, Object)
+```
+
+### Users & Roles (RBAC)
+
+For role-based fallback:
+
+```sql
+Users
+ Id (UUID)
+ TenantId (FK)
+ Username
+ Email
+ PasswordHash
+
+Roles
+ Id (UUID)
+ TenantId (FK)
+ Name (e.g., "document-editor")
+ Permissions (many-to-many join table)
+```
+
+### Audit Logs
+
+Complete trail for compliance:
+
+```sql
+AuditLogs
+ Id (UUID)
+ TenantId (FK)
+ Timestamp
+ Action (RELATIONSHIP_CREATED, RELATIONSHIP_DELETED, etc.)
+ Subject, Relation, Object
+ InitiatedBy (user who made the change)
+ Details (JSON)
+```
+
+---
+
+## API Endpoints (Quick Reference)
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/check` | POST | Check permission |
+| `/explain` | POST | Debug decision |
+| `/relationships` | POST/GET/DELETE | Manage tuples |
+| `/roles` | POST/GET | RBAC roles |
+| `/permissions` | POST/GET | RBAC permissions |
+| `/users` | POST/GET | User management |
+| `/stores` | POST/GET | Authorization stores |
+| `/audit-logs` | GET | Compliance trails |
+
+ [**Full API Reference**](reference/api-reference.md)
+
+---
+
+## Use Cases
+
+### 1. Document Collaboration
+
+```
+Alice creates document
+ Alice owns it (relationship created)
+ Alice shares with Bob (relationship created)
+ Bob edits document
+ Aegis checks: (user:bob, editor, document:x) 
+ Edit allowed
+```
+
+### 2. SaaS Multi-Tenant
+
+```
+Customer A's tenant: isolated Relationships, Users, Roles
+Customer B's tenant: isolated Relationships, Users, Roles
+ Complete data isolation
+
+Query with X-Tenant-Id: customer-a
+ Only sees Customer A's data
+```
+
+### 3. Microservices
+
+```
+Payment Service: calls /check before processing refund
+Reporting Service: calls /check before generating report
+Admin Service: calls /check before user management
+ All authorization goes through Aegis
+```
+
+### 4. Compliance & Audit
+
+```
+Auditor queries:
+  GET /api/v1/audit-logs
+ See complete trail of access changes
+ Use /explain to understand why any decision was made
+```
+
+---
+
+## Design Principles
+
+1. **Deterministic**  Same input  same output, always
+2. **Deny-by-Default**  DENY wins over ALLOW
+3. **Tenant-Isolated**  Multi-tenancy is mandatory
+4. **Decoupled**  Engine independent of HTTP/EF/DB
+5. **Explainable**  Every decision is traceable
+6. **ReBAC-First**  Relationship model is primary; RBAC is fallback
+
+---
+
+## Next Steps
+
+### For Understanding the System
+
+1. Read [Core Concepts](concepts/core-concepts-tuple-model.md)  Deep dive into tuples, ReBAC, RBAC
+2. Review [Architecture Overview](architecture/README.md)  System design and module structure
+3. Check [API Reference](reference/api-reference.md)  Every endpoint documented
+
+### For Development
+
+1. Follow [Getting Started](guides/getting-started-development.md)  Local setup in 5 minutes
+2. Run tests  Verify everything works
+3. Try API calls  Use the examples
+
+### For Deployment
+
+1. Read [Deployment Guide](guides/deployment-operations-guide.md)  Docker, K8s, cloud setup
+2. Configure database  PostgreSQL setup
+3. Set up monitoring  Application Insights
+4. Plan backup strategy  Disaster recovery
+
+---
+
+## Key Differences from Alternatives
+
+### vs. OpenFGA
+
+| Feature | Aegis | OpenFGA |
+|---------|-------|---------|
+| **Language** | .NET / C# | Go |
+| **Authorization Model** | ReBAC + RBAC | ReBAC only |
+| **Multi-Tenancy** | Built-in | Optional |
+| **Explainability** | `/explain` API | Debug API |
+| **RBAC Support** | Yes (fallback) | No |
+
+### vs. Auth0 / Okta
+
+| Feature | Aegis | Auth0/Okta |
+|---------|-------|-----------|
+| **Focus** | Authorization only | Auth + Identity |
+| **Purpose** | Fine-grained access | User authentication |
+| **Deployment** | Self-hosted | Cloud SaaS |
+| **Tuple Model** | Yes | No |
+
+---
+
+## What Aegis Does NOT Do
+
+ Authenticate users (JWT is optional, you bring auth)  
+ Manage API keys (security is your responsibility)  
+ Encrypt data at-rest (use your DB encryption)  
+ Handle business logic (pure authorization only)
+
+---
+
+## Roadmap
+
+### Phase 1 (MVP)
+-  ReBAC direct tuple checks
+-  RBAC role permissions
+-  Multi-tenancy
+-  Audit logging
+
+### Phase 2 (Next)
+-  Graph traversal (transitive relationships)
+-  Contextual conditions (time-based, IP-based, etc.)
+-  Performance caching (Redis)
+
+### Phase 3 (Future)
+-  UI dashboard (relationship visualization)
+-  Analytics (access patterns)
+-  Bulk operations (CSV import/export)
+
+---
+
+## Documentation Map
+
+| Document | Audience | Content |
+|----------|----------|---------|
+| **Overview** (this file) | Everyone | Quick conceptual overview |
+| [Product Overview](product/product-overview.md) | Product, stakeholders | Vision, capabilities, use cases |
+| [Core Concepts](concepts/core-concepts-tuple-model.md) | Engineers | Detailed tuple model, ReBAC, RBAC |
+| [API Reference](reference/api-reference.md) | Developers | Every endpoint with examples |
+| [Getting Started](guides/getting-started-development.md) | Developers | Local setup, development workflow |
+| [Architecture](architecture/README.md) | Architects, senior devs | Module structure, design patterns |
+| [Deployment](guides/deployment-operations-guide.md) | DevOps, SRE | Production setup, monitoring, ops |
+
+---
+
+**Ready to dive deeper?** Pick a document above based on your role and interests.
+
 
 ### 3.1 MVP Architecture
 
 ```text
                 +----------------------+
-                |     Admin UI         |
+                �     Admin UI         |
                 |  (React + TS)        |
                 +----------+-----------+
                            |
                            v
                 +----------------------+
-                |     Aegis API        |
-                |   (ASP.NET Core)     |
+                �     Aegis API        |
+                �   (ASP.NET Core)     |
                 +----------+-----------+
                            |
         -----------------------------------------
-        |                    |                   |
+        �                    �                   |
         v                    v                   v
    PostgreSQL           Redis (optional)     Logging
    (main DB)            (cache)              (file/ELK)
@@ -126,11 +503,11 @@ user:2 viewer document:10
 
 ```text
            +------------------+
-           |   API Gateway    |
+           �   API Gateway    |
            +--------+---------+
                     |
      -----------------------------------
-     |                |                |
+     �                �                |
      v                v                v
  Auth Service   Authorization     Audit Service
                Engine (Aegis)
@@ -153,7 +530,7 @@ user:2 viewer document:10
 
 ---
 
-### 4.2 ReBAC (NEW – Core Innovation)
+### 4.2 ReBAC (NEW  Core Innovation)
 
 | Entity       | Description                              |
 | ------------ | ---------------------------------------- |
@@ -220,7 +597,7 @@ Aegis evaluates permissions using:
 ### Future Extensions
 
 * Conditional access (ABAC-lite)
-* Hierarchical relationships (group → user)
+* Hierarchical relationships (group  user)
 * Permission composition
 
 ---
@@ -379,13 +756,13 @@ Use this section as the entry point for implementation-level architecture detail
 - `docs/architecture/project-structure.md` - production-ready project structure and module boundaries
 - `docs/architecture/permission-engine.md` - evaluation model, conflict rules, and engine contracts
 - `docs/architecture/database-design.md` - tuple store schema, indexing, and hot-path queries
-- `docs/architecture/api-spec.md` - endpoint contracts, check/explain APIs, and response model
+- `docs/reference/api-reference.md` - canonical endpoint contracts, examples, and response model
 
 ---
 
 ## 14. Notes for Development
 
 * Always scope queries by `TenantId`
-* Permission check is a **hot path → optimize early**
+* Permission check is a **hot path  optimize early**
 * Avoid over-engineering (no microservices in MVP)
 * Keep permission model stable (backward compatibility)

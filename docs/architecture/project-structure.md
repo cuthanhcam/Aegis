@@ -54,12 +54,14 @@ Notes:
 src/
 ├── Aegis.Api/              # HTTP entry point
 ├── Aegis.Application/      # Use cases and orchestration
-├── Aegis.Domain/           # Core domain entities/value objects
-├── Aegis.Infrastructure/   # DB/cache/external implementations
 ├── Aegis.Authorization/    # Authorization engine (ReBAC core)
 ├── Aegis.Contracts/        # DTOs and API contracts
+├── Aegis.Domain/           # Core domain entities/value objects
+├── Aegis.Infrastructure/   # DB/cache/external implementations
 └── Aegis.SharedKernel/     # Common primitives and cross-cutting types
 ```
+
+This layout is synchronized with `D:\Workspace\Aegis\temp\Aegis-refactor\src`.
 
 ---
 
@@ -71,34 +73,13 @@ src/
 
 ```text
 Aegis.Authorization/
+├── Aegis.Authorization.csproj
+├── Caching/
 ├── Core/
-│   ├── Models/
-│   │   ├── Subject.cs
-│   │   ├── ObjectRef.cs
-│   │   ├── RelationshipTuple.cs    # (subject, relation, object)
-│   │   ├── CheckRequest.cs
-│   │   └── DecisionResult.cs
-│   ├── Interfaces/
-│   │   ├── IAuthorizationEngine.cs
-│   │   ├── IRelationshipStore.cs
-│   │   ├── IRbacProvider.cs
-│   │   ├── IDenyPolicyProvider.cs
-│   │   └── IExplainService.cs
-│   ├── Engine/
-│   │   ├── AuthorizationEngine.cs
-│   │   ├── CheckEvaluator.cs
-│   │   └── RelationResolver.cs
-│   └── Exceptions/
-├── ReBAC/
-│   ├── Evaluators/
-│   │   ├── DirectRelationEvaluator.cs
-│   │   └── RecursiveEvaluator.cs   # planned
-│   └── Graph/
-│       └── RelationshipGraph.cs
+├── Infrastructure/
+├── Properties/
 ├── RBAC/
-│   └── RbacPermissionEvaluator.cs
-└── Caching/
-      └── AuthorizationCache.cs
+└── ReBAC/
 ```
 
 ### 5.2 Non-negotiable rule
@@ -119,16 +100,12 @@ Engine responsibility:
 
 ```text
 Aegis.Domain/
+├── Aegis.Domain.csproj
 ├── Entities/
-│   ├── Tenant.cs
-│   ├── User.cs
-│   ├── Role.cs
-│   └── Permission.cs
-├── ValueObjects/
-│   ├── SubjectId.cs
-│   └── ObjectId.cs
 ├── Enums/
-└── Interfaces/
+├── Events/
+├── Repositories/
+└── ValueObjects/
 ```
 
 Guideline:
@@ -142,21 +119,12 @@ Guideline:
 
 ```text
 Aegis.Application/
-├── Interfaces/
-│   ├── IAuthService.cs
-│   ├── IRelationshipService.cs
-│   └── IPermissionService.cs
+├── Aegis.Application.csproj
+├── DependencyInjection.cs
+├── DomainEvents/
 ├── Features/
-│   ├── Auth/
-│   ├── Users/
-│   ├── Roles/
-│   ├── Permissions/
-│   └── Relationships/
-│       ├── Commands/
-│       └── Queries/
-├── Services/
-│   └── PermissionAppService.cs
-└── Behaviors/
+├── Interfaces/
+└── Services/
 ```
 
 Application rule:
@@ -170,20 +138,13 @@ Application rule:
 
 ```text
 Aegis.Infrastructure/
-├── Persistence/
-│   ├── AegisDbContext.cs
-│   ├── Configurations/
-│   ├── Migrations/
-│   └── Repositories/
+├── Aegis.Infrastructure.csproj
 ├── Authorization/
-│   ├── EfRelationshipStore.cs
-│   ├── RbacProvider.cs
-│   └── DenyPolicyProvider.cs
-├── Caching/
-│   └── RedisCacheProvider.cs
+├── DependencyInjection.cs
+├── DomainEvents/
 ├── Identity/
-│   └── JwtProvider.cs
-└── DependencyInjection.cs
+├── InfrastructureInitialization.cs
+└── Persistence/
 ```
 
 Infrastructure rule:
@@ -196,19 +157,15 @@ Infrastructure rule:
 
 ```text
 Aegis.Api/
-├── Controllers/
-│   ├── CheckController.cs
-│   ├── ExplainController.cs
-│   ├── RelationshipsController.cs
-│   ├── RolesController.cs
-│   └── PermissionsController.cs
-├── Middlewares/
-│   ├── TenantMiddleware.cs
-│   └── ExceptionMiddleware.cs
-├── Filters/
-├── Extensions/
+├── Aegis.Api.csproj
+├── Aegis.Api.http
 ├── Program.cs
-└── appsettings.json
+├── appsettings.json
+├── appsettings.Development.json
+├── Controllers/
+├── Extensions/
+├── Middlewares/
+└── Properties/
 ```
 
 API rule:
@@ -223,11 +180,7 @@ API rule:
 ```text
 tests/
 ├── Aegis.UnitTests/
-│   ├── Authorization/
-│   └── Domain/
 └── Aegis.IntegrationTests/
-      ├── ApiTests/
-      └── PersistenceTests/
 ```
 
 Test priorities:
@@ -358,7 +311,7 @@ This blueprint is intentionally strict on boundaries so the team can:
 
 ## 18. Related Documents
 
-- `docs/Overview.md`
+- `docs/overview.md`
 - `docs/architecture/permission-engine.md`
 - `docs/architecture/database-design.md`
-- `docs/architecture/api-spec.md`
+- `docs/reference/api-reference.md`
