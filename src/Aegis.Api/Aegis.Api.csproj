@@ -16,4 +16,8 @@
     <ProjectReference Include="..\Aegis.Contracts\Aegis.Contracts.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Controllers\" />
+  </ItemGroup>
+
 </Project>
