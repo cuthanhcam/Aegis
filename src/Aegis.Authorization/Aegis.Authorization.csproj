@@ -5,6 +5,11 @@
     <ProjectReference Include="..\Aegis.SharedKernel\Aegis.SharedKernel.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Core\Engine\" />
+    <Folder Include="Core\Parsing\" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
