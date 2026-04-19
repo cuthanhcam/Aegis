@@ -1,5 +1,6 @@
 using Aegis.Authorization.Core.Engine.Abstractions;
 using Aegis.Authorization.Core.Engine.Evaluators;
+using Aegis.Authorization.Core.Engine.Rewrite;
 using Aegis.Authorization.Core.Interfaces;
 using Aegis.Authorization.Core.Models;
 using Aegis.Authorization.Core.Parsing;
@@ -13,7 +14,7 @@ namespace Aegis.Authorization.Core.Engine
     {
         private readonly IRelationshipStore _relationshipStore;
         private readonly IAuthorizationModelProvider? _authorizationModelProvider;
-        private readonly AuthorizationRewriteEvaluator _rewriteEvaluator;
+        private readonly RewriteEvaluator _rewriteEvaluator;
         private readonly IReadOnlyList<IAuthorizationStageEvaluator> _stageEvaluators;
         private const int MaxDepth = 8;
 
@@ -27,7 +28,7 @@ namespace Aegis.Authorization.Core.Engine
         {
             _relationshipStore = relationshipStore;
             _authorizationModelProvider = authorizationModelProvider;
-            _rewriteEvaluator = new AuthorizationRewriteEvaluator(relationshipStore, IsAllowedByRebacAsync);
+            _rewriteEvaluator = new RewriteEvaluator(relationshipStore, IsAllowedByRebacAsync);
             _stageEvaluators =
             [
                 new DenyPolicyStageEvaluator(relationshipStore),
@@ -115,7 +116,7 @@ namespace Aegis.Authorization.Core.Engine
                 }
 
                 var rules = ParseRules(latestModel);
-                var objectType = AuthorizationRewriteSupport.GetTypeName(request.Object.Value);
+                var objectType = RewriteSupport.GetTypeName(request.Object.Value);
                 if (!rules.TryGetValue((objectType, request.Relation), out var terms))
                 {
                     return direct.Count > 0;
