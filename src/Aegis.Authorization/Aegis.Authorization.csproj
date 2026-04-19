@@ -7,7 +7,6 @@
 
   <ItemGroup>
     <Folder Include="Core\Engine\" />
-    <Folder Include="Core\Parsing\" />
   </ItemGroup>
 
   <PropertyGroup>
