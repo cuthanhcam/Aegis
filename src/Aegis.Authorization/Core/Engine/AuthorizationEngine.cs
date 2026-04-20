@@ -1,6 +1,7 @@
 using Aegis.Authorization.Core.Engine.Abstractions;
 using Aegis.Authorization.Core.Engine.Evaluators;
 using Aegis.Authorization.Core.Engine.Rewrite;
+using Aegis.Authorization.Caching;
 using Aegis.Authorization.Core.Interfaces;
 using Aegis.Authorization.Core.Models;
 using Aegis.Authorization.Core.Parsing;
@@ -14,6 +15,7 @@ namespace Aegis.Authorization.Core.Engine
     {
         private readonly IRelationshipStore _relationshipStore;
         private readonly IAuthorizationModelProvider? _authorizationModelProvider;
+        private readonly AuthorizationCache? _authorizationCache;
         private readonly RewriteEvaluator _rewriteEvaluator;
         private readonly IReadOnlyList<IAuthorizationStageEvaluator> _stageEvaluators;
         private const int MaxDepth = 8;
@@ -24,10 +26,12 @@ namespace Aegis.Authorization.Core.Engine
         public AuthorizationEngine(
             IRelationshipStore relationshipStore,
             IRbacProvider rbacProvider,
-            IAuthorizationModelProvider? authorizationModelProvider = null)
+            IAuthorizationModelProvider? authorizationModelProvider = null,
+            AuthorizationCache? authorizationCache = null)
         {
             _relationshipStore = relationshipStore;
             _authorizationModelProvider = authorizationModelProvider;
+            _authorizationCache = authorizationCache;
             _rewriteEvaluator = new RewriteEvaluator(relationshipStore, IsAllowedByRebacAsync);
             _stageEvaluators =
             [
@@ -42,11 +46,18 @@ namespace Aegis.Authorization.Core.Engine
         /// </summary>
         public async Task<DecisionResult> CheckAsync(CheckRequest request, bool includeTrace = false, CancellationToken cancellationToken = default)
         {
+            if (_authorizationCache is not null
+                && _authorizationCache.TryGet(request, includeTrace, out var cachedResult))
+            {
+                return cachedResult;
+            }
+
             var trace = new List<TraceStep>();
 
             var result = await EvaluatePipelineStagesAsync(request, includeTrace, trace, cancellationToken);
             if (result is not null)
             {
+                _authorizationCache?.Set(request, includeTrace, result);
                 return result;
             }
 
