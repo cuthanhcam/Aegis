@@ -53,6 +53,47 @@ public class AuthorizationCacheTests
         Assert.True(cache.TryGet(t2, includeTrace: false, out _));
     }
 
+    [Fact]
+    public void TryGet_DoesNotShareEntry_BetweenTraceModes()
+    {
+        var cache = new AuthorizationCache(TimeSpan.FromMinutes(1));
+        var request = BuildRequest("tenant-a", "user:alice", "read", "doc:1");
+        var result = new DecisionResult(true, "ALLOW", "ALLOW_RBAC", Array.Empty<TraceStep>());
+
+        cache.Set(request, includeTrace: false, result);
+
+        Assert.True(cache.TryGet(request, includeTrace: false, out _));
+        Assert.False(cache.TryGet(request, includeTrace: true, out _));
+    }
+
+    [Fact]
+    public void TryGet_DoesNotShareEntry_WhenContextualTuplesDiffer()
+    {
+        var cache = new AuthorizationCache(TimeSpan.FromMinutes(1));
+        var result = new DecisionResult(true, "ALLOW", "ALLOW_RBAC", Array.Empty<TraceStep>());
+
+        var withContextualTuple = new CheckRequest(
+            TenantId: "tenant-a",
+            Subject: new Subject("user:alice"),
+            Relation: "read",
+            Object: new ObjectRef("doc:1"),
+            ContextualTuples:
+            [
+                new RelationshipTuple(new Subject("user:alice"), "read", new ObjectRef("doc:1"), RelationshipEffect.Allow, DateTimeOffset.UtcNow)
+            ]);
+
+        var withoutContextualTuple = new CheckRequest(
+            TenantId: "tenant-a",
+            Subject: new Subject("user:alice"),
+            Relation: "read",
+            Object: new ObjectRef("doc:1"));
+
+        cache.Set(withContextualTuple, includeTrace: false, result);
+
+        Assert.True(cache.TryGet(withContextualTuple, includeTrace: false, out _));
+        Assert.False(cache.TryGet(withoutContextualTuple, includeTrace: false, out _));
+    }
+
     private static CheckRequest BuildRequest(
         string tenantId,
         string subject,

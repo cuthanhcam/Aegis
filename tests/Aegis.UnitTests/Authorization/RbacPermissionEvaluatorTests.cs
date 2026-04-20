@@ -73,6 +73,47 @@ public class RbacPermissionEvaluatorTests
         Assert.True(await evaluator.HasPermissionAsync(allowedByCondition));
     }
 
+    [Fact]
+    public async Task HasPermissionAsync_DoesNotApplyDeny_WhenDenyConditionNotMet()
+    {
+        var grants = new List<RbacPermissionGrant>
+        {
+            new("user:alice", "read", "doc:1", IsDeny: true, ConditionName: "blocked"),
+            new("user:alice", "read", "doc:1", IsDeny: false)
+        };
+
+        var evaluator = new RbacPermissionEvaluator((_, _, _) => Task.FromResult<IReadOnlyList<RbacPermissionGrant>>(grants));
+        var request = BuildRequest(
+            "tenant-a",
+            "user:alice",
+            "read",
+            "doc:1",
+            new Dictionary<string, JsonElement>
+            {
+                ["blocked"] = Json("false")
+            });
+
+        var allowed = await evaluator.HasPermissionAsync(request);
+
+        Assert.True(allowed);
+    }
+
+    [Fact]
+    public async Task HasPermissionAsync_MatchesObjectTypePattern()
+    {
+        var grants = new List<RbacPermissionGrant>
+        {
+            new("user:alice", "read", "doc", IsDeny: false)
+        };
+
+        var evaluator = new RbacPermissionEvaluator((_, _, _) => Task.FromResult<IReadOnlyList<RbacPermissionGrant>>(grants));
+        var request = BuildRequest("tenant-a", "user:alice", "read", "doc:99");
+
+        var allowed = await evaluator.HasPermissionAsync(request);
+
+        Assert.True(allowed);
+    }
+
     private static CheckRequest BuildRequest(
         string tenantId,
         string subject,
