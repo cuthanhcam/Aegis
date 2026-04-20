@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Aegis.Authorization.ABAC;
 
 namespace Aegis.Authorization.Core.Engine.Rewrite
 {
@@ -99,23 +100,7 @@ namespace Aegis.Authorization.Core.Engine.Rewrite
         /// </summary>
         public static bool EvaluateCondition(string conditionName, IReadOnlyDictionary<string, JsonElement>? context)
         {
-            if (context is null)
-            {
-                return false;
-            }
-
-            if (!context.TryGetValue(conditionName, out var value))
-            {
-                return false;
-            }
-
-            return value.ValueKind switch
-            {
-                JsonValueKind.True => true,
-                JsonValueKind.False => false,
-                JsonValueKind.String when bool.TryParse(value.GetString(), out var parsed) => parsed,
-                _ => false,
-            };
+            return ContextConditionEvaluator.Evaluate(conditionName, context);
         }
 
         /// <summary>
