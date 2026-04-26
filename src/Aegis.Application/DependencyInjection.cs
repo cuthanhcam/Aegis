@@ -1,5 +1,6 @@
 using Aegis.Application.Features.Permissions;
 using Aegis.Application.Features.Query;
+using Aegis.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Aegis.Application
@@ -19,6 +20,16 @@ namespace Aegis.Application
             services.AddScoped<ListObjectsQueryUseCase>();
             services.AddScoped<ExpandQueryUseCase>();
             services.AddScoped<ResolveUsersetEntriesFromRelationFiltersUseCase>();
+            services.AddScoped<AuthAppService>();
+            services.AddScoped<StoreAppService>();
+            services.AddScoped<AuthorizationModelAppService>();
+            services.AddScoped<AuthorizationQueryAppService>();
+            services.AddScoped<PermissionAppService>();
+            services.AddScoped<RelationshipAppService>();
+            services.AddScoped<AssertionAppService>();
+            services.AddScoped<RbacAdminService>();
+            services.AddSingleton<PresetAppService>();
+
             return services;
         }
     }
