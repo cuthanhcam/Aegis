@@ -37,7 +37,7 @@ namespace Aegis.Application.Interfaces
         /// <summary>
         /// Retrieves all permissions for a tenant.
         /// </summary>
-        Task<IReadOnlyList<PermissionDto>> GetPermissionAsync(
+        Task<IReadOnlyList<PermissionDto>> GetPermissionsAsync(
             string tenantId,
             CancellationToken cancellationToken = default);
 
