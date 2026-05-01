@@ -1,25 +1,11 @@
-// Application Layer Unit Tests - Query Operations  
-// Folder structure: tests/Aegis.UnitTests/Application/Features/Query/
-
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
-using Moq;
-using Aegis.Application.Features.Query;
-using Aegis.Application.Interfaces;
-using Aegis.Contracts.Common;
-
 namespace Aegis.UnitTests.Application.Features.Query
 {
     /// <summary>
     /// Tests for QueryAllowTuplesUseCase - Relationship tuple merging and querying
-    /// File: tests/Aegis.UnitTests/Application/Features/Query/QueryAllowTuplesUseCaseTests.cs
     /// </summary>
-    [Trait("Category", "Application")]
+    [Trait("Category", "ApplicationTests")]
     [Trait("Feature", "Query")]
-    public sealed class QueryAllowTuplesUseCaseTests
+    public class QueryAllowTuplesUseCaseTests
     {
         [Fact]
         public async Task ExecuteAsync_MergesPersistedAndContextualTuples()

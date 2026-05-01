@@ -1,27 +1,17 @@
-// Application Layer Unit Tests - Organized by namespace structure
-// This file consolidates tests organized by namespace hierarchy
-// Folder structure: tests/Aegis.UnitTests/Application/Features/Permissions/
-
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
-using Moq;
 using Aegis.Application.Features.Permissions;
-using Aegis.Application.Interfaces;
+using Aegis.Authorization.Core.Interfaces;
+using Aegis.Authorization.Core.Models;
 using Aegis.Contracts.Permissions;
-using Aegis.Contracts.Common;
+using Moq;
 
 namespace Aegis.UnitTests.Application.Features.Permissions
 {
     /// <summary>
     /// Tests for CheckPermissionUseCase - Primary authorization workflow
-    /// File: tests/Aegis.UnitTests/Application/Features/Permissions/CheckPermissionUseCaseTests.cs
     /// </summary>
-    [Trait("Category", "Application")]
+    [Trait("Category", "ApplicationTests")]
     [Trait("Feature", "Permissions")]
-    public sealed class CheckPermissionUseCaseTests
+    public class CheckPermissionUseCaseTests
     {
         [Fact]
         public async Task ExecuteAsync_WithValidAllowRequest_ReturnsTrue()
@@ -33,12 +23,12 @@ namespace Aegis.UnitTests.Application.Features.Permissions
 
             mockAuthEngine
                 .Setup(x => x.CheckAsync(It.IsAny<CheckRequest>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new DecisionResult(allowed: true, decision: "Allow", reasonCode: "AUTHORIZED", trace: new List<ExplainTraceStep>()));
+                .ReturnsAsync(new DecisionResult(true, "Allow", "AUTHORIZED", new List<TraceStep>()));
 
-            var request = new CheckRequestDto(Subject: "user:alice", Relation: "editor", Object: "doc:1", Context: null);
+            var request = new CheckRequestDto(Subject: "user:alice", Relation: "editor", Object: "doc:1", ContextualTuples: null, Consistency: null, AuthorizationModelId: null, Context: null);
 
             // Act
-            var result = await useCase.ExecuteAsync(request, CancellationToken.None);
+            var result = await useCase.ExecuteAsync("store-1", request, includeTrace: false, CancellationToken.None);
 
             // Assert
             Assert.NotNull(result);
@@ -56,12 +46,12 @@ namespace Aegis.UnitTests.Application.Features.Permissions
 
             mockAuthEngine
                 .Setup(x => x.CheckAsync(It.IsAny<CheckRequest>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new DecisionResult(allowed: false, decision: "Deny", reasonCode: "UNAUTHORIZED", trace: new List<ExplainTraceStep>()));
+                .ReturnsAsync(new DecisionResult(false, "Deny", "UNAUTHORIZED", new List<TraceStep>()));
 
-            var request = new CheckRequestDto(Subject: "user:bob", Relation: "viewer", Object: "doc:1", Context: null);
+            var request = new CheckRequestDto(Subject: "user:bob", Relation: "viewer", Object: "doc:1", ContextualTuples: null, Consistency: null, AuthorizationModelId: null, Context: null);
 
             // Act
-            var result = await useCase.ExecuteAsync(request, CancellationToken.None);
+            var result = await useCase.ExecuteAsync("store-1", request, includeTrace: false, CancellationToken.None);
 
             // Assert
             Assert.NotNull(result);
@@ -78,12 +68,12 @@ namespace Aegis.UnitTests.Application.Features.Permissions
 
             mockAuthEngine
                 .Setup(x => x.CheckAsync(It.IsAny<CheckRequest>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new DecisionResult(allowed: true, decision: "Allow", reasonCode: "AUTHORIZED", trace: new List<ExplainTraceStep>()));
+                .ReturnsAsync(new DecisionResult(true, "Allow", "AUTHORIZED", new List<TraceStep>()));
 
-            var request = new CheckRequestDto(Subject: "user:alice", Relation: "editor", Object: "doc:1", Context: null);
+            var request = new CheckRequestDto(Subject: "user:alice", Relation: "editor", Object: "doc:1", ContextualTuples: null, Consistency: null, AuthorizationModelId: null, Context: null);
 
             // Act
-            await useCase.ExecuteAsync(request, CancellationToken.None);
+            await useCase.ExecuteAsync("store-1", request, includeTrace: false, CancellationToken.None);
 
             // Assert
             mockAuditStore.Verify(x => x.WriteAsync(It.IsAny<AuditEvent>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -97,13 +87,13 @@ namespace Aegis.UnitTests.Application.Features.Permissions
             var mockAuditStore = new Mock<IAuditStore>();
             var useCase = new CheckPermissionUseCase(mockAuthEngine.Object, mockAuditStore.Object);
 
-            var cts = new CancellationTokenSource();
+            using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            var request = new CheckRequestDto(Subject: "user:alice", Relation: "editor", Object: "doc:1", Context: null);
+            var request = new CheckRequestDto(Subject: "user:alice", Relation: "editor", Object: "doc:1", ContextualTuples: null, Consistency: null, AuthorizationModelId: null, Context: null);
 
             // Act & Assert
-            await Assert.ThrowsAsync<OperationCanceledException>(() => useCase.ExecuteAsync(request, cts.Token));
+            await Assert.ThrowsAsync<OperationCanceledException>(() => useCase.ExecuteAsync("store-1", request, includeTrace: false, cts.Token));
         }
 
         [Fact]
@@ -115,7 +105,7 @@ namespace Aegis.UnitTests.Application.Features.Permissions
             var useCase = new CheckPermissionUseCase(mockAuthEngine.Object, mockAuditStore.Object);
 
             // Act & Assert
-            await Assert.ThrowsAsync<ArgumentNullException>(() => useCase.ExecuteAsync(null!, CancellationToken.None));
+            await Assert.ThrowsAsync<ArgumentNullException>(() => useCase.ExecuteAsync("store-1", null!, includeTrace: false, CancellationToken.None));
         }
 
         [Fact]
@@ -126,19 +116,19 @@ namespace Aegis.UnitTests.Application.Features.Permissions
             var mockAuditStore = new Mock<IAuditStore>();
             var useCase = new CheckPermissionUseCase(mockAuthEngine.Object, mockAuditStore.Object);
 
-            var traceSteps = new List<ExplainTraceStep>
+            var traceSteps = new List<TraceStep>
             {
-                new ExplainTraceStep { Step = 1, Description = "Check direct relationship" }
+                new("1", "Allow", "Check direct relationship")
             };
 
             mockAuthEngine
                 .Setup(x => x.CheckAsync(It.IsAny<CheckRequest>(), true, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new DecisionResult(allowed: true, decision: "Allow", reasonCode: "AUTHORIZED", trace: traceSteps));
+                .ReturnsAsync(new DecisionResult(true, "Allow", "AUTHORIZED", traceSteps));
 
-            var request = new CheckRequestDto(Subject: "user:alice", Relation: "editor", Object: "doc:1", Context: null);
+            var request = new CheckRequestDto(Subject: "user:alice", Relation: "editor", Object: "doc:1", ContextualTuples: null, Consistency: null, AuthorizationModelId: null, Context: null);
 
             // Act
-            var result = await useCase.ExecuteAsync(request, CancellationToken.None);
+            var result = await useCase.ExecuteAsync("store-1", request, includeTrace: true, CancellationToken.None);
 
             // Assert
             Assert.NotNull(result.Trace);
