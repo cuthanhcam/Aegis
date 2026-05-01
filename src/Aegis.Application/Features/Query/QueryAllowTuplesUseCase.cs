@@ -9,7 +9,7 @@ namespace Aegis.Application.Features.Query
 
         public QueryAllowTuplesUseCase(IRelationshipStore relationshipStore)
         {
-            _relationshipStore = relationshipStore;
+            _relationshipStore = relationshipStore ?? throw new ArgumentNullException(nameof(relationshipStore));
         }
 
         public async Task<IReadOnlyList<RelationshipTuple>> ExecuteAsync(
@@ -51,6 +51,8 @@ namespace Aegis.Application.Features.Query
 
             return merged
                 .Where(tuple => !denyKeys.Contains(KeyOf(tuple)))
+                .GroupBy(KeyOf, StringComparer.Ordinal)
+                .Select(group => group.OrderByDescending(x => x.CreatedAt).First())
                 .ToList();
         }
     }
