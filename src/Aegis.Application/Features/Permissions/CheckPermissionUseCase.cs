@@ -15,8 +15,8 @@ public sealed class CheckPermissionUseCase
         IAuthorizationEngine authorizationEngine,
         IAuditStore auditStore)
     {
-        _authorizationEngine = authorizationEngine;
-        _auditStore = auditStore;
+        _authorizationEngine = authorizationEngine ?? throw new ArgumentNullException(nameof(authorizationEngine));
+        _auditStore = auditStore ?? throw new ArgumentNullException(nameof(auditStore));
     }
 
     public async Task<CheckResponseDto> ExecuteAsync(
@@ -25,6 +25,9 @@ public sealed class CheckPermissionUseCase
         bool includeTrace,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(request);
+
         AuthorizationQueryHelper.ValidateCheckInput(request.Subject, request.Relation, request.Object);
 
         var decision = await _authorizationEngine.CheckAsync(

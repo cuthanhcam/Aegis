@@ -12,8 +12,8 @@ namespace Aegis.Application.Features.Permissions
             IStoreRegistry storeRegistry,
             IAuthorizationModelRegistry authorizationModelRegistry)
         {
-            _storeRegistry = storeRegistry;
-            _authorizationModelRegistry = authorizationModelRegistry;
+            _storeRegistry = storeRegistry ?? throw new ArgumentNullException(nameof(storeRegistry));
+            _authorizationModelRegistry = authorizationModelRegistry ?? throw new ArgumentNullException(nameof(authorizationModelRegistry));
         }
 
         public async Task<string> ExecuteAsync(
