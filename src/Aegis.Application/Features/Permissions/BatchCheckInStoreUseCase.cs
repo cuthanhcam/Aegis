@@ -9,11 +9,12 @@ namespace Aegis.Application.Features.Permissions
 {
     public sealed class BatchCheckInStoreUseCase
     {
+        private const int MaxBatchSize = 1000;
         private readonly CheckPermissionUseCase _checkPermissionUseCase;
 
         public BatchCheckInStoreUseCase(CheckPermissionUseCase checkPermissionUseCase)
         {
-            _checkPermissionUseCase = checkPermissionUseCase;
+            _checkPermissionUseCase = checkPermissionUseCase ?? throw new ArgumentNullException(nameof(checkPermissionUseCase));
         }
 
         public async Task<BatchCheckResponseDto> ExecuteAsync(
@@ -21,9 +22,16 @@ namespace Aegis.Application.Features.Permissions
             BatchCheckRequestDto request,
             CancellationToken cancellationToken = default)
         {
+            ArgumentNullException.ThrowIfNull(request);
+
             if (request.Items is null || request.Items.Count == 0)
             {
                 throw new ArgumentException("items are required.");
+            }
+
+            if (request.Items.Count > MaxBatchSize)
+            {
+                throw new ArgumentException($"items must not exceed {MaxBatchSize}.");
             }
 
             var results = new List<BatchCheckItemResultDto>(request.Items.Count);

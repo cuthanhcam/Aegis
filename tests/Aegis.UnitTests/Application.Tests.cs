@@ -1,10 +1,6 @@
-// Comprehensive Application Layer Test Suite
-// Organized by features: Permissions, Query, Services, DomainEvents
-// Run all tests: dotnet test tests/Aegis.UnitTests/ -k "ApplicationTests"
-
-// ============================================================================
-// PERMISSION FEATURES TESTS
-// ============================================================================
+// Comprehensive Application Layer Test Suite - Organized by features
+// Directory structure: tests/Aegis.UnitTests/Application/
+// Tests are organized by namespace matching the folder structure
 
 using System;
 using System.Collections.Generic;
