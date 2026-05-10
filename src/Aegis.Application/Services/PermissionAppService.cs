@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Aegis.Application.Services
 {
-    public sealed class PermissionAppService
+    public sealed class PermissionAppService : IPermissionAppService
     {
         private readonly CheckPermissionUseCase _checkPermissionUseCase;
         private readonly BatchCheckInStoreUseCase _batchCheckInStoreUseCase;

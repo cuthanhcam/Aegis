@@ -7,7 +7,7 @@ using Aegis.Domain.Repositories;
 
 namespace Aegis.Application.Services
 {
-    public sealed class StoreAppService
+    public sealed class StoreAppService : IStoreAppService
     {
         private readonly IStoreRegistry _storeRegistry;
         private readonly IRelationshipStore _relationshipStore;

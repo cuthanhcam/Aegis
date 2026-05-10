@@ -4,7 +4,7 @@ using Aegis.Domain.ValueObjects;
 
 namespace Aegis.Application.Services
 {
-    public sealed class RbacAdminService
+    public sealed class RbacAdminService : IRbacAdminService
     {
         private readonly IRbacAdminStore _rbacAdminStore;
 

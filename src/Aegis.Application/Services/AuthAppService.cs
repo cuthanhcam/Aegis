@@ -3,7 +3,7 @@ using Aegis.Contracts.Authentication;
 
 namespace Aegis.Application.Services
 {
-    public sealed class AuthAppService
+    public sealed class AuthAppService : IAuthAppService
     {
         private readonly IAuthSessionService _authSessionService;
 

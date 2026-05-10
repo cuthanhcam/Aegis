@@ -9,7 +9,7 @@ using System.Runtime.CompilerServices;
 
 namespace Aegis.Application.Services
 {
-    public sealed class AuthorizationQueryAppService
+    public sealed class AuthorizationQueryAppService : IAuthorizationQueryAppService
     {
         private readonly ResolveQueryModelContextUseCase _resolveQueryModelContextUseCase;
         private readonly ListUsersQueryUseCase _listUsersQueryUseCase;
