@@ -6,7 +6,7 @@ using Aegis.Domain.Repositories;
 
 namespace Aegis.Application.Services
 {
-    public sealed class AuthorizationModelAppService
+    public sealed class AuthorizationModelAppService : IAuthorizationModelAppService
     {
         private readonly IStoreRegistry _storeRegistry;
         private readonly IAuthorizationModelRegistry _authorizationModelRegistry;

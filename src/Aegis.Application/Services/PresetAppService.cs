@@ -1,9 +1,10 @@
+using Aegis.Application.Interfaces;
 using Aegis.Contracts.Administration;
 using System.Collections.Concurrent;
 
 namespace Aegis.Application.Services
 {
-    public sealed class PresetAppService
+    public sealed class PresetAppService : IPresetAppService
     {
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, PresetItemDto>> _tenantPresets =
             new(StringComparer.OrdinalIgnoreCase);
