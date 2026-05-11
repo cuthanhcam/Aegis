@@ -10,7 +10,9 @@ namespace Aegis.Application.Interfaces
         /// <summary>
         /// Creates a new store.
         /// </summary>
-        Task<StoreDto> CreateAsync(string name, CancellationToken cancellationToken = default);
+        Task<StoreDto> CreateAsync(
+            string name,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Lists all stores visible to the current scope.
@@ -20,11 +22,15 @@ namespace Aegis.Application.Interfaces
         /// <summary>
         /// Retrieves one store by identifier.
         /// </summary>
-        Task<StoreDto?> GetAsync(string storeId, CancellationToken cancellationToken = default);
+        Task<StoreDto?> GetAsync(
+            string storeId,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Deletes a store by identifier.
         /// </summary>
-        Task<bool> DeleteAsync(string storeId, CancellationToken cancellationToken = default);
+        Task<bool> DeleteAsync(
+            string storeId,
+            CancellationToken cancellationToken = default);
     }
 }
