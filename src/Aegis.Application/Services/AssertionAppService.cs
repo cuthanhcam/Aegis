@@ -6,7 +6,7 @@ using System.Collections.Concurrent;
 
 namespace Aegis.Application.Services
 {
-    public sealed class AssertionAppService
+    public sealed class AssertionAppService : IAssertionAppService
     {
         private static readonly ConcurrentDictionary<string, IReadOnlyList<AegisCompatAssertionDto>> AssertionsByModel = new(StringComparer.OrdinalIgnoreCase);
         private const int MaxAssertionsPerModel = 100;
