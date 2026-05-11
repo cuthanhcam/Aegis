@@ -1,8 +1,8 @@
 using Aegis.Application.Features.Permissions;
 using Aegis.Application.Features.Query;
+using Aegis.Application.Interfaces;
 using Aegis.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
-using Aegis.Application.Interfaces;
 
 namespace Aegis.Application
 {
@@ -10,6 +10,7 @@ namespace Aegis.Application
     {
         public static IServiceCollection AddAegisApplication(this IServiceCollection services)
         {
+            // Use Cases (registered without interfaces as they are directly consumed by application services)
             services.AddScoped<CheckPermissionUseCase>();
             services.AddScoped<BatchCheckInStoreUseCase>();
             services.AddScoped<ResolveAuthorizationModelUseCase>();
@@ -21,13 +22,15 @@ namespace Aegis.Application
             services.AddScoped<ListObjectsQueryUseCase>();
             services.AddScoped<ExpandQueryUseCase>();
             services.AddScoped<ResolveUsersetEntriesFromRelationFiltersUseCase>();
+
+            // Application Services - Standard Dependency Inversion Pattern
             services.AddScoped<IAuthAppService, AuthAppService>();
             services.AddScoped<IStoreAppService, StoreAppService>();
             services.AddScoped<IAuthorizationModelAppService, AuthorizationModelAppService>();
             services.AddScoped<IAuthorizationQueryAppService, AuthorizationQueryAppService>();
             services.AddScoped<IPermissionAppService, PermissionAppService>();
             services.AddScoped<IRelationshipService, RelationshipAppService>();
-            services.AddScoped<AssertionAppService>();
+            services.AddScoped<IAssertionAppService, AssertionAppService>();
             services.AddScoped<IRbacAdminService, RbacAdminService>();
             services.AddSingleton<IPresetAppService, PresetAppService>();
 
