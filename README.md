@@ -7,7 +7,6 @@
 ![ASP.NET Core](https://img.shields.io/badge/ASP.NET-Core-blueviolet?logo=dotnet\&logoColor=white)
 ![Architecture](https://img.shields.io/badge/Architecture-DDD-blueviolet)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
-![GitHub stars](https://img.shields.io/github/stars/cuthanhcam/Aegis?style=social)
 
 **Centralized, explainable authorization for modern distributed systems.**
 
