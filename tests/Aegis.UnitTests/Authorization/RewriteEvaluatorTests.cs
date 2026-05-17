@@ -1,6 +1,7 @@
 using Aegis.Authorization.Core.Engine.Rewrite;
 using Aegis.Authorization.Core.Interfaces;
 using Aegis.Authorization.Core.Models;
+using System.Text.Json;
 
 namespace Aegis.UnitTests.Authorization;
 
@@ -165,6 +166,100 @@ public class RewriteEvaluatorTests
 
         Assert.False(allowed);
         Assert.Contains(trace, step => step.Step == "REBAC_REWRITE" && step.Result == "EXCLUDED");
+    }
+
+    [Fact]
+    public async Task EvaluateTermAsync_PreservesRequestMetadata_ForTupleToUsersetNestedChecks()
+    {
+        var store = new InMemoryRelationshipStore();
+        await store.UpsertAsync("tenant-rw", CreateTuple("folder:root", "parent", "document:spec", RelationshipEffect.Allow));
+
+        CheckRequest? capturedNestedRequest = null;
+        var evaluator = new RewriteEvaluator(
+            store,
+            (req, _, _, _, _, _) =>
+            {
+                capturedNestedRequest = req;
+                return Task.FromResult(true);
+            });
+
+        var context = new Dictionary<string, JsonElement>
+        {
+            ["approved"] = JsonDocument.Parse("true").RootElement.Clone()
+        };
+
+        var request = new CheckRequest(
+            "tenant-rw",
+            new Subject("user:charlie"),
+            "viewer",
+            new ObjectRef("document:spec"),
+            ContextualTuples:
+            [
+                CreateTuple("user:charlie", "viewer", "document:spec", RelationshipEffect.Allow)
+            ],
+            Consistency: ConsistencyPreference.HigherConsistency,
+            AuthorizationModelId: "model-v2",
+            Context: context);
+
+        var allowed = await evaluator.EvaluateTermAsync(
+            request,
+            new RewriteTerm(["viewer from parent"], []),
+            includeTrace: false,
+            trace: new List<TraceStep>(),
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            depth: 0,
+            CancellationToken.None);
+
+        Assert.True(allowed);
+        Assert.NotNull(capturedNestedRequest);
+        Assert.Equal(request.Consistency, capturedNestedRequest!.Consistency);
+        Assert.Equal(request.AuthorizationModelId, capturedNestedRequest.AuthorizationModelId);
+        Assert.Same(request.Context, capturedNestedRequest.Context);
+    }
+
+    [Fact]
+    public async Task EvaluateTermAsync_PreservesRequestMetadata_ForComputedNestedChecks()
+    {
+        var store = new InMemoryRelationshipStore();
+
+        CheckRequest? capturedNestedRequest = null;
+        var evaluator = new RewriteEvaluator(
+            store,
+            (req, _, _, _, _, _) =>
+            {
+                capturedNestedRequest = req;
+                return Task.FromResult(true);
+            });
+
+        var context = new Dictionary<string, JsonElement>
+        {
+            ["feature_enabled"] = JsonDocument.Parse("true").RootElement.Clone()
+        };
+
+        var request = new CheckRequest(
+            "tenant-rw",
+            new Subject("user:charlie"),
+            "viewer",
+            new ObjectRef("document:spec"),
+            ContextualTuples: null,
+            Consistency: ConsistencyPreference.HigherConsistency,
+            AuthorizationModelId: "model-v3",
+            Context: context);
+
+        var allowed = await evaluator.EvaluateTermAsync(
+            request,
+            new RewriteTerm(["editor"], []),
+            includeTrace: false,
+            trace: new List<TraceStep>(),
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            depth: 0,
+            CancellationToken.None);
+
+        Assert.True(allowed);
+        Assert.NotNull(capturedNestedRequest);
+        Assert.Equal(request.Consistency, capturedNestedRequest!.Consistency);
+        Assert.Equal(request.AuthorizationModelId, capturedNestedRequest.AuthorizationModelId);
+        Assert.Same(request.Context, capturedNestedRequest.Context);
     }
 
     private static RelationshipTuple CreateTuple(string subject, string relation, string obj, RelationshipEffect effect)

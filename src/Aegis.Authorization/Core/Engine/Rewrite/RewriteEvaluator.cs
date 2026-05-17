@@ -104,7 +104,10 @@ namespace Aegis.Authorization.Core.Engine.Rewrite
 
                 foreach (var tuple in tuplesetCandidates)
                 {
-                    var nested = new CheckRequest(request.TenantId, request.Subject, computedRelation, new ObjectRef(tuple.Subject.Value), request.ContextualTuples);
+                    var nested = BuildNestedRequest(
+                        request,
+                        computedRelation,
+                        new ObjectRef(tuple.Subject.Value));
                     if (await _isAllowedByRebacAsync(nested, includeTrace, trace, visited, depth + 1, cancellationToken))
                     {
                         AuthorizationStageSupport.AddTrace(trace, includeTrace, new TraceStep("REBAC_REWRITE", "MATCHED_TUPLESET", tuplesetRelation));
@@ -149,7 +152,10 @@ namespace Aegis.Authorization.Core.Engine.Rewrite
                         continue;
                     }
 
-                    var nested = new CheckRequest(request.TenantId, request.Subject, marker, new ObjectRef(usersetObject), request.ContextualTuples);
+                    var nested = BuildNestedRequest(
+                        request,
+                        marker,
+                        new ObjectRef(usersetObject));
                     if (await _isAllowedByRebacAsync(nested, includeTrace, trace, visited, depth + 1, cancellationToken))
                     {
                         AuthorizationStageSupport.AddTrace(trace, includeTrace, new TraceStep("REBAC_REWRITE", "MATCHED_USERSET", tuple.Subject.Value));
@@ -175,7 +181,10 @@ namespace Aegis.Authorization.Core.Engine.Rewrite
                 return direct.Count > 0;
             }
 
-            var nestedRequest = new CheckRequest(request.TenantId, request.Subject, token, request.Object, request.ContextualTuples);
+            var nestedRequest = BuildNestedRequest(
+                request,
+                token,
+                request.Object);
             if (await _isAllowedByRebacAsync(nestedRequest, includeTrace, trace, visited, depth + 1, cancellationToken))
             {
                 AuthorizationStageSupport.AddTrace(trace, includeTrace, new TraceStep("REBAC_REWRITE", "MATCHED_COMPUTED", token));
@@ -203,6 +212,22 @@ namespace Aegis.Authorization.Core.Engine.Rewrite
             }
 
             return true;
+        }
+
+        private static CheckRequest BuildNestedRequest(
+            CheckRequest request,
+            string relation,
+            ObjectRef obj)
+        {
+            return new CheckRequest(
+                request.TenantId,
+                request.Subject,
+                relation,
+                obj,
+                request.ContextualTuples,
+                request.Consistency,
+                request.AuthorizationModelId,
+                request.Context);
         }
     }
 }
