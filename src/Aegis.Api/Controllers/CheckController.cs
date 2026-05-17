@@ -1,4 +1,5 @@
 using Aegis.Api.Controllers.Helpers;
+using Aegis.Api.Middlewares;
 using Aegis.Application.Interfaces;
 using Aegis.Contracts.Common;
 using Aegis.Contracts.Permissions;
@@ -20,12 +21,51 @@ namespace Aegis.Api.Controllers
         [HttpPost]
         [ProducesResponseType(typeof(ApiResponse<CheckResponseDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<ApiResponse<CheckResponseDto>>> Check(
-            [FromQuery] string tenantId,
+            [FromQuery] string? tenantId,
             [FromBody] CheckRequestDto request,
             CancellationToken cancellationToken)
         {
-            var result = await _permissionAppService.CheckAsync(tenantId, request, cancellationToken);
+            var resolvedTenantResult = ResolveTenantId(tenantId);
+            if (resolvedTenantResult.ErrorResult is not null)
+            {
+                return resolvedTenantResult.ErrorResult;
+            }
+
+            var result = await _permissionAppService.CheckAsync(resolvedTenantResult.TenantId!, request, cancellationToken);
             return this.OkResponse(result);
+        }
+
+        private (string? TenantId, ActionResult<ApiResponse<CheckResponseDto>>? ErrorResult) ResolveTenantId(string? queryTenantId)
+        {
+            var contextualTenantId = HttpContext.Items.TryGetValue(TenantContextMiddleware.TenantIdKey, out var tenantContext)
+                ? tenantContext as string
+                : null;
+
+            if (!string.IsNullOrWhiteSpace(contextualTenantId)
+                && !string.IsNullOrWhiteSpace(queryTenantId)
+                && !contextualTenantId.Equals(queryTenantId, StringComparison.OrdinalIgnoreCase))
+            {
+                return (
+                    null,
+                    BadRequest(ApiResponse<CheckResponseDto>.Fail(
+                        "TENANT_MISMATCH",
+                        "Tenant in query does not match authenticated/header tenant context.")));
+            }
+
+            var effectiveTenantId = !string.IsNullOrWhiteSpace(contextualTenantId)
+                ? contextualTenantId
+                : queryTenantId;
+
+            if (string.IsNullOrWhiteSpace(effectiveTenantId))
+            {
+                return (
+                    null,
+                    BadRequest(ApiResponse<CheckResponseDto>.Fail(
+                        "TENANT_REQUIRED",
+                        "Tenant context is required from JWT/header context or tenantId query parameter.")));
+            }
+
+            return (effectiveTenantId, null);
         }
     }
 }
