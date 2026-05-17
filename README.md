@@ -1,10 +1,9 @@
-
 # 🛡️ Aegis Authorization Platform
 
-![Platform](https://img.shields.io/badge/Platform-Authorization-blueviolet?logo=shield\&logoColor=white)
+![Platform](https://img.shields.io/badge/Platform-Authorization-blueviolet?logo=shield&logoColor=white)
 ![Authorization Model](https://img.shields.io/badge/Auth-ReBAC%20%7C%20RBAC%20%7C%20ABAC-blueviolet)
-![.NET 8 | 10](https://img.shields.io/badge/.NET-8%20%7C%2010-blueviolet?logo=dotnet\&logoColor=white)
-![ASP.NET Core](https://img.shields.io/badge/ASP.NET-Core-blueviolet?logo=dotnet\&logoColor=white)
+![.NET 8 | 10](https://img.shields.io/badge/.NET-8%20%7C%2010-blueviolet?logo=dotnet&logoColor=white)
+![ASP.NET Core](https://img.shields.io/badge/ASP.NET-Core-blueviolet?logo=dotnet&logoColor=white)
 ![Architecture](https://img.shields.io/badge/Architecture-DDD-blueviolet)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
@@ -20,9 +19,9 @@ It provides a dedicated authorization service that delivers **deterministic and 
 
 Aegis supports multiple authorization models:
 
-* Relationship-Based Access Control (**ReBAC**)
-* Role-Based Access Control (**RBAC**)
-* Attribute-Based Access Control (**ABAC**)
+- Relationship-Based Access Control (**ReBAC**)
+- Role-Based Access Control (**RBAC**)
+- Attribute-Based Access Control (**ABAC**)
 
 Built with **Domain-Driven Design (DDD)** and clean architecture principles, Aegis ensures scalability, maintainability, and clear separation of concerns.
 
@@ -30,23 +29,23 @@ Built with **Domain-Driven Design (DDD)** and clean architecture principles, Aeg
 
 ## ✨ Key Features
 
-* 🔐 **ReBAC (Primary)** — Fine-grained permissions via tuple model
-* 👥 **RBAC** — Role-based fallback for coarse-grained access
-* 🧩 **ABAC** — Attribute-driven policy evaluation
-* 🏢 **Multi-Tenancy** — Strict tenant isolation
-* 🔍 **Explainability** — Full decision tracing (`/explain`)
-* 📜 **Audit Logs** — Compliance-ready tracking
-* 🌐 **RESTful API** — Simple and predictable endpoints
+- 🔐 **ReBAC (Primary)** — Fine-grained permissions via tuple model
+- 👥 **RBAC** — Role-based fallback for coarse-grained access
+- 🧩 **ABAC** — Attribute-driven policy evaluation
+- 🏢 **Multi-Tenancy** — Strict tenant isolation
+- 🔍 **Explainability** — Full decision tracing (`/explain`)
+- 📜 **Audit Logs** — Compliance-ready tracking
+- 🌐 **RESTful API** — Simple and predictable endpoints
 
 ---
 
 ## ❓ Why Aegis?
 
-* Combines **ReBAC + RBAC + ABAC** in a single engine
-* **Deterministic evaluation** — same input, same result
-* Built-in **decision explainability** for debugging and audits
-* Clean separation between **authorization engine and API layer**
-* Designed for **multi-tenant SaaS systems from day one**
+- Combines **ReBAC + RBAC + ABAC** in a single engine
+- **Deterministic evaluation** — same input, same result
+- Built-in **decision explainability** for debugging and audits
+- Clean separation between **authorization engine and API layer**
+- Designed for **multi-tenant SaaS systems from day one**
 
 ---
 
@@ -54,8 +53,8 @@ Built with **Domain-Driven Design (DDD)** and clean architecture principles, Aeg
 
 ### Prerequisites
 
-* .NET 8 SDK
-* PostgreSQL (or Docker)
+- .NET 8 SDK
+- PostgreSQL (or Docker)
 
 ### Run locally
 
@@ -128,9 +127,9 @@ API → Application → Authorization Engine → Domain → Infrastructure
 
 **Highlights:**
 
-* Authorization Engine is **pure domain logic** (no HTTP / EF)
-* Deterministic and testable evaluation
-* Clear separation of concerns across layers
+- Authorization Engine is **pure domain logic** (no HTTP / EF)
+- Deterministic and testable evaluation
+- Clear separation of concerns across layers
 
 ---
 
@@ -150,10 +149,10 @@ API → Application → Authorization Engine → Domain → Infrastructure
 
 ## 🎯 Use Cases
 
-* **SaaS Multi-Tenant Systems** — Tenant-isolated authorization
-* **Document Collaboration** — Fine-grained sharing & ownership
-* **Microservices Architecture** — Centralized access control
-* **Audit & Compliance** — Traceable decision logs
+- **SaaS Multi-Tenant Systems** — Tenant-isolated authorization
+- **Document Collaboration** — Fine-grained sharing & ownership
+- **Microservices Architecture** — Centralized access control
+- **Audit & Compliance** — Traceable decision logs
 
 ---
 
@@ -175,18 +174,18 @@ docker run -e DB_CONNECTION_STRING="..." aegis
 
 Supports:
 
-* Docker
-* Kubernetes (Helm)
-* AWS / Azure / GCP
+- Docker
+- Kubernetes (Helm)
+- AWS / Azure / GCP
 
 ---
 
 ## 📚 Documentation
 
-* `docs/product/` — Overview & use cases
-* `docs/concepts/` — Authorization models
-* `docs/reference/` — API reference
-* `docs/guides/` — Setup & deployment
+- `docs/product/` — Overview & use cases
+- `docs/concepts/` — Authorization models
+- `docs/reference/` — API reference
+- `docs/guides/` — Setup & deployment
 
 ---
 
@@ -204,5 +203,5 @@ MIT License
 
 ## 👉 Get Started
 
-* Product overview → `docs/product/product-overview.md`
-* Development guide → `docs/guides/getting-started-development.md`
+- Product overview → `docs/product/product-overview.md`
+- Development guide → `docs/guides/getting-started-development.md`
