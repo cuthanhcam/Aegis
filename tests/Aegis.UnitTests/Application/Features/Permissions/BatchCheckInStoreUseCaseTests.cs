@@ -1,6 +1,9 @@
 using Aegis.Application.Features.Permissions;
+using Aegis.Application.Interfaces;
 using Aegis.Authorization.Core.Interfaces;
 using Aegis.Authorization.Core.Models;
+using Aegis.Contracts.Administration;
+using Aegis.Contracts.Compatibility;
 using Aegis.Contracts.Permissions;
 using Moq;
 
@@ -19,8 +22,7 @@ namespace Aegis.UnitTests.Application.Features.Permissions
             // Arrange
             var mockAuthEngine = new Mock<IAuthorizationEngine>();
             var mockAuditStore = new Mock<IAuditStore>();
-            var checkUseCase = new CheckPermissionUseCase(mockAuthEngine.Object, mockAuditStore.Object);
-            var useCase = new BatchCheckInStoreUseCase(checkUseCase);
+            var useCase = BuildUseCase(mockAuthEngine, mockAuditStore);
 
             mockAuthEngine
                 .Setup(x => x.CheckAsync(It.IsAny<CheckRequest>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -46,8 +48,7 @@ namespace Aegis.UnitTests.Application.Features.Permissions
             // Arrange
             var mockAuthEngine = new Mock<IAuthorizationEngine>();
             var mockAuditStore = new Mock<IAuditStore>();
-            var checkUseCase = new CheckPermissionUseCase(mockAuthEngine.Object, mockAuditStore.Object);
-            var useCase = new BatchCheckInStoreUseCase(checkUseCase);
+            var useCase = BuildUseCase(mockAuthEngine, mockAuditStore);
 
             // Act & Assert
             await Assert.ThrowsAsync<ArgumentException>(() => useCase.ExecuteAsync("store-1", new BatchCheckRequestDto([])));
@@ -59,8 +60,7 @@ namespace Aegis.UnitTests.Application.Features.Permissions
             // Arrange
             var mockAuthEngine = new Mock<IAuthorizationEngine>();
             var mockAuditStore = new Mock<IAuditStore>();
-            var checkUseCase = new CheckPermissionUseCase(mockAuthEngine.Object, mockAuditStore.Object);
-            var useCase = new BatchCheckInStoreUseCase(checkUseCase);
+            var useCase = BuildUseCase(mockAuthEngine, mockAuditStore);
 
             mockAuthEngine
                 .Setup(x => x.CheckAsync(It.IsAny<CheckRequest>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -85,8 +85,7 @@ namespace Aegis.UnitTests.Application.Features.Permissions
             // Arrange
             var mockAuthEngine = new Mock<IAuthorizationEngine>();
             var mockAuditStore = new Mock<IAuditStore>();
-            var checkUseCase = new CheckPermissionUseCase(mockAuthEngine.Object, mockAuditStore.Object);
-            var useCase = new BatchCheckInStoreUseCase(checkUseCase);
+            var useCase = BuildUseCase(mockAuthEngine, mockAuditStore);
 
             mockAuthEngine
                 .Setup(x => x.CheckAsync(It.IsAny<CheckRequest>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -113,8 +112,7 @@ namespace Aegis.UnitTests.Application.Features.Permissions
             // Arrange
             var mockAuthEngine = new Mock<IAuthorizationEngine>();
             var mockAuditStore = new Mock<IAuditStore>();
-            var checkUseCase = new CheckPermissionUseCase(mockAuthEngine.Object, mockAuditStore.Object);
-            var useCase = new BatchCheckInStoreUseCase(checkUseCase);
+            var useCase = BuildUseCase(mockAuthEngine, mockAuditStore);
 
             var items = Enumerable.Range(0, 1001)
                 .Select(i => new BatchCheckItemDto($"user:{i}", "viewer", $"doc:{i}", null, null, null, null, null))
@@ -130,8 +128,7 @@ namespace Aegis.UnitTests.Application.Features.Permissions
             // Arrange
             var mockAuthEngine = new Mock<IAuthorizationEngine>();
             var mockAuditStore = new Mock<IAuditStore>();
-            var checkUseCase = new CheckPermissionUseCase(mockAuthEngine.Object, mockAuditStore.Object);
-            var useCase = new BatchCheckInStoreUseCase(checkUseCase);
+            var useCase = BuildUseCase(mockAuthEngine, mockAuditStore);
 
             mockAuthEngine
                 .Setup(x => x.CheckAsync(It.IsAny<CheckRequest>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -148,6 +145,52 @@ namespace Aegis.UnitTests.Application.Features.Permissions
 
             // Assert
             mockAuditStore.Verify(x => x.WriteAsync(It.IsAny<AuditEvent>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithUnknownAuthorizationModel_ThrowsCompatibilityApiException()
+        {
+            var mockAuthEngine = new Mock<IAuthorizationEngine>();
+            var mockAuditStore = new Mock<IAuditStore>();
+            var mockStoreRegistry = new Mock<IStoreRegistry>();
+            var mockModelRegistry = new Mock<IAuthorizationModelRegistry>();
+
+            mockStoreRegistry
+                .Setup(x => x.GetAsync("store-1", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new StoreDto("store-1", "Store 1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow));
+
+            mockModelRegistry
+                .Setup(x => x.GetByIdAsync("store-1", "missing-model", It.IsAny<CancellationToken>()))
+                .ReturnsAsync((AuthorizationModelDto?)null);
+
+            var checkUseCase = new CheckPermissionUseCase(mockAuthEngine.Object, mockAuditStore.Object);
+            var resolveUseCase = new ResolveAuthorizationModelUseCase(mockStoreRegistry.Object, mockModelRegistry.Object);
+            var useCase = new BatchCheckInStoreUseCase(checkUseCase, resolveUseCase);
+
+            var request = new BatchCheckRequestDto(
+            [
+                new BatchCheckItemDto("user:alice", "viewer", "doc:1", AuthorizationModelId: "missing-model")
+            ]);
+
+            await Assert.ThrowsAsync<CompatibilityApiException>(() =>
+                useCase.ExecuteAsync("store-1", request, CancellationToken.None));
+        }
+
+        private static BatchCheckInStoreUseCase BuildUseCase(
+            Mock<IAuthorizationEngine> mockAuthEngine,
+            Mock<IAuditStore> mockAuditStore)
+        {
+            var mockStoreRegistry = new Mock<IStoreRegistry>();
+            var mockModelRegistry = new Mock<IAuthorizationModelRegistry>();
+
+            mockStoreRegistry
+                .Setup(x => x.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string storeId, CancellationToken _) =>
+                    new StoreDto(storeId, "Test Store", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow));
+
+            var checkUseCase = new CheckPermissionUseCase(mockAuthEngine.Object, mockAuditStore.Object);
+            var resolveUseCase = new ResolveAuthorizationModelUseCase(mockStoreRegistry.Object, mockModelRegistry.Object);
+            return new BatchCheckInStoreUseCase(checkUseCase, resolveUseCase);
         }
     }
 }

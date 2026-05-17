@@ -24,7 +24,17 @@ namespace Aegis.Api.Controllers
             [FromBody] CheckRequestDto request,
             CancellationToken cancellationToken)
         {
-            var result = await _permissionAppService.CheckAsync(storeId, request, cancellationToken);
+            var result = await _permissionAppService.CheckInStoreAsync(
+                storeId,
+                new StoreCheckRequestDto(
+                    request.Subject,
+                    request.Relation,
+                    request.Object,
+                    request.ContextualTuples,
+                    request.Consistency,
+                    request.AuthorizationModelId,
+                    request.Context),
+                cancellationToken);
             return this.OkResponse(result);
         }
 
@@ -35,7 +45,17 @@ namespace Aegis.Api.Controllers
             [FromBody] CheckRequestDto request,
             CancellationToken cancellationToken)
         {
-            var result = await _permissionAppService.ExplainAsync(storeId, request, cancellationToken);
+            var result = await _permissionAppService.ExplainInStoreAsync(
+                storeId,
+                new StoreCheckRequestDto(
+                    request.Subject,
+                    request.Relation,
+                    request.Object,
+                    request.ContextualTuples,
+                    request.Consistency,
+                    request.AuthorizationModelId,
+                    request.Context),
+                cancellationToken);
             return this.OkResponse(result);
         }
 
