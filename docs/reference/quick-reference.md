@@ -1,4 +1,4 @@
-# Quick Reference  Aegis Cheat Sheet
+# Quick Reference Aegis Cheat Sheet
 
 ---
 
@@ -29,11 +29,12 @@ curl -X POST http://localhost:5000/api/v1/check \
 ```
 
 **Response:**
+
 ```json
 {
-  "allowed": true,
-  "decision": "ALLOW",
-  "reasonCode": "ALLOW_REBAC_DIRECT"
+    "allowed": true,
+    "decision": "ALLOW",
+    "reasonCode": "ALLOW_REBAC_DIRECT"
 }
 ```
 
@@ -52,13 +53,18 @@ curl -X POST http://localhost:5000/api/v1/explain \
 ```
 
 **Response:**
+
 ```json
 {
-  "allowed": false,
-  "trace": [
-    { "step": "CHECK_DENY", "result": "MATCHED", "details": "Explicit deny found" },
-    { "step": "FINAL", "result": "DENY" }
-  ]
+    "allowed": false,
+    "trace": [
+        {
+            "step": "CHECK_DENY",
+            "result": "MATCHED",
+            "details": "Explicit deny found"
+        },
+        { "step": "FINAL", "result": "DENY" }
+    ]
 }
 ```
 
@@ -179,18 +185,19 @@ curl "http://localhost:5000/api/v1/audit-logs?limit=100" \
 ```
 
 **Response:**
+
 ```json
 {
-  "data": [
-    {
-      "timestamp": "2026-04-07T10:30:00Z",
-      "action": "RELATIONSHIP_CREATED",
-      "subject": "user:alice",
-      "relation": "editor",
-      "object": "document:report",
-      "initiatedBy": "admin:system"
-    }
-  ]
+    "data": [
+        {
+            "timestamp": "2026-04-07T10:30:00Z",
+            "action": "RELATIONSHIP_CREATED",
+            "subject": "user:alice",
+            "relation": "editor",
+            "object": "document:report",
+            "initiatedBy": "admin:system"
+        }
+    ]
 }
 ```
 
@@ -222,37 +229,41 @@ curl -X POST http://localhost:5000/api/v1/stores \
 
 ## Authorization Decision Codes
 
-| Code | Meaning |
-|------|---------|
-| `ALLOW_REBAC_DIRECT` | Direct tuple match (ReBAC) |
-| `ALLOW_RBAC_ROLE` | User role has permission |
-| `DENY_EXPLICIT` | Explicit deny tuple matched |
-| `DENY_NOT_FOUND` | No allow rule matched |
-| `DENY_INVALID_INPUT` | Malformed request |
+| Code                 | Meaning                     |
+| -------------------- | --------------------------- |
+| `ALLOW_REBAC_DIRECT` | Direct tuple match (ReBAC)  |
+| `ALLOW_RBAC_ROLE`    | User role has permission    |
+| `DENY_EXPLICIT`      | Explicit deny tuple matched |
+| `DENY_NOT_FOUND`     | No allow rule matched       |
+| `DENY_INVALID_INPUT` | Malformed request           |
 
 ---
 
 ## Common Tuple Patterns
 
 ### Resource Ownership
+
 ```
 (user:alice, owner, document:report)     Alice owns the report
 (team:dev, owner, repo:code)             Dev team owns the codebase
 ```
 
 ### Resource Sharing
+
 ```
 (user:bob, editor, document:report)      Bob can edit the report
 (user:charlie, viewer, document:report)  Charlie can view the report
 ```
 
 ### Team Membership
+
 ```
 (user:alice, member, team:engineering)   Alice is in engineering team
 (user:bob, admin, team:engineering)      Bob is admin of team
 ```
 
 ### Hierarchies
+
 ```
 (team:sub, parent, team:main)            Sub-team is part of main team
 (user:alice, member, team:sub)           Alice is in sub-team
@@ -264,16 +275,19 @@ curl -X POST http://localhost:5000/api/v1/stores \
 ## Headers & Context
 
 **Required tenant header:**
+
 ```
 X-Tenant-Id: tenant-123
 ```
 
 **Optional authentication header:**
+
 ```
 Authorization: Bearer <jwt-token>
 ```
 
 **Response headers:**
+
 ```
 X-RateLimit-Limit: 1000
 X-RateLimit-Remaining: 999
@@ -312,6 +326,7 @@ dotnet ef migrations add MigrationName -p ../Aegis.Infrastructure
 ## Database Queries (SQL)
 
 ### List all relationships
+
 ```sql
 SELECT * FROM relationships
 WHERE tenant_id = 'tenant-123'
@@ -319,6 +334,7 @@ ORDER BY created_at DESC;
 ```
 
 ### Find specific relationship
+
 ```sql
 SELECT * FROM relationships
 WHERE tenant_id = 'tenant-123'
@@ -328,6 +344,7 @@ WHERE tenant_id = 'tenant-123'
 ```
 
 ### Count relationships per tenant
+
 ```sql
 SELECT tenant_id, COUNT(*) as count
 FROM relationships
@@ -335,6 +352,7 @@ GROUP BY tenant_id;
 ```
 
 ### List audit events for a subject
+
 ```sql
 SELECT * FROM audit_logs
 WHERE tenant_id = 'tenant-123'
@@ -414,6 +432,7 @@ kubectl logs -f deployment/aegis
 ## Troubleshooting
 
 ### API not responding
+
 ```bash
 # Check if API is running
 curl http://localhost:5000/health
@@ -423,6 +442,7 @@ dotnet run --verbosity debug
 ```
 
 ### Database connection failed
+
 ```bash
 # Verify PostgreSQL is running
 psql -h localhost -U postgres -c "SELECT version();"
@@ -432,17 +452,19 @@ psql -h localhost -U postgres -c "SELECT version();"
 ```
 
 ### Permission check unexpected result
+
 ```bash
 # Always use /explain to debug
 curl -X POST http://localhost:5000/api/v1/explain \
   -H "X-Tenant-Id: tenant-123" \
   -d '{"subject":"user:x","relation":"y","object":"z"}'
-  
+
 # Check audit logs for changes
 curl http://localhost:5000/api/v1/audit-logs -H "X-Tenant-Id: tenant-123"
 ```
 
 ### JWT token validation failed
+
 ```bash
 # Verify token
 jwt decode <token>

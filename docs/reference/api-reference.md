@@ -1,10 +1,11 @@
-# API Reference  Aegis Authorization Platform
+# API Reference Aegis Authorization Platform
 
 ---
 
 ## Overview
 
 All Aegis APIs are:
+
 - **Tenant-scoped** (require `X-Tenant-Id` header)
 - **RESTful** with JSON request/response
 - **Versioned** under `/api/v1`
@@ -66,9 +67,9 @@ Content-Type: application/json
 
 ```json
 {
-  "allowed": true,
-  "decision": "ALLOW",
-  "reasonCode": "ALLOW_REBAC_DIRECT"
+    "allowed": true,
+    "decision": "ALLOW",
+    "reasonCode": "ALLOW_REBAC_DIRECT"
 }
 ```
 
@@ -76,28 +77,28 @@ Content-Type: application/json
 
 ```json
 {
-  "allowed": false,
-  "decision": "DENY",
-  "reasonCode": "DENY_NOT_FOUND"
+    "allowed": false,
+    "decision": "DENY",
+    "reasonCode": "DENY_NOT_FOUND"
 }
 ```
 
 **Reason Codes:**
 
-| Code | Meaning |
-|------|---------|
+| Code                 | Meaning                       |
+| -------------------- | ----------------------------- |
 | `ALLOW_REBAC_DIRECT` | Direct tuple matched in ReBAC |
-| `ALLOW_RBAC_ROLE` | RBAC role permission matched |
-| `DENY_EXPLICIT` | Explicit deny tuple matched |
-| `DENY_NOT_FOUND` | No allow rule matched |
-| `DENY_INVALID_INPUT` | Malformed request |
+| `ALLOW_RBAC_ROLE`    | RBAC role permission matched  |
+| `DENY_EXPLICIT`      | Explicit deny tuple matched   |
+| `DENY_NOT_FOUND`     | No allow rule matched         |
+| `DENY_INVALID_INPUT` | Malformed request             |
 
 **Error (400 Bad Request):**
 
 ```json
 {
-  "error": "Invalid tuple format",
-  "details": "Subject must be <type>:<id>"
+    "error": "Invalid tuple format",
+    "details": "Subject must be <type>:<id>"
 }
 ```
 
@@ -126,43 +127,44 @@ X-Tenant-Id: tenant-123
 
 ```json
 {
-  "allowed": true,
-  "decision": "ALLOW",
-  "reasonCode": "ALLOW_REBAC_DIRECT",
-  "trace": [
-    {
-      "step": "VALIDATE_INPUT",
-      "result": "SUCCESS",
-      "details": "Tuple format valid"
-    },
-    {
-      "step": "CHECK_DENY_POLICY",
-      "result": "NOT_MATCHED",
-      "details": "No explicit deny rules found"
-    },
-    {
-      "step": "CHECK_REBAC_DIRECT",
-      "result": "MATCHED",
-      "details": "Tuple (user:alice, editor, document:report) found with effect=allow",
-      "tuple": {
-        "subject": "user:alice",
-        "relation": "editor",
-        "object": "document:report",
-        "effect": "allow"
-      }
-    },
-    {
-      "step": "FINAL_DECISION",
-      "result": "ALLOW"
-    }
-  ]
+    "allowed": true,
+    "decision": "ALLOW",
+    "reasonCode": "ALLOW_REBAC_DIRECT",
+    "trace": [
+        {
+            "step": "VALIDATE_INPUT",
+            "result": "SUCCESS",
+            "details": "Tuple format valid"
+        },
+        {
+            "step": "CHECK_DENY_POLICY",
+            "result": "NOT_MATCHED",
+            "details": "No explicit deny rules found"
+        },
+        {
+            "step": "CHECK_REBAC_DIRECT",
+            "result": "MATCHED",
+            "details": "Tuple (user:alice, editor, document:report) found with effect=allow",
+            "tuple": {
+                "subject": "user:alice",
+                "relation": "editor",
+                "object": "document:report",
+                "effect": "allow"
+            }
+        },
+        {
+            "step": "FINAL_DECISION",
+            "result": "ALLOW"
+        }
+    ]
 }
 ```
 
 **Use Cases:**
--  **Debugging access issues**  Why was a user denied?
--  **Compliance audits**  How was this decision made?
--  **Testing authorization logic**  Validate your rules work
+
+- **Debugging access issues** Why was a user denied?
+- **Compliance audits** How was this decision made?
+- **Testing authorization logic** Validate your rules work
 
 ---
 
@@ -190,20 +192,21 @@ X-Tenant-Id: tenant-123
 
 ```json
 {
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "tenantId": "tenant-123",
-  "subject": "user:bob",
-  "relation": "viewer",
-  "object": "document:report",
-  "effect": "allow",
-  "createdAt": "2026-04-07T10:30:00Z",
-  "updatedAt": "2026-04-07T10:30:00Z"
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "tenantId": "tenant-123",
+    "subject": "user:bob",
+    "relation": "viewer",
+    "object": "document:report",
+    "effect": "allow",
+    "createdAt": "2026-04-07T10:30:00Z",
+    "updatedAt": "2026-04-07T10:30:00Z"
 }
 ```
 
 **Notes:**
+
 - `effect` defaults to `allow` if omitted
-- Request is **idempotent**  creating the same tuple twice returns 201 both times
+- Request is **idempotent** creating the same tuple twice returns 201 both times
 
 ---
 
@@ -222,39 +225,39 @@ X-Tenant-Id: tenant-123
 
 ```json
 {
-  "data": [
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "subject": "user:alice",
-      "relation": "owner",
-      "object": "document:report",
-      "effect": "allow",
-      "createdAt": "2026-04-07T09:00:00Z"
-    },
-    {
-      "id": "660e8400-e29b-41d4-a716-446655440001",
-      "subject": "user:alice",
-      "relation": "editor",
-      "object": "document:report",
-      "effect": "allow",
-      "createdAt": "2026-04-07T09:30:00Z"
-    }
-  ],
-  "total": 2,
-  "page": 1,
-  "pageSize": 50
+    "data": [
+        {
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "subject": "user:alice",
+            "relation": "owner",
+            "object": "document:report",
+            "effect": "allow",
+            "createdAt": "2026-04-07T09:00:00Z"
+        },
+        {
+            "id": "660e8400-e29b-41d4-a716-446655440001",
+            "subject": "user:alice",
+            "relation": "editor",
+            "object": "document:report",
+            "effect": "allow",
+            "createdAt": "2026-04-07T09:30:00Z"
+        }
+    ],
+    "total": 2,
+    "page": 1,
+    "pageSize": 50
 }
 ```
 
 **Query Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `subject` | string | Filter by subject |
-| `relation` | string | Filter by relation |
-| `object` | string | Filter by object |
-| `effect` | string | Filter by effect (allow/deny) |
-| `page` | number | Page number (default: 1) |
+| Parameter  | Type   | Description                             |
+| ---------- | ------ | --------------------------------------- |
+| `subject`  | string | Filter by subject                       |
+| `relation` | string | Filter by relation                      |
+| `object`   | string | Filter by object                        |
+| `effect`   | string | Filter by effect (allow/deny)           |
+| `page`     | number | Page number (default: 1)                |
 | `pageSize` | number | Items per page (default: 50, max: 1000) |
 
 ---
@@ -293,8 +296,8 @@ X-Tenant-Id: tenant-123
 
 ```json
 {
-  "deletedCount": 3,
-  "message": "3 relationships deleted"
+    "deletedCount": 3,
+    "message": "3 relationships deleted"
 }
 ```
 
@@ -323,11 +326,11 @@ X-Tenant-Id: tenant-123
 
 ```json
 {
-  "id": "user:uuid-here",
-  "tenantId": "tenant-123",
-  "username": "alice",
-  "email": "alice@company.com",
-  "createdAt": "2026-04-07T10:30:00Z"
+    "id": "user:uuid-here",
+    "tenantId": "tenant-123",
+    "username": "alice",
+    "email": "alice@company.com",
+    "createdAt": "2026-04-07T10:30:00Z"
 }
 ```
 
@@ -348,15 +351,15 @@ X-Tenant-Id: tenant-123
 
 ```json
 {
-  "data": [
-    {
-      "id": "user-uuid-1",
-      "username": "alice",
-      "email": "alice@company.com"
-    }
-  ],
-  "total": 1,
-  "page": 1
+    "data": [
+        {
+            "id": "user-uuid-1",
+            "username": "alice",
+            "email": "alice@company.com"
+        }
+    ],
+    "total": 1,
+    "page": 1
 }
 ```
 
@@ -377,11 +380,11 @@ X-Tenant-Id: tenant-123
 
 ```json
 {
-  "id": "user-uuid-1",
-  "username": "alice",
-  "email": "alice@company.com",
-  "createdAt": "2026-04-07T08:00:00Z",
-  "updatedAt": "2026-04-07T10:00:00Z"
+    "id": "user-uuid-1",
+    "username": "alice",
+    "email": "alice@company.com",
+    "createdAt": "2026-04-07T08:00:00Z",
+    "updatedAt": "2026-04-07T10:00:00Z"
 }
 ```
 
@@ -409,11 +412,11 @@ X-Tenant-Id: tenant-123
 
 ```json
 {
-  "id": "role-uuid-1",
-  "tenantId": "tenant-123",
-  "name": "document-editor",
-  "description": "Can edit documents",
-  "createdAt": "2026-04-07T10:30:00Z"
+    "id": "role-uuid-1",
+    "tenantId": "tenant-123",
+    "name": "document-editor",
+    "description": "Can edit documents",
+    "createdAt": "2026-04-07T10:30:00Z"
 }
 ```
 
@@ -434,19 +437,19 @@ X-Tenant-Id: tenant-123
 
 ```json
 {
-  "data": [
-    {
-      "id": "role-uuid-1",
-      "name": "document-editor",
-      "description": "Can edit documents"
-    },
-    {
-      "id": "role-uuid-2",
-      "name": "viewer",
-      "description": "Can view only"
-    }
-  ],
-  "total": 2
+    "data": [
+        {
+            "id": "role-uuid-1",
+            "name": "document-editor",
+            "description": "Can edit documents"
+        },
+        {
+            "id": "role-uuid-2",
+            "name": "viewer",
+            "description": "Can view only"
+        }
+    ],
+    "total": 2
 }
 ```
 
@@ -467,8 +470,8 @@ X-Tenant-Id: tenant-123
 
 ```json
 {
-  "roleId": "role-uuid-1",
-  "permissionId": "perm-uuid-1"
+    "roleId": "role-uuid-1",
+    "permissionId": "perm-uuid-1"
 }
 ```
 
@@ -496,10 +499,10 @@ POST /api/v1/permissions
 
 ```json
 {
-  "id": "perm-uuid-1",
-  "name": "document:edit",
-  "description": "Can edit documents",
-  "scope": "document"
+    "id": "perm-uuid-1",
+    "name": "document:edit",
+    "description": "Can edit documents",
+    "scope": "document"
 }
 ```
 
@@ -513,16 +516,16 @@ List all permissions (system-level).
 
 ```json
 {
-  "data": [
-    {
-      "id": "perm-uuid-1",
-      "name": "document:edit"
-    },
-    {
-      "id": "perm-uuid-2",
-      "name": "document:delete"
-    }
-  ]
+    "data": [
+        {
+            "id": "perm-uuid-1",
+            "name": "document:edit"
+        },
+        {
+            "id": "perm-uuid-2",
+            "name": "document:delete"
+        }
+    ]
 }
 ```
 
@@ -550,9 +553,9 @@ X-Tenant-Id: tenant-123
 
 ```json
 {
-  "userId": "user-uuid-1",
-  "roleId": "role-uuid-1",
-  "createdAt": "2026-04-07T10:30:00Z"
+    "userId": "user-uuid-1",
+    "roleId": "role-uuid-1",
+    "createdAt": "2026-04-07T10:30:00Z"
 }
 ```
 
@@ -590,41 +593,41 @@ X-Tenant-Id: tenant-123
 
 ```json
 {
-  "data": [
-    {
-      "id": "audit-uuid-1",
-      "timestamp": "2026-04-07T10:30:00Z",
-      "action": "RELATIONSHIP_CREATED",
-      "subject": "user:alice",
-      "relation": "editor",
-      "object": "document:report",
-      "effect": "allow",
-      "initiatedBy": "user:admin"
-    },
-    {
-      "id": "audit-uuid-2",
-      "timestamp": "2026-04-07T10:25:00Z",
-      "action": "RELATIONSHIP_DELETED",
-      "subject": "user:bob",
-      "relation": "viewer",
-      "object": "document:report",
-      "initiatedBy": "user:admin"
-    }
-  ],
-  "total": 2
+    "data": [
+        {
+            "id": "audit-uuid-1",
+            "timestamp": "2026-04-07T10:30:00Z",
+            "action": "RELATIONSHIP_CREATED",
+            "subject": "user:alice",
+            "relation": "editor",
+            "object": "document:report",
+            "effect": "allow",
+            "initiatedBy": "user:admin"
+        },
+        {
+            "id": "audit-uuid-2",
+            "timestamp": "2026-04-07T10:25:00Z",
+            "action": "RELATIONSHIP_DELETED",
+            "subject": "user:bob",
+            "relation": "viewer",
+            "object": "document:report",
+            "initiatedBy": "user:admin"
+        }
+    ],
+    "total": 2
 }
 ```
 
 **Audit Actions:**
 
-| Action | Meaning |
-|--------|---------|
-| `RELATIONSHIP_CREATED` | Tuple was created |
-| `RELATIONSHIP_UPDATED` | Tuple effect was changed |
-| `RELATIONSHIP_DELETED` | Tuple was removed |
-| `ROLE_ASSIGNED` | User was assigned a role |
-| `ROLE_REMOVED` | Role was removed from user |
-| `PERMISSION_CHECK` | Permission was checked |
+| Action                 | Meaning                    |
+| ---------------------- | -------------------------- |
+| `RELATIONSHIP_CREATED` | Tuple was created          |
+| `RELATIONSHIP_UPDATED` | Tuple effect was changed   |
+| `RELATIONSHIP_DELETED` | Tuple was removed          |
+| `ROLE_ASSIGNED`        | User was assigned a role   |
+| `ROLE_REMOVED`         | Role was removed from user |
+| `PERMISSION_CHECK`     | Permission was checked     |
 
 ---
 
@@ -649,10 +652,10 @@ X-Tenant-Id: tenant-123
 
 ```json
 {
-  "id": "store-123",
-  "name": "document-service-store",
-  "tenantId": "tenant-123",
-  "createdAt": "2026-04-07T10:30:00Z"
+    "id": "store-123",
+    "name": "document-service-store",
+    "tenantId": "tenant-123",
+    "createdAt": "2026-04-07T10:30:00Z"
 }
 ```
 
@@ -673,14 +676,14 @@ X-Tenant-Id: tenant-123
 
 ```json
 {
-  "data": [
-    {
-      "id": "store-123",
-      "name": "document-service-store",
-      "createdAt": "2026-04-07T08:00:00Z"
-    }
-  ],
-  "total": 1
+    "data": [
+        {
+            "id": "store-123",
+            "name": "document-service-store",
+            "createdAt": "2026-04-07T08:00:00Z"
+        }
+    ],
+    "total": 1
 }
 ```
 
@@ -715,10 +718,10 @@ X-Tenant-Id: tenant-123
 
 ```json
 {
-  "id": "model-uuid-1",
-  "storeId": "store-123",
-  "schemaVersion": "1.0.0",
-  "createdAt": "2026-04-07T10:30:00Z"
+    "id": "model-uuid-1",
+    "storeId": "store-123",
+    "schemaVersion": "1.0.0",
+    "createdAt": "2026-04-07T10:30:00Z"
 }
 ```
 
@@ -747,9 +750,9 @@ Get latest model for a store.
 
 ```json
 {
-  "error": "INVALID_REQUEST",
-  "message": "Invalid tuple format",
-  "details": "Subject must be formatted as <type>:<id>"
+    "error": "INVALID_REQUEST",
+    "message": "Invalid tuple format",
+    "details": "Subject must be formatted as <type>:<id>"
 }
 ```
 
@@ -757,8 +760,8 @@ Get latest model for a store.
 
 ```json
 {
-  "error": "UNAUTHORIZED",
-  "message": "Missing or invalid JWT token"
+    "error": "UNAUTHORIZED",
+    "message": "Missing or invalid JWT token"
 }
 ```
 
@@ -766,8 +769,8 @@ Get latest model for a store.
 
 ```json
 {
-  "error": "FORBIDDEN",
-  "message": "You do not have permission to access this resource"
+    "error": "FORBIDDEN",
+    "message": "You do not have permission to access this resource"
 }
 ```
 
@@ -775,8 +778,8 @@ Get latest model for a store.
 
 ```json
 {
-  "error": "NOT_FOUND",
-  "message": "Relationship not found"
+    "error": "NOT_FOUND",
+    "message": "Relationship not found"
 }
 ```
 
@@ -784,9 +787,9 @@ Get latest model for a store.
 
 ```json
 {
-  "error": "INTERNAL_ERROR",
-  "message": "An unexpected error occurred",
-  "requestId": "550e8400-e29b-41d4-a716-446655440000"
+    "error": "INTERNAL_ERROR",
+    "message": "An unexpected error occurred",
+    "requestId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
@@ -806,9 +809,9 @@ If rate limited (429):
 
 ```json
 {
-  "error": "RATE_LIMITED",
-  "message": "Too many requests",
-  "retryAfter": 60
+    "error": "RATE_LIMITED",
+    "message": "Too many requests",
+    "retryAfter": 60
 }
 ```
 
@@ -907,6 +910,6 @@ curl -X POST http://localhost:5000/api/v1/explain \
 
 ## Next Steps
 
--  Review [Core Concepts](../concepts/core-concepts-tuple-model.md)
--  See [Getting Started](../guides/getting-started-development.md)
--  Check [Deployment Guide](../guides/deployment-operations-guide.md)
+- Review [Core Concepts](../concepts/core-concepts-tuple-model.md)
+- See [Getting Started](../guides/getting-started-development.md)
+- Check [Deployment Guide](../guides/deployment-operations-guide.md)

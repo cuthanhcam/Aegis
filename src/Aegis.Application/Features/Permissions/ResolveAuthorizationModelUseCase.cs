@@ -21,11 +21,7 @@ namespace Aegis.Application.Features.Permissions
             string? requestedAuthorizationModelId,
             CancellationToken cancellationToken = default)
         {
-            var store = await _storeRegistry.GetAsync(storeId, cancellationToken);
-            if (store is null)
-            {
-                throw new CompatibilityApiException(404, "store_id_not_found", "Store ID not found.");
-            }
+            await EnsureStoreExistsAsync(storeId, cancellationToken);
 
             if (!string.IsNullOrWhiteSpace(requestedAuthorizationModelId))
             {
@@ -51,6 +47,39 @@ namespace Aegis.Application.Features.Permissions
             }
 
             return latest.Id;
+        }
+
+        public async Task<string?> EnsureStoreAndValidateRequestedAsync(
+            string storeId,
+            string? requestedAuthorizationModelId,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureStoreExistsAsync(storeId, cancellationToken);
+
+            if (string.IsNullOrWhiteSpace(requestedAuthorizationModelId))
+            {
+                return null;
+            }
+
+            var model = await _authorizationModelRegistry.GetByIdAsync(storeId, requestedAuthorizationModelId, cancellationToken);
+            if (model is null)
+            {
+                throw new CompatibilityApiException(
+                    400,
+                    "authorization_model_not_found",
+                    $"Authorization Model '{requestedAuthorizationModelId}' not found");
+            }
+
+            return model.Id;
+        }
+
+        private async Task EnsureStoreExistsAsync(string storeId, CancellationToken cancellationToken)
+        {
+            var store = await _storeRegistry.GetAsync(storeId, cancellationToken);
+            if (store is null)
+            {
+                throw new CompatibilityApiException(404, "store_id_not_found", "Store ID not found.");
+            }
         }
     }
 }

@@ -1,9 +1,4 @@
 using Aegis.Contracts.Permissions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aegis.Application.Features.Permissions
 {
@@ -11,10 +6,14 @@ namespace Aegis.Application.Features.Permissions
     {
         private const int MaxBatchSize = 1000;
         private readonly CheckPermissionUseCase _checkPermissionUseCase;
+        private readonly ResolveAuthorizationModelUseCase _resolveAuthorizationModelUseCase;
 
-        public BatchCheckInStoreUseCase(CheckPermissionUseCase checkPermissionUseCase)
+        public BatchCheckInStoreUseCase(
+            CheckPermissionUseCase checkPermissionUseCase,
+            ResolveAuthorizationModelUseCase resolveAuthorizationModelUseCase)
         {
             _checkPermissionUseCase = checkPermissionUseCase ?? throw new ArgumentNullException(nameof(checkPermissionUseCase));
+            _resolveAuthorizationModelUseCase = resolveAuthorizationModelUseCase ?? throw new ArgumentNullException(nameof(resolveAuthorizationModelUseCase));
         }
 
         public async Task<BatchCheckResponseDto> ExecuteAsync(
@@ -34,6 +33,11 @@ namespace Aegis.Application.Features.Permissions
                 throw new ArgumentException($"items must not exceed {MaxBatchSize}.");
             }
 
+            await _resolveAuthorizationModelUseCase.EnsureStoreAndValidateRequestedAsync(
+                storeId,
+                requestedAuthorizationModelId: null,
+                cancellationToken);
+
             var results = new List<BatchCheckItemResultDto>(request.Items.Count);
             for (var i = 0; i < request.Items.Count; i++)
             {
@@ -41,6 +45,11 @@ namespace Aegis.Application.Features.Permissions
                 var correlationId = string.IsNullOrWhiteSpace(item.CorrelationId)
                     ? (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)
                     : item.CorrelationId;
+
+                var validatedAuthorizationModelId = await _resolveAuthorizationModelUseCase.EnsureStoreAndValidateRequestedAsync(
+                    storeId,
+                    item.AuthorizationModelId,
+                    cancellationToken);
 
                 var result = await _checkPermissionUseCase.ExecuteAsync(
                     storeId,
@@ -50,7 +59,7 @@ namespace Aegis.Application.Features.Permissions
                         item.Object,
                         item.ContextualTuples,
                         item.Consistency,
-                        item.AuthorizationModelId,
+                        validatedAuthorizationModelId,
                         item.Context),
                     includeTrace: false,
                     cancellationToken);

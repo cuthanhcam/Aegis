@@ -20,19 +20,26 @@ namespace Aegis.Infrastructure.Authorization
             CancellationToken cancellationToken = default)
         {
             var userKeyPrefix = $"{request.TenantId}|{request.Subject.Value}|";
-            var permissionKey = PermissionKey(request.TenantId, request.Relation, request.Object.Value);
-
-            if (!_permissions.ContainsKey(permissionKey))
-            {
-                return Task.FromResult(false);
-            }
 
             foreach (var userRole in _userRoles.Keys.Where(k => k.StartsWith(userKeyPrefix, StringComparison.OrdinalIgnoreCase)))
             {
                 var roleName = userRole.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[2];
-                if (_rolePermissions.ContainsKey(RolePermissionKey(request.TenantId, roleName, request.Relation, request.Object.Value)))
+                var rolePermissionPrefix = $"{request.TenantId}|{roleName}|";
+                foreach (var rolePermission in _rolePermissions.Keys.Where(k => k.StartsWith(rolePermissionPrefix, StringComparison.OrdinalIgnoreCase)))
                 {
-                    return Task.FromResult(true);
+                    var parts = rolePermission.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    if (parts.Length < 4)
+                    {
+                        continue;
+                    }
+
+                    var relationPattern = parts[2];
+                    var objectPattern = parts[3];
+                    if (MatchesRelationPattern(relationPattern, request.Relation)
+                        && MatchesObjectPattern(objectPattern, request.Object.Value))
+                    {
+                        return Task.FromResult(true);
+                    }
                 }
             }
 
@@ -246,6 +253,39 @@ namespace Aegis.Infrastructure.Authorization
             string userId)
         {
             return $"{tenantId}|{userId}";
+        }
+
+        private static bool MatchesRelationPattern(string relationPattern, string relation)
+        {
+            if (string.IsNullOrWhiteSpace(relationPattern) || relationPattern == "*")
+            {
+                return true;
+            }
+
+            return relationPattern.Equals(relation, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool MatchesObjectPattern(string objectPattern, string objectRef)
+        {
+            if (string.IsNullOrWhiteSpace(objectPattern) || objectPattern == "*")
+            {
+                return true;
+            }
+
+            if (objectPattern.Equals(objectRef, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var objectType = GetTypeName(objectRef);
+            return objectPattern.Equals($"{objectType}:*", StringComparison.OrdinalIgnoreCase)
+                || objectPattern.Equals(objectType, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string GetTypeName(string value)
+        {
+            var split = value.IndexOf(':');
+            return split > 0 ? value[..split] : value;
         }
 
         private sealed record InMemoryUser(

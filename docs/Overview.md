@@ -9,6 +9,7 @@ Aegis answers this question:
 > Can `subject` perform `relation` on `object` within this `tenant`?
 
 Example:
+
 ```
 Can user:alice edit document:report within tenant:acme?
  Aegis returns: { "allowed": true, "reasonCode": "ALLOW_REBAC_DIRECT" }
@@ -35,17 +36,18 @@ Result: Inconsistent decisions, hard to audit, maintenance nightmare
 Centralized, decoupled authorization engine:
 
 ```
-App A 
+App A
 App B  Aegis (single source of truth)
-App C 
+App C
 ```
 
 **Benefits:**
--  **Consistency**  Same decisions across all apps
--  **Auditability**  Complete trail of who has access
--  **Debuggability**  `/explain` API shows why decisions were made
--  **Scalability**  Evolves with your system
--  **Flexibility**  ReBAC + RBAC hybrid model
+
+- **Consistency** Same decisions across all apps
+- **Auditability** Complete trail of who has access
+- **Debuggability** `/explain` API shows why decisions were made
+- **Scalability** Evolves with your system
+- **Flexibility** ReBAC + RBAC hybrid model
 
 ---
 
@@ -168,7 +170,7 @@ Response:
 
 ### ReBAC (Primary Model)
 
-*Relationship-Based Access Control*
+_Relationship-Based Access Control_
 
 Fine-grained permissions via relationships:
 
@@ -180,7 +182,7 @@ User A shares a document (creates relationship)
 
 ### RBAC (Fallback Model)
 
-*Role-Based Access Control*
+_Role-Based Access Control_
 
 Coarse-grained permissions via roles:
 
@@ -207,28 +209,28 @@ Aegis checks both:
 
 ```
 
- HTTP API Layer (Controllers)            
- (/check, /explain, /relationships)      
+ HTTP API Layer (Controllers)
+ (/check, /explain, /relationships)
 
-                   
 
- Application Layer (Use Cases)           
- (command handling, orchestration)       
 
-                   
+ Application Layer (Use Cases)
+ (command handling, orchestration)
 
- Authorization Engine                    
- (ReBAC + RBAC evaluation, NO HTTP/EF)  
 
-                   
 
- Domain Model (DDD)                      
- (Relationship, Store, User entities)    
+ Authorization Engine
+ (ReBAC + RBAC evaluation, NO HTTP/EF)
 
-                   
 
- Infrastructure & Persistence            
- (EF Core, PostgreSQL, audit logs)       
+
+ Domain Model (DDD)
+ (Relationship, Store, User entities)
+
+
+
+ Infrastructure & Persistence
+ (EF Core, PostgreSQL, audit logs)
 
 ```
 
@@ -314,18 +316,18 @@ AuditLogs
 
 ## API Endpoints (Quick Reference)
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/check` | POST | Check permission |
-| `/explain` | POST | Debug decision |
-| `/relationships` | POST/GET/DELETE | Manage tuples |
-| `/roles` | POST/GET | RBAC roles |
-| `/permissions` | POST/GET | RBAC permissions |
-| `/users` | POST/GET | User management |
-| `/stores` | POST/GET | Authorization stores |
-| `/audit-logs` | GET | Compliance trails |
+| Endpoint         | Method          | Purpose              |
+| ---------------- | --------------- | -------------------- |
+| `/check`         | POST            | Check permission     |
+| `/explain`       | POST            | Debug decision       |
+| `/relationships` | POST/GET/DELETE | Manage tuples        |
+| `/roles`         | POST/GET        | RBAC roles           |
+| `/permissions`   | POST/GET        | RBAC permissions     |
+| `/users`         | POST/GET        | User management      |
+| `/stores`        | POST/GET        | Authorization stores |
+| `/audit-logs`    | GET             | Compliance trails    |
 
- [**Full API Reference**](reference/api-reference.md)
+[**Full API Reference**](reference/api-reference.md)
 
 ---
 
@@ -338,7 +340,7 @@ Alice creates document
  Alice owns it (relationship created)
  Alice shares with Bob (relationship created)
  Bob edits document
- Aegis checks: (user:bob, editor, document:x) 
+ Aegis checks: (user:bob, editor, document:x)
  Edit allowed
 ```
 
@@ -375,12 +377,12 @@ Auditor queries:
 
 ## Design Principles
 
-1. **Deterministic**  Same input  same output, always
-2. **Deny-by-Default**  DENY wins over ALLOW
-3. **Tenant-Isolated**  Multi-tenancy is mandatory
-4. **Decoupled**  Engine independent of HTTP/EF/DB
-5. **Explainable**  Every decision is traceable
-6. **ReBAC-First**  Relationship model is primary; RBAC is fallback
+1. **Deterministic** Same input same output, always
+2. **Deny-by-Default** DENY wins over ALLOW
+3. **Tenant-Isolated** Multi-tenancy is mandatory
+4. **Decoupled** Engine independent of HTTP/EF/DB
+5. **Explainable** Every decision is traceable
+6. **ReBAC-First** Relationship model is primary; RBAC is fallback
 
 ---
 
@@ -388,22 +390,22 @@ Auditor queries:
 
 ### For Understanding the System
 
-1. Read [Core Concepts](concepts/core-concepts-tuple-model.md)  Deep dive into tuples, ReBAC, RBAC
-2. Review [Architecture Overview](architecture/README.md)  System design and module structure
-3. Check [API Reference](reference/api-reference.md)  Every endpoint documented
+1. Read [Core Concepts](concepts/core-concepts-tuple-model.md) Deep dive into tuples, ReBAC, RBAC
+2. Review [Architecture Overview](architecture/README.md) System design and module structure
+3. Check [API Reference](reference/api-reference.md) Every endpoint documented
 
 ### For Development
 
-1. Follow [Getting Started](guides/getting-started-development.md)  Local setup in 5 minutes
-2. Run tests  Verify everything works
-3. Try API calls  Use the examples
+1. Follow [Getting Started](guides/getting-started-development.md) Local setup in 5 minutes
+2. Run tests Verify everything works
+3. Try API calls Use the examples
 
 ### For Deployment
 
-1. Read [Deployment Guide](guides/deployment-operations-guide.md)  Docker, K8s, cloud setup
-2. Configure database  PostgreSQL setup
-3. Set up monitoring  Application Insights
-4. Plan backup strategy  Disaster recovery
+1. Read [Deployment Guide](guides/deployment-operations-guide.md) Docker, K8s, cloud setup
+2. Configure database PostgreSQL setup
+3. Set up monitoring Application Insights
+4. Plan backup strategy Disaster recovery
 
 ---
 
@@ -411,30 +413,30 @@ Auditor queries:
 
 ### vs. OpenFGA
 
-| Feature | Aegis | OpenFGA |
-|---------|-------|---------|
-| **Language** | .NET / C# | Go |
-| **Authorization Model** | ReBAC + RBAC | ReBAC only |
-| **Multi-Tenancy** | Built-in | Optional |
-| **Explainability** | `/explain` API | Debug API |
-| **RBAC Support** | Yes (fallback) | No |
+| Feature                 | Aegis          | OpenFGA    |
+| ----------------------- | -------------- | ---------- |
+| **Language**            | .NET / C#      | Go         |
+| **Authorization Model** | ReBAC + RBAC   | ReBAC only |
+| **Multi-Tenancy**       | Built-in       | Optional   |
+| **Explainability**      | `/explain` API | Debug API  |
+| **RBAC Support**        | Yes (fallback) | No         |
 
 ### vs. Auth0 / Okta
 
-| Feature | Aegis | Auth0/Okta |
-|---------|-------|-----------|
-| **Focus** | Authorization only | Auth + Identity |
-| **Purpose** | Fine-grained access | User authentication |
-| **Deployment** | Self-hosted | Cloud SaaS |
-| **Tuple Model** | Yes | No |
+| Feature         | Aegis               | Auth0/Okta          |
+| --------------- | ------------------- | ------------------- |
+| **Focus**       | Authorization only  | Auth + Identity     |
+| **Purpose**     | Fine-grained access | User authentication |
+| **Deployment**  | Self-hosted         | Cloud SaaS          |
+| **Tuple Model** | Yes                 | No                  |
 
 ---
 
 ## What Aegis Does NOT Do
 
- Authenticate users (JWT is optional, you bring auth)  
- Manage API keys (security is your responsibility)  
- Encrypt data at-rest (use your DB encryption)  
+Authenticate users (JWT is optional, you bring auth)
+ Manage API keys (security is your responsibility)
+ Encrypt data at-rest (use your DB encryption)
  Handle business logic (pure authorization only)
 
 ---
@@ -442,56 +444,58 @@ Auditor queries:
 ## Roadmap
 
 ### Phase 1 (MVP)
--  ReBAC direct tuple checks
--  RBAC role permissions
--  Multi-tenancy
--  Audit logging
+
+- ReBAC direct tuple checks
+- RBAC role permissions
+- Multi-tenancy
+- Audit logging
 
 ### Phase 2 (Next)
--  Graph traversal (transitive relationships)
--  Contextual conditions (time-based, IP-based, etc.)
--  Performance caching (Redis)
+
+- Graph traversal (transitive relationships)
+- Contextual conditions (time-based, IP-based, etc.)
+- Performance caching (Redis)
 
 ### Phase 3 (Future)
--  UI dashboard (relationship visualization)
--  Analytics (access patterns)
--  Bulk operations (CSV import/export)
+
+- UI dashboard (relationship visualization)
+- Analytics (access patterns)
+- Bulk operations (CSV import/export)
 
 ---
 
 ## Documentation Map
 
-| Document | Audience | Content |
-|----------|----------|---------|
-| **Overview** (this file) | Everyone | Quick conceptual overview |
-| [Product Overview](product/product-overview.md) | Product, stakeholders | Vision, capabilities, use cases |
-| [Core Concepts](concepts/core-concepts-tuple-model.md) | Engineers | Detailed tuple model, ReBAC, RBAC |
-| [API Reference](reference/api-reference.md) | Developers | Every endpoint with examples |
-| [Getting Started](guides/getting-started-development.md) | Developers | Local setup, development workflow |
-| [Architecture](architecture/README.md) | Architects, senior devs | Module structure, design patterns |
-| [Deployment](guides/deployment-operations-guide.md) | DevOps, SRE | Production setup, monitoring, ops |
+| Document                                                 | Audience                | Content                           |
+| -------------------------------------------------------- | ----------------------- | --------------------------------- |
+| **Overview** (this file)                                 | Everyone                | Quick conceptual overview         |
+| [Product Overview](product/product-overview.md)          | Product, stakeholders   | Vision, capabilities, use cases   |
+| [Core Concepts](concepts/core-concepts-tuple-model.md)   | Engineers               | Detailed tuple model, ReBAC, RBAC |
+| [API Reference](reference/api-reference.md)              | Developers              | Every endpoint with examples      |
+| [Getting Started](guides/getting-started-development.md) | Developers              | Local setup, development workflow |
+| [Architecture](architecture/README.md)                   | Architects, senior devs | Module structure, design patterns |
+| [Deployment](guides/deployment-operations-guide.md)      | DevOps, SRE             | Production setup, monitoring, ops |
 
 ---
 
 **Ready to dive deeper?** Pick a document above based on your role and interests.
 
-
 ### 3.1 MVP Architecture
 
 ```text
                 +----------------------+
-                ¦     Admin UI         |
+                ï¿½     Admin UI         |
                 |  (React + TS)        |
                 +----------+-----------+
                            |
                            v
                 +----------------------+
-                ¦     Aegis API        |
-                ¦   (ASP.NET Core)     |
+                ï¿½     Aegis API        |
+                ï¿½   (ASP.NET Core)     |
                 +----------+-----------+
                            |
         -----------------------------------------
-        ¦                    ¦                   |
+        ï¿½                    ï¿½                   |
         v                    v                   v
    PostgreSQL           Redis (optional)     Logging
    (main DB)            (cache)              (file/ELK)
@@ -503,11 +507,11 @@ Auditor queries:
 
 ```text
            +------------------+
-           ¦   API Gateway    |
+           ï¿½   API Gateway    |
            +--------+---------+
                     |
      -----------------------------------
-     ¦                ¦                |
+     ï¿½                ï¿½                |
      v                v                v
  Auth Service   Authorization     Audit Service
                Engine (Aegis)
@@ -530,7 +534,7 @@ Auditor queries:
 
 ---
 
-### 4.2 ReBAC (NEW  Core Innovation)
+### 4.2 ReBAC (NEW Core Innovation)
 
 | Entity       | Description                              |
 | ------------ | ---------------------------------------- |
@@ -596,9 +600,9 @@ Aegis evaluates permissions using:
 
 ### Future Extensions
 
-* Conditional access (ABAC-lite)
-* Hierarchical relationships (group  user)
-* Permission composition
+- Conditional access (ABAC-lite)
+- Hierarchical relationships (group user)
+- Permission composition
 
 ---
 
@@ -623,9 +627,9 @@ POST /check
 
 ```json
 {
-  "user": "user:1",
-  "relation": "viewer",
-  "object": "document:10"
+    "user": "user:1",
+    "relation": "viewer",
+    "object": "document:10"
 }
 ```
 
@@ -633,7 +637,7 @@ Response:
 
 ```json
 {
-  "allowed": true
+    "allowed": true
 }
 ```
 
@@ -649,25 +653,25 @@ POST /relationships
 
 ### 6.3 RBAC APIs
 
-* `/roles`
-* `/permissions`
-* `/users`
+- `/roles`
+- `/permissions`
+- `/users`
 
 ---
 
 ### 6.4 Audit API
 
-* `/audit`
+- `/audit`
 
 ---
 
 ## 7. Design Principles
 
-* **Clean Architecture**
-* **Separation of Concerns**
-* **API-first design**
-* **Extensibility (ReBAC-first mindset)**
-* **Multi-tenant safety**
+- **Clean Architecture**
+- **Separation of Concerns**
+- **API-first design**
+- **Extensibility (ReBAC-first mindset)**
+- **Multi-tenant safety**
 
 ---
 
@@ -675,17 +679,17 @@ POST /relationships
 
 ### Backend
 
-* .NET (ASP.NET Core)
-* EF Core
+- .NET (ASP.NET Core)
+- EF Core
 
 ### Database
 
-* PostgreSQL (primary)
-* Redis (cache, optional)
+- PostgreSQL (primary)
+- Redis (cache, optional)
 
 ### Frontend
 
-* React + TypeScript
+- React + TypeScript
 
 ---
 
@@ -693,24 +697,24 @@ POST /relationships
 
 ### Minimum Setup
 
-* API Server (.NET)
-* PostgreSQL
+- API Server (.NET)
+- PostgreSQL
 
 ---
 
 ### Recommended Setup
 
-* Docker Compose
-* Redis
-* Reverse Proxy (Nginx)
+- Docker Compose
+- Redis
+- Reverse Proxy (Nginx)
 
 ---
 
 ### Future
 
-* Kubernetes
-* Horizontal scaling
-* Observability (Prometheus, Grafana)
+- Kubernetes
+- Horizontal scaling
+- Observability (Prometheus, Grafana)
 
 ---
 
@@ -743,9 +747,9 @@ POST /relationships
 
 Aegis solves this by:
 
-* Introducing **relationship-based access**
-* Supporting **resource-level permissions**
-* Enabling **centralized authorization across services**
+- Introducing **relationship-based access**
+- Supporting **resource-level permissions**
+- Enabling **centralized authorization across services**
 
 ---
 
@@ -762,7 +766,7 @@ Use this section as the entry point for implementation-level architecture detail
 
 ## 14. Notes for Development
 
-* Always scope queries by `TenantId`
-* Permission check is a **hot path  optimize early**
-* Avoid over-engineering (no microservices in MVP)
-* Keep permission model stable (backward compatibility)
+- Always scope queries by `TenantId`
+- Permission check is a **hot path optimize early**
+- Avoid over-engineering (no microservices in MVP)
+- Keep permission model stable (backward compatibility)

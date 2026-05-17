@@ -1,4 +1,4 @@
-# Architecture Overview  Aegis Authorization Platform
+# Architecture Overview Aegis Authorization Platform
 
 ---
 
@@ -64,68 +64,68 @@
 
 ```
 SharedKernel
-    
+
 Contracts
-    
+
 Domain
-    
+
 Authorization (depends ONLY on Domain)
-    
+
 Application
-    
+
 Infrastructure
-    
+
 Api
 ```
 
 **Key Rules:**
 
--  Authorization NEVER depends on EF, HTTP, or Application layers
--  Domain NEVER depends on Infrastructure or Api
--  Application NEVER depends on Infrastructure or Api
--  Early layers NEVER reference later layers (no backward dependencies)
+- Authorization NEVER depends on EF, HTTP, or Application layers
+- Domain NEVER depends on Infrastructure or Api
+- Application NEVER depends on Infrastructure or Api
+- Early layers NEVER reference later layers (no backward dependencies)
 
 ## Architecture Summary Tables
 
 ### Layer Responsibilities
 
-| Layer | Main Responsibility | Must Not Depend On |
-|-------|---------------------|--------------------|
-| SharedKernel | Common primitives, base abstractions, cross-cutting utilities | Infrastructure, Api |
-| Contracts | Request/response contracts and integration DTOs | Infrastructure, Api |
-| Domain | Core business rules, aggregates, value objects, domain events | Infrastructure, Api, Application |
-| Authorization | Deterministic policy evaluation (ReBAC + RBAC resolution) | Infrastructure, Api |
-| Application | Use-case orchestration, command/query handlers, transaction boundaries | Api, Infrastructure |
-| Infrastructure | Persistence, external adapters, repository implementations | Api |
-| Api | HTTP endpoints, middleware, auth integration, serialization | (entry layer) |
+| Layer          | Main Responsibility                                                    | Must Not Depend On               |
+| -------------- | ---------------------------------------------------------------------- | -------------------------------- |
+| SharedKernel   | Common primitives, base abstractions, cross-cutting utilities          | Infrastructure, Api              |
+| Contracts      | Request/response contracts and integration DTOs                        | Infrastructure, Api              |
+| Domain         | Core business rules, aggregates, value objects, domain events          | Infrastructure, Api, Application |
+| Authorization  | Deterministic policy evaluation (ReBAC + RBAC resolution)              | Infrastructure, Api              |
+| Application    | Use-case orchestration, command/query handlers, transaction boundaries | Api, Infrastructure              |
+| Infrastructure | Persistence, external adapters, repository implementations             | Api                              |
+| Api            | HTTP endpoints, middleware, auth integration, serialization            | (entry layer)                    |
 
 ### Core Aggregates At A Glance
 
-| Aggregate | Purpose | Key Fields | Domain Events |
-|-----------|---------|------------|---------------|
-| Relationship | ReBAC tuple with effect control | TenantId, Subject, Relation, Object, Effect | RelationshipUpsertedDomainEvent, RelationshipDeletedDomainEvent |
-| Store | Authorization context boundary | Id, Name, CreatedAt, UpdatedAt | StoreCreatedDomainEvent, StoreDeletedDomainEvent |
-| AuthorizationModel | Schema/model definition per store | StoreId, SchemaVersion, Model | AuthorizationModelCreatedDomainEvent, AuthorizationModelUpdatedDomainEvent |
-| User | RBAC principal identity | TenantId, Username, Email, Roles | (implementation-defined) |
-| Role | RBAC permission grouping | TenantId, Name, Permissions | (implementation-defined) |
+| Aggregate          | Purpose                           | Key Fields                                  | Domain Events                                                              |
+| ------------------ | --------------------------------- | ------------------------------------------- | -------------------------------------------------------------------------- |
+| Relationship       | ReBAC tuple with effect control   | TenantId, Subject, Relation, Object, Effect | RelationshipUpsertedDomainEvent, RelationshipDeletedDomainEvent            |
+| Store              | Authorization context boundary    | Id, Name, CreatedAt, UpdatedAt              | StoreCreatedDomainEvent, StoreDeletedDomainEvent                           |
+| AuthorizationModel | Schema/model definition per store | StoreId, SchemaVersion, Model               | AuthorizationModelCreatedDomainEvent, AuthorizationModelUpdatedDomainEvent |
+| User               | RBAC principal identity           | TenantId, Username, Email, Roles            | (implementation-defined)                                                   |
+| Role               | RBAC permission grouping          | TenantId, Name, Permissions                 | (implementation-defined)                                                   |
 
 ### Primary Use Cases
 
-| Use Case | Input | Engine Path | Output |
-|----------|-------|-------------|--------|
-| Check Permission | tenantId, subject, relation, object | DENY check -> ReBAC allow -> RBAC fallback -> default deny | DecisionResult (allowed, decision, reasonCode) |
-| Explain Permission | tenantId, subject, relation, object | Executes all evaluation steps with trace capture | ExplainResult (allowed, trace[]) |
-| Create Relationship | CreateRelationshipCommand | Validate ValueObjects -> persist tuple -> dispatch event | 201 Created + relationship payload |
+| Use Case            | Input                               | Engine Path                                                | Output                                         |
+| ------------------- | ----------------------------------- | ---------------------------------------------------------- | ---------------------------------------------- |
+| Check Permission    | tenantId, subject, relation, object | DENY check -> ReBAC allow -> RBAC fallback -> default deny | DecisionResult (allowed, decision, reasonCode) |
+| Explain Permission  | tenantId, subject, relation, object | Executes all evaluation steps with trace capture           | ExplainResult (allowed, trace[])               |
+| Create Relationship | CreateRelationshipCommand           | Validate ValueObjects -> persist tuple -> dispatch event   | 201 Created + relationship payload             |
 
 ### Persistence Boundaries
 
-| Concern | Primary Store | Notes |
-|--------|----------------|-------|
-| Relationship tuples | PostgreSQL | Composite indexes for check/list operations |
-| RBAC identities and grants | PostgreSQL | Users, roles, permissions, junction tables |
-| Authorization schema models | PostgreSQL | Versioned by store |
-| Audit trail | PostgreSQL | Append-only compliance logging |
-| Read/lookup acceleration (optional) | Redis | Cache layer for hot authorization paths |
+| Concern                             | Primary Store | Notes                                       |
+| ----------------------------------- | ------------- | ------------------------------------------- |
+| Relationship tuples                 | PostgreSQL    | Composite indexes for check/list operations |
+| RBAC identities and grants          | PostgreSQL    | Users, roles, permissions, junction tables  |
+| Authorization schema models         | PostgreSQL    | Versioned by store                          |
+| Audit trail                         | PostgreSQL    | Append-only compliance logging              |
+| Read/lookup acceleration (optional) | Redis         | Cache layer for hot authorization paths     |
 
 ---
 
@@ -149,6 +149,7 @@ public sealed class Relationship : AggregateRoot<Guid>
 ```
 
 **Domain Events:**
+
 - `RelationshipUpsertedDomainEvent`
 - `RelationshipDeletedDomainEvent`
 
@@ -168,6 +169,7 @@ public sealed class Store : AggregateRoot<string>
 ```
 
 **Domain Events:**
+
 - `StoreCreatedDomainEvent`
 - `StoreDeletedDomainEvent`
 
@@ -188,6 +190,7 @@ public sealed class AuthorizationModel : AggregateRoot<string>
 ```
 
 **Domain Events:**
+
 - `AuthorizationModelCreatedDomainEvent`
 - `AuthorizationModelUpdatedDomainEvent`
 
@@ -231,33 +234,33 @@ public sealed class Role : AggregateRoot<Guid>
 
 ```
 Client
-  
+
    [Api/CheckController]
-       
+
         [Application/CheckAuthorizationHandler]
-            
+
              Parse & validate input
-            
+
              [Authorization/CheckEngine]
-                
+
                  1. Check for explicit DENY
                        [RelationshipStore]
                           PostgreSQL query: find (S, R, O) with effect=DENY
-                
+
                  2. Check ReBAC allow
                        [RelationshipStore]
                           PostgreSQL query: find (S, R, O) with effect=ALLOW
-                
+
                  3. Check RBAC allow
                        [RBACProvider]
                           PostgreSQL query: user roles & permissions
-                
+
                  4. Return decision with reason code
-            
+
              Create audit log entry
                    [AuditLogStore]
                       Save to PostgreSQL
-            
+
              Return DecisionResult to client
                   {
                     "allowed": true,
@@ -272,23 +275,23 @@ Client
 
 ```
 Client
-  
+
    [Api/ExplainController]
-       
+
         [Application/ExplainAuthorizationHandler]
-            
+
              [Authorization/ExplainService]
-                
+
                  Execute each evaluation step
-                
+
                  1. VALIDATE_INPUT       Check format
                  2. CHECK_DENY_POLICY    Query (S, R, O, effect=DENY)
                  3. CHECK_REBAC_ALLOW    Query (S, R, O, effect=ALLOW)
                  4. CHECK_RBAC_ALLOW     Query roles & permissions
                  5. FINAL_DECISION       Merge signals
-                
+
                  Return DecisionTrace with detailed steps
-            
+
              Return ExplainResult to client
                   {
                     "allowed": false,
@@ -307,31 +310,31 @@ Client
 
 ```
 Client
-  
+
    [Api/RelationshipsController]
-       
+
         [Application/CreateRelationshipHandler]
-            
+
              Parse CreateRelationshipCommand from request
-            
+
              [Domain/Relationship]
-                
+
                  Relationship.Create(...)
                       Validate subject format (SubjectId.TryCreate)
                       Validate relation format (RelationName.TryCreate)
                       Validate object format (ObjectId.TryCreate)
                       Raise RelationshipUpsertedDomainEvent
-            
+
              [Infrastructure/RelationshipRepository]
-                
+
                  Save to PostgreSQL
                      INSERT INTO relationships (...) VALUES (...)
-            
+
              Process domain event
-                
+
                  [DomainEventDispatcher]
                       Create AuditLogEntry & save
-            
+
              Return 201 Created with relationship details
 ```
 
@@ -341,18 +344,18 @@ Client
 
 ### Key Tables
 
-| Table | Purpose | Key Columns | Constraints / Indexes |
-|------|---------|-------------|------------------------|
-| Tenants | Tenant registry | Id (UUID), Name, Status, CreatedAt, UpdatedAt | PK(Id) |
-| Stores | Authorization context per tenant/app | Id (string), TenantId, Name, CreatedAt, UpdatedAt | FK(TenantId -> Tenants), PK(Id) |
-| Relationships | Primary ReBAC tuple store | Id, TenantId, Subject, Relation, Object, Effect, CreatedAt, UpdatedAt | UNIQUE(TenantId, Subject, Relation, Object), composite lookup index |
-| AuthorizationModels | Model/schema definition per store | Id, StoreId, SchemaVersion, Model(JSON), CreatedAt | FK(StoreId -> Stores), PK(Id) |
-| Users | RBAC principal identities | Id, TenantId, Username, Email, PasswordHash, Status | FK(TenantId -> Tenants), PK(Id) |
-| Roles | RBAC role catalog | Id, TenantId, Name, Description, CreatedAt, UpdatedAt | FK(TenantId -> Tenants), PK(Id) |
-| Permissions | RBAC permission catalog | Id, Name, Scope, CreatedAt, UpdatedAt | PK(Id), unique(Name, Scope) recommended |
-| UserRoles | User-role mapping | TenantId, UserId, RoleId | PK(TenantId, UserId, RoleId), FK to Users/Roles |
-| RolePermissions | Role-permission mapping | TenantId, RoleId, PermissionId | PK(TenantId, RoleId, PermissionId), FK to Roles/Permissions |
-| AuditLogs | Compliance and forensic trail | Id, TenantId, Timestamp, Action, Subject, Relation, Object, InitiatedBy, Details(JSON) | PK(Id), index(TenantId, Timestamp DESC) recommended |
+| Table               | Purpose                              | Key Columns                                                                            | Constraints / Indexes                                               |
+| ------------------- | ------------------------------------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Tenants             | Tenant registry                      | Id (UUID), Name, Status, CreatedAt, UpdatedAt                                          | PK(Id)                                                              |
+| Stores              | Authorization context per tenant/app | Id (string), TenantId, Name, CreatedAt, UpdatedAt                                      | FK(TenantId -> Tenants), PK(Id)                                     |
+| Relationships       | Primary ReBAC tuple store            | Id, TenantId, Subject, Relation, Object, Effect, CreatedAt, UpdatedAt                  | UNIQUE(TenantId, Subject, Relation, Object), composite lookup index |
+| AuthorizationModels | Model/schema definition per store    | Id, StoreId, SchemaVersion, Model(JSON), CreatedAt                                     | FK(StoreId -> Stores), PK(Id)                                       |
+| Users               | RBAC principal identities            | Id, TenantId, Username, Email, PasswordHash, Status                                    | FK(TenantId -> Tenants), PK(Id)                                     |
+| Roles               | RBAC role catalog                    | Id, TenantId, Name, Description, CreatedAt, UpdatedAt                                  | FK(TenantId -> Tenants), PK(Id)                                     |
+| Permissions         | RBAC permission catalog              | Id, Name, Scope, CreatedAt, UpdatedAt                                                  | PK(Id), unique(Name, Scope) recommended                             |
+| UserRoles           | User-role mapping                    | TenantId, UserId, RoleId                                                               | PK(TenantId, UserId, RoleId), FK to Users/Roles                     |
+| RolePermissions     | Role-permission mapping              | TenantId, RoleId, PermissionId                                                         | PK(TenantId, RoleId, PermissionId), FK to Roles/Permissions         |
+| AuditLogs           | Compliance and forensic trail        | Id, TenantId, Timestamp, Action, Subject, Relation, Object, InitiatedBy, Details(JSON) | PK(Id), index(TenantId, Timestamp DESC) recommended                 |
 
 ---
 
@@ -414,9 +417,9 @@ public async Task<DecisionResult> CheckAsync(
 
 Every permission check with identical input + state = identical output.
 
--  No randomness
--  No ordering effects
--  No race conditions (MVCC in PostgreSQL)
+- No randomness
+- No ordering effects
+- No race conditions (MVCC in PostgreSQL)
 
 ### Consistency
 
@@ -449,16 +452,16 @@ VALUES (...)
 
 ## Performance Characteristics
 
-| Operation | Complexity | Index Support |
-|-----------|-----------|----------------|
-| Check permission | O(1*) | Composite index: (tenant_id, subject, relation, object) |
-| Explain decision | O(1) | Same index as check |
-| Create relationship | O(1) | INSERT + audit log |
-| Delete relationship | O(1) | DELETE by PK |
-| List relationships | O(n) | Filtered indexes for (tenant, subject), (tenant, object) |
-| RBAC lookup | O(m) | Foreign key joins, indexed |
+| Operation           | Complexity | Index Support                                            |
+| ------------------- | ---------- | -------------------------------------------------------- |
+| Check permission    | O(1\*)     | Composite index: (tenant_id, subject, relation, object)  |
+| Explain decision    | O(1)       | Same index as check                                      |
+| Create relationship | O(1)       | INSERT + audit log                                       |
+| Delete relationship | O(1)       | DELETE by PK                                             |
+| List relationships  | O(n)       | Filtered indexes for (tenant, subject), (tenant, object) |
+| RBAC lookup         | O(m)       | Foreign key joins, indexed                               |
 
-*O(1) refers to database queries (single index lookup), not overall system latency.
+\*O(1) refers to database queries (single index lookup), not overall system latency.
 
 ---
 
@@ -567,10 +570,10 @@ Localhost
 
 ```
 Kubernetes Cluster
- Aegis Pod (replicated, stateless) 
+ Aegis Pod (replicated, stateless)
  Aegis Pod                             Load Balancer (HTTP/HTTPS)
- Aegis Pod                           
-                                      
+ Aegis Pod
+
  PostgreSQL Primary  PostgreSQL Replica(s) (read-only)
                             (optional for scaling)
 
@@ -584,6 +587,7 @@ Kubernetes Cluster
 Aegis is designed with **clear separation of concerns**, **deterministic behavior**, **strict tenant isolation**, and **comprehensive auditability**. These properties make it suitable for mission-critical authorization in multi-tenant systems.
 
 For more details:
+
 - [Product Overview](../product/product-overview.md)
 - [API Reference](../reference/api-reference.md)
 - [Core Concepts](../concepts/core-concepts-tuple-model.md)
