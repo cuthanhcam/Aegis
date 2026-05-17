@@ -8,35 +8,35 @@ namespace Aegis.UnitTests.Application.Services
     public class RelationshipAppServiceTests
     {
         [Fact]
-        public async Task CreateRelationshipAsync_WithValidDefinition_PersistsRelationship()
+        public void CreateRelationshipAsync_WithValidDefinition_PersistsRelationship()
         {
             // Should create relationship
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task UpdateRelationshipAsync_WithValidDefinition_UpdatesRelationship()
+        public void UpdateRelationshipAsync_WithValidDefinition_UpdatesRelationship()
         {
             // Should update relationship
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task DeleteRelationshipAsync_RemovesRelationship()
+        public void DeleteRelationshipAsync_RemovesRelationship()
         {
             // Should delete relationship
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task GetRelationshipAsync_ReturnsDefinition()
+        public void GetRelationshipAsync_ReturnsDefinition()
         {
             // Should return relationship definition
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task ListRelationshipsAsync_ReturnsAllRelationships()
+        public void ListRelationshipsAsync_ReturnsAllRelationships()
         {
             // Should list all relationships
             Assert.True(true); // Placeholder
