@@ -8,35 +8,35 @@ namespace Aegis.UnitTests.Application.Services
     public class AssertionAppServiceTests
     {
         [Fact]
-        public async Task CreateAssertionAsync_WithValidAssertion_PersistsAssertion()
+        public void CreateAssertionAsync_WithValidAssertion_PersistsAssertion()
         {
             // Should create assertion
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task DeleteAssertionAsync_RemovesAssertion()
+        public void DeleteAssertionAsync_RemovesAssertion()
         {
             // Should delete assertion
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task ListAssertionsAsync_ReturnsAllAssertions()
+        public void ListAssertionsAsync_ReturnsAllAssertions()
         {
             // Should list all assertions
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task VerifyAssertionAsync_ChecksAssertion()
+        public void VerifyAssertionAsync_ChecksAssertion()
         {
             // Should verify assertion
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task CreateAssertionAsync_WithInvalidAssertion_ThrowsValidationException()
+        public void CreateAssertionAsync_WithInvalidAssertion_ThrowsValidationException()
         {
             // Should validate assertion
             Assert.True(true); // Placeholder

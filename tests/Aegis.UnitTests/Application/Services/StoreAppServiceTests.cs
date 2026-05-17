@@ -8,35 +8,35 @@ namespace Aegis.UnitTests.Application.Services
     public class StoreAppServiceTests
     {
         [Fact]
-        public async Task WriteTupleAsync_PersistsTuple()
+        public void WriteTupleAsync_PersistsTuple()
         {
             // Should persist tuple to store
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task DeleteTupleAsync_RemovesTuple()
+        public void DeleteTupleAsync_RemovesTuple()
         {
             // Should remove tuple from store
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task DeleteTuplesAsync_RemovesMultipleTuples()
+        public void DeleteTuplesAsync_RemovesMultipleTuples()
         {
             // Should remove multiple tuples
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task ReadAsync_ReturnsTuples()
+        public void ReadAsync_ReturnsTuples()
         {
             // Should read and return tuples
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task WriteTupleAsync_WithDuplicateTuple_SkipsWrite()
+        public void WriteTupleAsync_WithDuplicateTuple_SkipsWrite()
         {
             // Should skip duplicate tuple write
             Assert.True(true); // Placeholder

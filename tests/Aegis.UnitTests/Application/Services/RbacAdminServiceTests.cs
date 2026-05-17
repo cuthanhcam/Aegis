@@ -8,35 +8,35 @@ namespace Aegis.UnitTests.Application.Services
     public class RbacAdminServiceTests
     {
         [Fact]
-        public async Task CreateRoleAsync_WithValidRole_PersistsRole()
+        public void CreateRoleAsync_WithValidRole_PersistsRole()
         {
             // Should create role
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task AssignRoleAsync_ToUser_SuccessfullyAssigns()
+        public void AssignRoleAsync_ToUser_SuccessfullyAssigns()
         {
             // Should assign role to user
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task RevokeRoleAsync_FromUser_SuccessfullyRevokes()
+        public void RevokeRoleAsync_FromUser_SuccessfullyRevokes()
         {
             // Should revoke role from user
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task ListUserRolesAsync_ReturnsRoles()
+        public void ListUserRolesAsync_ReturnsRoles()
         {
             // Should list user roles
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task DeleteRoleAsync_RemovesRole()
+        public void DeleteRoleAsync_RemovesRole()
         {
             // Should delete role
             Assert.True(true); // Placeholder

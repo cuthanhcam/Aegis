@@ -8,35 +8,35 @@ namespace Aegis.UnitTests.Application.Services
     public class PresetAppServiceTests
     {
         [Fact]
-        public async Task CreatePresetAsync_WithValidPreset_PersistsPreset()
+        public void CreatePresetAsync_WithValidPreset_PersistsPreset()
         {
             // Should create preset
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task DeletePresetAsync_RemovesPreset()
+        public void DeletePresetAsync_RemovesPreset()
         {
             // Should delete preset
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task ListPresetsAsync_ReturnsAllPresets()
+        public void ListPresetsAsync_ReturnsAllPresets()
         {
             // Should list all presets
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task ApplyPresetAsync_AppliesPresetConfiguration()
+        public void ApplyPresetAsync_AppliesPresetConfiguration()
         {
             // Should apply preset
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task UpdatePresetAsync_WithValidPreset_UpdatesExisting()
+        public void UpdatePresetAsync_WithValidPreset_UpdatesExisting()
         {
             // Should update preset
             Assert.True(true); // Placeholder
