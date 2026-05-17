@@ -1,4 +1,4 @@
-# Deployment & Operations Guide  Aegis Authorization Platform
+# Deployment & Operations Guide Aegis Authorization Platform
 
 ---
 
@@ -59,33 +59,33 @@ FEATURE_RBAC_ENABLED=true
 
 ```json
 {
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.EntityFrameworkCore": "Warning"
+    "Logging": {
+        "LogLevel": {
+            "Default": "Information",
+            "Microsoft.EntityFrameworkCore": "Warning"
+        },
+        "ApplicationInsights": {
+            "LogLevel": {
+                "Default": "Information"
+            }
+        }
     },
-    "ApplicationInsights": {
-      "LogLevel": {
-        "Default": "Information"
-      }
+    "Kestrel": {
+        "Endpoints": {
+            "Http": {
+                "Url": "http://0.0.0.0:5000"
+            }
+        }
+    },
+    "ConnectionStrings": {
+        "DefaultConnection": "${DB_CONNECTION_STRING}"
+    },
+    "Jwt": {
+        "Secret": "${JWT_SECRET}",
+        "Issuer": "${JWT_ISSUER}",
+        "Audience": "${JWT_AUDIENCE}",
+        "ExpirationMinutes": 60
     }
-  },
-  "Kestrel": {
-    "Endpoints": {
-      "Http": {
-        "Url": "http://0.0.0.0:5000"
-      }
-    }
-  },
-  "ConnectionStrings": {
-    "DefaultConnection": "${DB_CONNECTION_STRING}"
-  },
-  "Jwt": {
-    "Secret": "${JWT_SECRET}",
-    "Issuer": "${JWT_ISSUER}",
-    "Audience": "${JWT_AUDIENCE}",
-    "ExpirationMinutes": 60
-  }
 }
 ```
 
@@ -97,9 +97,9 @@ FEATURE_RBAC_ENABLED=true
 
 - **Version:** PostgreSQL 14+
 - **Extensions:** uuid-ossp (for UUID generation)
-- **Resources:** 
-  - Development: 1vCPU, 2GB RAM
-  - Production: 4+ vCPU, 16+ GB RAM, 100+ GB storage
+- **Resources:**
+    - Development: 1vCPU, 2GB RAM
+    - Production: 4+ vCPU, 16+ GB RAM, 100+ GB storage
 
 ### Create PostgreSQL Instance
 
@@ -182,6 +182,7 @@ aws s3 cp $BACKUP_DIR/aegis_$TIMESTAMP.dump s3://aegis-backups/
 ```
 
 Schedule with cron:
+
 ```bash
 0 2 * * * /scripts/backup-aegis-db.sh
 ```
@@ -258,48 +259,48 @@ Create `helm/values.yaml`:
 
 ```yaml
 image:
-  repository: myregistry.azurecr.io/aegis
-  tag: latest
-  pullPolicy: IfNotPresent
+    repository: myregistry.azurecr.io/aegis
+    tag: latest
+    pullPolicy: IfNotPresent
 
 replicaCount: 3
 
 resources:
-  requests:
-    memory: "256Mi"
-    cpu: "100m"
-  limits:
-    memory: "512Mi"
-    cpu: "500m"
+    requests:
+        memory: "256Mi"
+        cpu: "100m"
+    limits:
+        memory: "512Mi"
+        cpu: "500m"
 
 service:
-  type: LoadBalancer
-  port: 80
-  targetPort: 5000
+    type: LoadBalancer
+    port: 80
+    targetPort: 5000
 
 ingress:
-  enabled: true
-  className: nginx
-  hosts:
-    - host: aegis.company.com
-      paths:
-        - path: /
-          pathType: Prefix
+    enabled: true
+    className: nginx
+    hosts:
+        - host: aegis.company.com
+          paths:
+              - path: /
+                pathType: Prefix
 
 env:
-  - name: ASPNETCORE_ENVIRONMENT
-    value: Production
-  - name: ConnectionStrings__DefaultConnection
-    valueFrom:
-      secretKeyRef:
-        name: aegis-secrets
-        key: db-connection-string
+    - name: ASPNETCORE_ENVIRONMENT
+      value: Production
+    - name: ConnectionStrings__DefaultConnection
+      valueFrom:
+          secretKeyRef:
+              name: aegis-secrets
+              key: db-connection-string
 
 secrets:
-  - name: aegis-secrets
-    data:
-      db-connection-string: <base64-encoded>
-      jwt-secret: <base64-encoded>
+    - name: aegis-secrets
+      data:
+          db-connection-string: <base64-encoded>
+          jwt-secret: <base64-encoded>
 ```
 
 ### Deploy
@@ -359,7 +360,7 @@ builder.Services
 ```kusto
 customMetrics
 | where name == "AuthorizationCheckLatencyMs"
-| summarize 
+| summarize
     P50=percentile(value, 50),
     P95=percentile(value, 95),
     P99=percentile(value, 99),
@@ -372,7 +373,7 @@ customMetrics
 ```kusto
 requests
 | where url contains "/api/v1"
-| summarize 
+| summarize
     TotalRequests=count(),
     FailedRequests=countif(success == false),
     ErrorRate=100.0*countif(success==false)/count()
@@ -417,15 +418,15 @@ REVOKE ALL ON users FROM public;
 
 ```json
 {
-  "Jwt": {
-    "Secret": "<min-256-character-random-value>",
-    "ExpirationMinutes": 60,
-    "RefreshTokenExpirationDays": 7,
-    "ValidateIssuer": true,
-    "ValidateAudience": true,
-    "ValidateLifetime": true,
-    "ClockSkew": 0
-  }
+    "Jwt": {
+        "Secret": "<min-256-character-random-value>",
+        "ExpirationMinutes": 60,
+        "RefreshTokenExpirationDays": 7,
+        "ValidateIssuer": true,
+        "ValidateAudience": true,
+        "ValidateLifetime": true,
+        "ClockSkew": 0
+    }
 }
 ```
 
@@ -472,17 +473,17 @@ All pods share:
 
 ```sql
 -- Already in migrations, but verify:
-CREATE INDEX ix_relationships_tenant_subject 
+CREATE INDEX ix_relationships_tenant_subject
   ON relationships(tenant_id, subject);
 
-CREATE INDEX ix_relationships_tenant_object 
+CREATE INDEX ix_relationships_tenant_object
   ON relationships(tenant_id, object);
 
-CREATE INDEX ix_relationships_tenant_relation 
+CREATE INDEX ix_relationships_tenant_relation
   ON relationships(tenant_id, relation);
 
 -- Composite for permission checks
-CREATE INDEX ix_relationships_tenant_subject_relation_object 
+CREATE INDEX ix_relationships_tenant_subject_relation_object
   ON relationships(tenant_id, subject, relation, object);
 ```
 
@@ -490,9 +491,9 @@ CREATE INDEX ix_relationships_tenant_subject_relation_object
 
 ```json
 {
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=postgres;Database=aegis;Username=user;Password=pwd;Max Pool Size=100"
-  }
+    "ConnectionStrings": {
+        "DefaultConnection": "Host=postgres;Database=aegis;Username=user;Password=pwd;Max Pool Size=100"
+    }
 }
 ```
 
@@ -603,11 +604,11 @@ psql aegis_restored -c "SELECT COUNT(*) FROM relationships;"
 
 ### RTO & RPO Targets
 
-| Scenario | RTO | RPO |
-|----------|-----|-----|
-| Database node failure | 5 mins (failover to replica) | 0 (sync replication) |
-| Database corruption | 30 mins (restore from backup) | 1 day |
-| Complete datacenter failure | 1 hour (failover region) | 1 hour |
+| Scenario                    | RTO                           | RPO                  |
+| --------------------------- | ----------------------------- | -------------------- |
+| Database node failure       | 5 mins (failover to replica)  | 0 (sync replication) |
+| Database corruption         | 30 mins (restore from backup) | 1 day                |
+| Complete datacenter failure | 1 hour (failover region)      | 1 hour               |
 
 ---
 
@@ -626,6 +627,7 @@ SELECT count(*) FROM pg_stat_activity;
 ```
 
 **Solutions:**
+
 - Increase `Max Pool Size` in connection string
 - Add database indexes (see Scaling section)
 - Implement relationship caching in Redis
@@ -649,6 +651,7 @@ jwt decode <token>
 ```
 
 **Common causes:**
+
 - Token expired (increase `ExpirationMinutes`)
 - Invalid signature (verify `JWT_SECRET` matches issuer)
 - Wrong issuer/audience (check `Jwt:Issuer` and `Jwt:Audience`)
@@ -710,11 +713,13 @@ curl http://aegis.prod.internal/api/v1/check \
 ## 13. Support & Runbooks
 
 **Contact:**
+
 - **On-call:** Use PagerDuty integration
 - **Escalation:** Aegis Platform Team
 - **Docs:** [Product Overview](../product/product-overview.md)
 
 **Useful links:**
+
 - [API Reference](../reference/api-reference.md)
 - [Core Concepts](../concepts/core-concepts-tuple-model.md)
 - [Getting Started](getting-started-development.md)

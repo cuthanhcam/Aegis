@@ -1,6 +1,6 @@
-# Aegis  Authorization Platform
+# Aegis Authorization Platform
 
-**Tagline:** *Guarding access with a practical authorization engine.*
+**Tagline:** _Guarding access with a practical authorization engine._
 
 ---
 
@@ -35,19 +35,20 @@ Result: Scattered logic, inconsistent decisions, hard to maintain
 ### Aegis Approach (Centralized Authorization)
 
 ```text
-Application 1 
+Application 1
                  Aegis Authorization Engine
 Application 2     (centralized, reusable, auditable)
-                
-Application 3 
+
+Application 3
 ```
 
 **Benefits:**
--  Single source of truth for authorization
--  Consistent permission decisions across all applications
--  Easy to audit and debug (complete trace available)
--  Reduced code duplication
--  Scaling authorization independently from application logic
+
+- Single source of truth for authorization
+- Consistent permission decisions across all applications
+- Easy to audit and debug (complete trace available)
+- Reduced code duplication
+- Scaling authorization independently from application logic
 
 ---
 
@@ -67,11 +68,12 @@ POST /api/v1/check
 ```
 
 **Response:**
+
 ```json
 {
-  "allowed": true,
-  "decision": "ALLOW",
-  "reasonCode": "ALLOW_REBAC_DIRECT"
+    "allowed": true,
+    "decision": "ALLOW",
+    "reasonCode": "ALLOW_REBAC_DIRECT"
 }
 ```
 
@@ -89,14 +91,19 @@ POST /api/v1/explain
 ```
 
 **Response:**
+
 ```json
 {
-  "allowed": true,
-  "trace": [
-    { "step": "DENY_POLICY", "result": "NOT_MATCHED" },
-    { "step": "REBAC_DIRECT", "result": "MATCHED", "tuple": "(user:alice, editor, document:report-2024)" },
-    { "step": "FINAL", "result": "ALLOW" }
-  ]
+    "allowed": true,
+    "trace": [
+        { "step": "DENY_POLICY", "result": "NOT_MATCHED" },
+        {
+            "step": "REBAC_DIRECT",
+            "result": "MATCHED",
+            "tuple": "(user:alice, editor, document:report-2024)"
+        },
+        { "step": "FINAL", "result": "ALLOW" }
+    ]
 }
 ```
 
@@ -130,6 +137,7 @@ Examples:
 ```
 
 **Use cases:**
+
 - Resource-level access (who can edit which document)
 - Team/group membership
 - Hierarchical relationships
@@ -147,6 +155,7 @@ Examples:
 ```
 
 **Use cases:**
+
 - System-level permissions
 - Default fallback when no ReBAC tuple matches
 
@@ -209,15 +218,16 @@ Every permission decision is **traceable and auditable**:
 - **Explain API** provides forensic trace of decision logic
 
 Example audit entry:
+
 ```json
 {
-  "timestamp": "2026-04-07T10:30:00Z",
-  "action": "RELATIONSHIP_CREATED",
-  "subject": "user:alice",
-  "relation": "editor",
-  "object": "document:report",
-  "createdBy": "admin:system",
-  "tenantId": "tenant-123"
+    "timestamp": "2026-04-07T10:30:00Z",
+    "action": "RELATIONSHIP_CREATED",
+    "subject": "user:alice",
+    "relation": "editor",
+    "object": "document:report",
+    "createdBy": "admin:system",
+    "tenantId": "tenant-123"
 }
 ```
 
@@ -248,22 +258,22 @@ Response:
 
 ### Core Entities
 
-| Entity | Purpose |
-|--------|---------|
-| **Tenant** | Isolation boundary for multi-tenancy |
-| **Store** | Authorization context (per app, per env, etc.) |
-| **Relationship** | A single tuple in the authorization system |
-| **AuthorizationModel** | Schema/configuration for a store |
-| **User** | Identity in the system |
-| **Role** | Collections of permissions (RBAC) |
-| **Permission** | A grantable capability |
+| Entity                 | Purpose                                        |
+| ---------------------- | ---------------------------------------------- |
+| **Tenant**             | Isolation boundary for multi-tenancy           |
+| **Store**              | Authorization context (per app, per env, etc.) |
+| **Relationship**       | A single tuple in the authorization system     |
+| **AuthorizationModel** | Schema/configuration for a store               |
+| **User**               | Identity in the system                         |
+| **Role**               | Collections of permissions (RBAC)              |
+| **Permission**         | A grantable capability                         |
 
 ### Value Objects
 
-| Object | Purpose |
-|--------|---------|
-| **SubjectId** | Typed identifier: `<type>:<id>` (e.g., `user:1`, `team:dev`) |
-| **ObjectId** | Typed identifier: `<type>:<id>` (e.g., `document:10`) |
+| Object           | Purpose                                                         |
+| ---------------- | --------------------------------------------------------------- |
+| **SubjectId**    | Typed identifier: `<type>:<id>` (e.g., `user:1`, `team:dev`)    |
+| **ObjectId**     | Typed identifier: `<type>:<id>` (e.g., `document:10`)           |
 | **RelationName** | Named relationship: `owner`, `editor`, `viewer`, `member`, etc. |
 
 ---
@@ -271,27 +281,35 @@ Response:
 ## 9. Key Design Principles
 
 ### 9.1 Deterministic Decisions
+
 Every permission check produces the **same result** given the same input and state. No randomness, no ordering issues.
 
 ### 9.2 Explicit Deny Precedence
+
 Denial always wins. This follows the **principle of least privilege**:
+
 ```
 DENY > ALLOW (regardless of where ALLOW came from)
 ```
 
 ### 9.3 Tenant Isolation
+
 Multi-tenancy is **not optional**. Every data access path checks tenant context.
 
 ### 9.4 Engine/Application Separation
+
 The authorization engine is **decoupled** from transport, persistence, and application logic. Swap implementations without affecting decision logic.
 
 ### 9.5 Explainability First
+
 Every decision must be traceable for:
+
 - Support debugging
-- Security incident investigation  
+- Security incident investigation
 - Compliance audits
 
 ### 9.6 ReBAC Primary, RBAC Fallback
+
 **ReBAC is the recommended model** for modern applicationsit's more expressive. RBAC is a fallback for legacy systems or simple role-based schemes.
 
 ---
@@ -320,17 +338,18 @@ Aegis is structured as a **layered, DDD-driven architecture**:
 
 ## 11. Technology Stack
 
-- **.NET 8**  Modern, performant, cross-platform runtime
-- **ASP.NET Core**  Web API framework with minimal hosting
-- **Entity Framework Core**  ORM for data access
-- **PostgreSQL**  Primary data store (recommended for production)
-- **xUnit + Testcontainers**  Comprehensive testing strategy
+- **.NET 8** Modern, performant, cross-platform runtime
+- **ASP.NET Core** Web API framework with minimal hosting
+- **Entity Framework Core** ORM for data access
+- **PostgreSQL** Primary data store (recommended for production)
+- **xUnit + Testcontainers** Comprehensive testing strategy
 
 ---
 
 ## 12. Use Cases
 
 ### Use Case 1: Document Collaboration Platform
+
 ```text
 One user creates a document  grants editor role to team members
  Aegis checks permission before allowing edits
@@ -338,6 +357,7 @@ One user creates a document  grants editor role to team members
 ```
 
 ### Use Case 2: SaaS Multi-Tenant System
+
 ```text
 Each customer has isolated Store and relationships
  Customer A's staff can only access Customer A's data
@@ -345,6 +365,7 @@ Each customer has isolated Store and relationships
 ```
 
 ### Use Case 3: Microservices Authorization
+
 ```text
 Payment Service  calls Aegis /check before processing refund
 Reporting Service  calls Aegis /check before generating report
@@ -353,6 +374,7 @@ Admin Service  calls Aegis /check before user management
 ```
 
 ### Use Case 4: Compliance & Auditability
+
 ```text
 Auditor queries Aegis audit logs to prove:
 - Who had access to what resource
@@ -366,19 +388,19 @@ Auditor queries Aegis audit logs to prove:
 
 Aegis is **pure authorization**. It does NOT:
 
--  Authenticate users (you bring JWT tokens)
--  Manage API keys (you implement key management separately)
--  Encrypt data (at-rest encryption is your responsibility)
--  Validate business logic (it only checks permissions)
+- Authenticate users (you bring JWT tokens)
+- Manage API keys (you implement key management separately)
+- Encrypt data (at-rest encryption is your responsibility)
+- Validate business logic (it only checks permissions)
 
 ---
 
 ## 14. Next Steps
 
-1. **Understand the Tuple Model**  Read `../concepts/core-concepts-tuple-model.md`
-2. **Learn the API**  Read `../reference/api-reference.md`
-3. **Set Up Locally**  Follow `../guides/getting-started-development.md`
-4. **Deploy to Production**  Follow `../guides/deployment-operations-guide.md`
+1. **Understand the Tuple Model** Read `../concepts/core-concepts-tuple-model.md`
+2. **Learn the API** Read `../reference/api-reference.md`
+3. **Set Up Locally** Follow `../guides/getting-started-development.md`
+4. **Deploy to Production** Follow `../guides/deployment-operations-guide.md`
 
 ---
 

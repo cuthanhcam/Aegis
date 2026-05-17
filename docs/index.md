@@ -5,10 +5,12 @@ This index helps you navigate Aegis documentation by role and task.
 ## Start Here
 
 If you are new to Aegis:
+
 - Read [Overview](overview.md)
 - Read [Product Overview](product/product-overview.md)
 
 If you need implementation details quickly:
+
 - Read [Getting Started](guides/getting-started-development.md)
 - Read [API Reference](reference/api-reference.md)
 - Use [Quick Reference](reference/quick-reference.md)
@@ -39,10 +41,12 @@ docs/
 ## By Audience
 
 ### Product and Business
+
 - [Product Overview](product/product-overview.md)
 - [Overview](overview.md)
 
 ### Developers
+
 - [Overview](overview.md)
 - [Getting Started](guides/getting-started-development.md)
 - [Core Concepts](concepts/core-concepts-tuple-model.md)
@@ -50,11 +54,13 @@ docs/
 - [Quick Reference](reference/quick-reference.md)
 
 ### DevOps and SRE
+
 - [Deployment Operations Guide](guides/deployment-operations-guide.md)
 - [Database Design](architecture/database-design.md)
 - [Architecture README](architecture/README.md)
 
 ### Architects and Tech Leads
+
 - [Architecture README](architecture/README.md)
 - [Project Structure](architecture/project-structure.md)
 - [Permission Engine](architecture/permission-engine.md)
@@ -63,16 +69,19 @@ docs/
 ## Reading Paths
 
 ### Understand Aegis in 30 minutes
+
 1. [Overview](overview.md)
 2. [Product Overview](product/product-overview.md)
 3. [Core Concepts](concepts/core-concepts-tuple-model.md)
 
 ### Build or integrate quickly
+
 1. [Getting Started](guides/getting-started-development.md)
 2. [API Reference](reference/api-reference.md)
 3. [Quick Reference](reference/quick-reference.md)
 
 ### Deploy and operate
+
 1. [Deployment Operations Guide](guides/deployment-operations-guide.md)
 2. [Database Design](architecture/database-design.md)
 3. [Architecture README](architecture/README.md)

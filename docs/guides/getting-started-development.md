@@ -1,4 +1,4 @@
-# Getting Started  Aegis Development Setup
+# Getting Started Aegis Development Setup
 
 ---
 
@@ -38,6 +38,7 @@ docker run --name aegis-postgres \
 **Option B: Local PostgreSQL**
 
 Create database:
+
 ```sql
 CREATE DATABASE aegis_dev;
 ```
@@ -50,9 +51,9 @@ Edit `src/Aegis.Api/appsettings.Development.json`:
 
 ```json
 {
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=aegis_dev;Username=aegis;Password=aegis123"
-  }
+    "ConnectionStrings": {
+        "DefaultConnection": "Host=localhost;Port=5432;Database=aegis_dev;Username=aegis;Password=aegis123"
+    }
 }
 ```
 
@@ -80,6 +81,7 @@ dotnet run
 ```
 
 **Expected output:**
+
 ```
 info: Microsoft.Hosting.Lifetime[14]
       Now listening on: http://localhost:5000
@@ -143,21 +145,25 @@ D:\Workspace\Aegis\
 ### 1. Running Tests
 
 **Unit tests only:**
+
 ```bash
 dotnet test tests/Aegis.UnitTests
 ```
 
 **Integration tests:**
+
 ```bash
 dotnet test tests/Aegis.IntegrationTests
 ```
 
 **All tests:**
+
 ```bash
 dotnet test
 ```
 
 **With coverage:**
+
 ```bash
 dotnet test /p:CollectCoverage=true
 ```
@@ -168,60 +174,65 @@ dotnet test /p:CollectCoverage=true
 
 **Example: Add "approver" relation support**
 
-1. **Domain Layer**  Add validation to `RelationName` ValueObject
-   ```csharp
-   // src/Aegis.Domain/ValueObjects/RelationName.cs
-   public static bool IsValid(string relation) => relation switch {
-       "owner" or "editor" or "viewer" or "approver" => true,
-       _ => false
-   };
-   ```
+1. **Domain Layer** Add validation to `RelationName` ValueObject
 
-2. **Application Layer**  Add use case
-   ```csharp
-   // src/Aegis.Application/Features/Relationships/Commands
-   public class CreateApprovalRelationshipCommand : IRequest<CreateApprovalResponse>
-   {
-       public string Subject { get; set; }
-       public string Object { get; set; }
-       // ...
-   }
-   ```
+    ```csharp
+    // src/Aegis.Domain/ValueObjects/RelationName.cs
+    public static bool IsValid(string relation) => relation switch {
+        "owner" or "editor" or "viewer" or "approver" => true,
+        _ => false
+    };
+    ```
 
-3. **Infrastructure**  No changes (generic repository handles it)
+2. **Application Layer** Add use case
 
-4. **API**  Add controller endpoint
-   ```csharp
-   // src/Aegis.Api/Controllers/RelationshipsController.cs
-   [HttpPost("approvals")]
-   public async Task<IActionResult> CreateApproval([FromBody] CreateApprovalRequest req)
-   {
-       // ...
-   }
-   ```
+    ```csharp
+    // src/Aegis.Application/Features/Relationships/Commands
+    public class CreateApprovalRelationshipCommand : IRequest<CreateApprovalResponse>
+    {
+        public string Subject { get; set; }
+        public string Object { get; set; }
+        // ...
+    }
+    ```
 
-5. **Test**  Add unit + integration tests
-   ```csharp
-   // tests/Aegis.UnitTests/RelationshipTests.cs
-   [Fact]
-   public void Approver_Relation_Should_Be_Valid()
-   {
-       var valid = RelationName.TryCreate("approver", out _);
-       Assert.True(valid);
-   }
-   ```
+3. **Infrastructure** No changes (generic repository handles it)
+
+4. **API** Add controller endpoint
+
+    ```csharp
+    // src/Aegis.Api/Controllers/RelationshipsController.cs
+    [HttpPost("approvals")]
+    public async Task<IActionResult> CreateApproval([FromBody] CreateApprovalRequest req)
+    {
+        // ...
+    }
+    ```
+
+5. **Test** Add unit + integration tests
+    ```csharp
+    // tests/Aegis.UnitTests/RelationshipTests.cs
+    [Fact]
+    public void Approver_Relation_Should_Be_Valid()
+    {
+        var valid = RelationName.TryCreate("approver", out _);
+        Assert.True(valid);
+    }
+    ```
 
 ---
 
 ### 3. Code Style & Format
 
 **Format code:**
+
 ```bash
 # Using Roslyn (built-in)
 dotnet format
 ```
 
 **Lint with StyleCop (recommended):**
+
 ```bash
 # Installed via NuGet
 dotnet build --format errors-as-warnings
@@ -232,6 +243,7 @@ dotnet build --format errors-as-warnings
 ### 4. Database Migrations
 
 **Create migration:**
+
 ```bash
 cd src/Aegis.Infrastructure
 dotnet ef migrations add <MigrationName> -p ../Aegis.Api --startup-project ../Aegis.Api
@@ -240,11 +252,13 @@ dotnet ef migrations add <MigrationName> -p ../Aegis.Api --startup-project ../Ae
 **Review generated migration** (in `Migrations/` folder)
 
 **Apply migration:**
+
 ```bash
 dotnet ef database update -p ../Aegis.Api
 ```
 
 **Rollback:**
+
 ```bash
 dotnet ef database update <PreviousMigrationName>
 ```
@@ -352,54 +366,58 @@ curl -X POST http://localhost:5000/api/v1/explain \
 ### Visual Studio 2022
 
 1. Open `Aegis.sln`
-2. Right-click solution  **Manage NuGet Packages**  Restore
-3. **Build**  **Build Solution** (Ctrl+Shift+B)
-4. **Debug**  **Start Debugging** (F5)
+2. Right-click solution **Manage NuGet Packages** Restore
+3. **Build** **Build Solution** (Ctrl+Shift+B)
+4. **Debug** **Start Debugging** (F5)
 
 ### VS Code
 
 1. Install extensions:
-   - C# Dev Kit
-   - REST Client
-   - SQLTools (for database exploration)
+    - C# Dev Kit
+    - REST Client
+    - SQLTools (for database exploration)
 
 2. Open folder:
-   ```bash
-   code D:\Workspace\Aegis
-   ```
+
+    ```bash
+    code D:\Workspace\Aegis
+    ```
 
 3. Run tasks from Command Palette:
-   - `Tasks: Run Task`  `.NET: Build`
-   - Select `Aegis.Api`
+    - `Tasks: Run Task` `.NET: Build`
+    - Select `Aegis.Api`
 
 4. Test API using `.http` files:
-   ```http
-   @tenantId = tenant-123
-   @apiUrl = http://localhost:5000/api/v1
 
-   ### Check permission
-   POST {{apiUrl}}/check
-   X-Tenant-Id: {{tenantId}}
-   Content-Type: application/json
+    ```http
+    @tenantId = tenant-123
+    @apiUrl = http://localhost:5000/api/v1
 
-   {
-     "subject": "user:alice",
-     "relation": "owner",
-     "object": "document:report"
-   }
-   ```
+    ### Check permission
+    POST {{apiUrl}}/check
+    X-Tenant-Id: {{tenantId}}
+    Content-Type: application/json
+
+    {
+      "subject": "user:alice",
+      "relation": "owner",
+      "object": "document:report"
+    }
+    ```
 
 ---
 
 ## Useful Scripts
 
 ### Run All Tests
+
 ```bash
 #!/bin/bash
 dotnet test --configuration Release --no-build --verbosity normal
 ```
 
 ### Build & Test
+
 ```bash
 #!/bin/bash
 dotnet build
@@ -407,6 +425,7 @@ dotnet test
 ```
 
 ### Reset Database
+
 ```bash
 #!/bin/bash
 cd src/Aegis.Api
@@ -424,13 +443,13 @@ Edit `appsettings.Development.json`:
 
 ```json
 {
-  "Logging": {
-    "LogLevel": {
-      "Default": "Debug",
-      "Microsoft.EntityFrameworkCore": "Information",
-      "Aegis.Authorization": "Debug"
+    "Logging": {
+        "LogLevel": {
+            "Default": "Debug",
+            "Microsoft.EntityFrameworkCore": "Information",
+            "Aegis.Authorization": "Debug"
+        }
     }
-  }
 }
 ```
 
@@ -454,6 +473,7 @@ curl http://localhost:5000/api/v1/audit-logs \
 ### 4. Inspect Database Directly
 
 Using SQLTools in VS Code:
+
 ```sql
 SELECT * FROM relationships WHERE tenant_id = 'tenant-123';
 SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 10;
@@ -466,6 +486,7 @@ SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 10;
 ### Issue: "Connection refused" on Port 5000
 
 **Solution:**
+
 ```bash
 # Check if port is in use
 netstat -ano | findstr :5000
@@ -489,6 +510,7 @@ netstat -ano | findstr :5000
 ### Issue: "Database connection failed"
 
 **Solution:**
+
 1. Check PostgreSQL is running
 2. Verify connection string in `appsettings.Development.json`
 3. Run migrations: `dotnet ef database update`
@@ -498,6 +520,7 @@ netstat -ano | findstr :5000
 ### Issue: "EF Core migration conflicts"
 
 **Solution:**
+
 ```bash
 # Remove last migration
 dotnet ef migrations remove -p ../Aegis.Infrastructure
@@ -510,10 +533,10 @@ dotnet ef migrations add <NewName> -p ../Aegis.Infrastructure
 
 ## Next Steps
 
--  Read [Core Concepts](../concepts/core-concepts-tuple-model.md)
--  Review [API Reference](../reference/api-reference.md)
--  Explore [Architecture Guide](architecture/project-structure.md)
--  Deploy to [Production](deployment-operations-guide.md)
+- Read [Core Concepts](../concepts/core-concepts-tuple-model.md)
+- Review [API Reference](../reference/api-reference.md)
+- Explore [Architecture Guide](architecture/project-structure.md)
+- Deploy to [Production](deployment-operations-guide.md)
 
 ---
 

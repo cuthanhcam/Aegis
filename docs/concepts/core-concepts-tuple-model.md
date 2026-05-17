@@ -12,11 +12,11 @@ The **tuple** is the fundamental unit of authorization in Aegis:
 
 ### Anatomy of a Tuple
 
-| Component | Format | Example | Meaning |
-|-----------|--------|---------|---------|
-| **Subject** | `<type>:<id>` | `user:alice` | The entity requesting access |
-| **Relation** | `<name>` | `editor` | The type of relationship |
-| **Object** | `<type>:<id>` | `document:report-2024` | The resource being accessed |
+| Component    | Format        | Example                | Meaning                      |
+| ------------ | ------------- | ---------------------- | ---------------------------- |
+| **Subject**  | `<type>:<id>` | `user:alice`           | The entity requesting access |
+| **Relation** | `<name>`      | `editor`               | The type of relationship     |
+| **Object**   | `<type>:<id>` | `document:report-2024` | The resource being accessed  |
 
 ### Valid Tuple Examples
 
@@ -53,10 +53,10 @@ Where:
 
 ### Why This Convention?
 
-1. **Clarity**  You immediately know it's a user vs. a team vs. a group
-2. **Graph-readiness**  Enables future graph traversal (e.g., `team:dev contains user:bob?`)
-3. **Auditability**  Type information helps in audit logs and logging
-4. **Scalability**  Avoids namespace collisions as the system grows
+1. **Clarity** You immediately know it's a user vs. a team vs. a group
+2. **Graph-readiness** Enables future graph traversal (e.g., `team:dev contains user:bob?`)
+3. **Auditability** Type information helps in audit logs and logging
+4. **Scalability** Avoids namespace collisions as the system grows
 
 ### Type Examples
 
@@ -79,15 +79,15 @@ A **relation** defines the type of relationship between subject and object.
 
 ### Common Relations
 
-| Relation | Typical Use | Example |
-|----------|------------|---------|
-| `owner` | Ultimate authority | `user:alice owns document:report` |
-| `editor` | Can modify | `team:dev can edit repo:code` |
-| `viewer` | Can read | `user:bob can view document:report` |
-| `member` | Membership | `user:alice is member of team:eng` |
-| `admin` | Administrative access | `user:admin has admin access to org:acme` |
-| `contributor` | Can commit | `user:dev1 is contributor to repo:code` |
-| `parent` | Hierarchy | `org:parent-company contains org:subsidiary` |
+| Relation      | Typical Use           | Example                                      |
+| ------------- | --------------------- | -------------------------------------------- |
+| `owner`       | Ultimate authority    | `user:alice owns document:report`            |
+| `editor`      | Can modify            | `team:dev can edit repo:code`                |
+| `viewer`      | Can read              | `user:bob can view document:report`          |
+| `member`      | Membership            | `user:alice is member of team:eng`           |
+| `admin`       | Administrative access | `user:admin has admin access to org:acme`    |
+| `contributor` | Can commit            | `user:dev1 is contributor to repo:code`      |
+| `parent`      | Hierarchy             | `org:parent-company contains org:subsidiary` |
 
 ### Custom Relations
 
@@ -108,10 +108,10 @@ Every tuple has an **effect** that determines its authorization outcome:
 
 ```json
 {
-  "subject": "user:alice",
-  "relation": "editor",
-  "object": "document:report",
-  "effect": "allow"   // or omit since it defaults to allow
+    "subject": "user:alice",
+    "relation": "editor",
+    "object": "document:report",
+    "effect": "allow" // or omit since it defaults to allow
 }
 ```
 
@@ -119,10 +119,10 @@ Every tuple has an **effect** that determines its authorization outcome:
 
 ```json
 {
-  "subject": "team:contractors",
-  "relation": "editor",
-  "object": "document:confidential",
-  "effect": "deny"
+    "subject": "team:contractors",
+    "relation": "editor",
+    "object": "document:confidential",
+    "effect": "deny"
 }
 ```
 
@@ -173,16 +173,16 @@ An **AuthorizationModel** defines the **schema** for a Store:
 
 ```json
 {
-  "schema": "1.0.0",
-  "model": {
-    "relations": {
-      "owner": { "types": ["user", "team"] },
-      "editor": { "types": ["user", "team"] },
-      "viewer": { "types": ["user", "team"] },
-      "member": { "types": ["user"] }
-    },
-    "types": ["user", "team", "document", "team", "org"]
-  }
+    "schema": "1.0.0",
+    "model": {
+        "relations": {
+            "owner": { "types": ["user", "team"] },
+            "editor": { "types": ["user", "team"] },
+            "viewer": { "types": ["user", "team"] },
+            "member": { "types": ["user"] }
+        },
+        "types": ["user", "team", "document", "team", "org"]
+    }
 }
 ```
 
@@ -206,6 +206,7 @@ Step 1: Look for tuple matching (user:alice, editor, document:report)
 ### ReBAC Use Cases
 
 **Resource ownership and sharing:**
+
 ```
 (user:alice, owner, document:report)
 (user:bob, viewer, document:report)
@@ -213,12 +214,14 @@ Step 1: Look for tuple matching (user:alice, editor, document:report)
 ```
 
 **Team-based access:**
+
 ```
 (team:engineering, owner, repo:code)
 (team:product, viewer, repo:code)
 ```
 
 **Hierarchical relationships (future graph traversal):**
+
 ```
 (team:sub-team, parent, team:main-team)
 (team:main-team, owner, repo:code)
@@ -259,6 +262,7 @@ Step 2: Check roles of user:alice  [RBAC]
 ### RBAC Use Cases
 
 **System-level permissions:**
+
 ```
 role:admin  permission:user:delete
 role:viewer  permission:document:read
@@ -266,6 +270,7 @@ role:admin  permission:audit:export
 ```
 
 **Fallback when no specific relationship exists:**
+
 ```
 If user has no specific ReBAC tuple,
 Fall back to checking RBAC role permissions
@@ -279,66 +284,66 @@ Aegis evaluates permissions in a **deterministic sequence**:
 
 ```
 
- Input: (subject, relation, object)  
- Tenant Context: tenant-id           
+ Input: (subject, relation, object)
+ Tenant Context: tenant-id
 
-         
-         
-   
-    Validate Tuple Input 
-    Parse subject/object 
-    Normalize relation   
-   
-            
+
+
+
+    Validate Tuple Input
+    Parse subject/object
+    Normalize relation
+
+
              (Invalid?)
        DENY_INVALID_INPUT
-            
+
              (Valid)
-   
-    Check for Explicit DENY  
-                             
-    (subject, relation, obj) 
-    effect=DENY?             
-   
-            
+
+    Check for Explicit DENY
+
+    (subject, relation, obj)
+    effect=DENY?
+
+
              YES  DENY_EXPLICIT
-            
+
              NO
-   
-    Check ReBAC Direct Match 
-                             
-    (subject, relation, obj) 
-    effect=ALLOW?            
-   
-            
+
+    Check ReBAC Direct Match
+
+    (subject, relation, obj)
+    effect=ALLOW?
+
+
              YES  ALLOW_REBAC_DIRECT
-            
+
              NO
-   
-    Check RBAC Role Match    
-                             
-    subject's roles have     
-    required permission?     
-   
-            
+
+    Check RBAC Role Match
+
+    subject's roles have
+    required permission?
+
+
              YES  ALLOW_RBAC_ROLE
-            
+
              NO
-   
-    Final Decision           
-     DENY_NOT_FOUND         
-   
+
+    Final Decision
+     DENY_NOT_FOUND
+
 ```
 
 ### Decision Codes
 
-| Code | Meaning | Priority |
-|------|---------|----------|
-| `DENY_EXPLICIT` | Explicit deny tuple matched | Highest (wins) |
-| `DENY_INVALID_INPUT` | Malformed input | High |
-| `ALLOW_REBAC_DIRECT` | Direct ReBAC tuple matched | Medium |
-| `ALLOW_RBAC_ROLE` | RBAC role permission matched | Medium |
-| `DENY_NOT_FOUND` | No allow rule found | Default (lowest) |
+| Code                 | Meaning                      | Priority         |
+| -------------------- | ---------------------------- | ---------------- |
+| `DENY_EXPLICIT`      | Explicit deny tuple matched  | Highest (wins)   |
+| `DENY_INVALID_INPUT` | Malformed input              | High             |
+| `ALLOW_REBAC_DIRECT` | Direct ReBAC tuple matched   | Medium           |
+| `ALLOW_RBAC_ROLE`    | RBAC role permission matched | Medium           |
+| `DENY_NOT_FOUND`     | No allow rule found          | Default (lowest) |
 
 ---
 
@@ -349,6 +354,7 @@ Aegis evaluates permissions in a **deterministic sequence**:
 **Scenario:** Alice shares a document with Bob.
 
 **Tuples created:**
+
 ```
 Alice owns the document:
   (user:alice, owner, document:report-2024)
@@ -358,19 +364,20 @@ Bob gets editor access:
 ```
 
 **Permission checks:**
+
 ```
 Check 1: Can user:alice edit document:report-2024?
-   Find (user:alice, editor, document:report-2024) 
-   Find (user:alice, owner, document:report-2024) 
+   Find (user:alice, editor, document:report-2024)
+   Find (user:alice, owner, document:report-2024)
    Result: ALLOW (owner typically can edit)
 
 Check 2: Can user:bob edit document:report-2024?
-   Find (user:bob, editor, document:report-2024) 
+   Find (user:bob, editor, document:report-2024)
    Result: ALLOW
 
 Check 3: Can user:charlie view document:report-2024?
-   Find (user:charlie, *, document:report-2024) 
-   Check RBAC roles for user:charlie 
+   Find (user:charlie, *, document:report-2024)
+   Check RBAC roles for user:charlie
    Result: DENY (not shared, no role)
 ```
 
@@ -381,6 +388,7 @@ Check 3: Can user:charlie view document:report-2024?
 **Scenario:** Engineering team owns a code repository.
 
 **Tuples:**
+
 ```
 Team owns repo:
   (team:engineering, owner, repo:aegis-code)
@@ -396,20 +404,21 @@ Contractors are explicitly denied:
 ```
 
 **Permission checks:**
+
 ```
 Check 1: Can user:bob edit repo:aegis-code?
-   Find (user:bob, editor, repo:aegis-code) 
-   Find (team:engineering, owner, repo:aegis-code) 
-    AND (user:bob, member, team:engineering) 
+   Find (user:bob, editor, repo:aegis-code)
+   Find (team:engineering, owner, repo:aegis-code)
+    AND (user:bob, member, team:engineering)
    Result: ALLOW (via team membership + team ownership)
   [Note: This requires graph traversal, future feature]
 
 Check 2: Can user:charlie view repo:aegis-code?
-   Find (user:charlie, viewer, repo:aegis-code) 
+   Find (user:charlie, viewer, repo:aegis-code)
    Result: ALLOW
 
 Check 3: Can user:contractor edit repo:aegis-code?
-   Find explicit deny (team:contractors, editor, repo:aegis-code, effect=deny) 
+   Find explicit deny (team:contractors, editor, repo:aegis-code, effect=deny)
    Result: DENY_EXPLICIT (deny overrides any allow)
 ```
 
@@ -420,18 +429,20 @@ Check 3: Can user:contractor edit repo:aegis-code?
 **Scenario:** Admin role has broad permissions.
 
 **RBAC setup:**
+
 ```
 role:admin  permission:document:*
 role:viewer  permission:document:read
 ```
 
 **Check without ReBAC match:**
+
 ```
 Query: Can user:alice read document:anything?
 
-Step 1: Find (user:alice, reader, document:anything) 
-Step 2: Check if user:alice has role:admin or role:viewer 
-        role:admin includes permission:document:* 
+Step 1: Find (user:alice, reader, document:anything)
+Step 2: Check if user:alice has role:admin or role:viewer
+        role:admin includes permission:document:*
 Step 3: Result: ALLOW_RBAC_ROLE
 ```
 
@@ -459,7 +470,7 @@ Tenant (isolation boundary)
         Relationships (permission tuples)
         AuthorizationModel (schema)
         Audit Logs (decision history)
-  
+
    Store 2 (authorization context for different app)
         Relationships
         AuthorizationModel
@@ -467,6 +478,7 @@ Tenant (isolation boundary)
 ```
 
 **Key points:**
+
 - Each tenant is **isolated** from others
 - Each tenant can have **multiple stores** (per app, per environment, etc.)
 - Each store has its **own relationships and schema**
@@ -489,6 +501,7 @@ POST /api/v1/relationships
 ```
 
 **Invalid inputs are rejected:**
+
 ```json
 {
   "subject": "invalid",           Missing : separator
@@ -503,9 +516,10 @@ POST /api/v1/relationships
 ## Conclusion
 
 The **tuple model** is simple but powerful:
--  Easy to understand and explain
--  Flexible for many authorization patterns
--  Graph-ready (can evolve to transitive evaluation)
--  Audit-friendly (clear permission record)
+
+- Easy to understand and explain
+- Flexible for many authorization patterns
+- Graph-ready (can evolve to transitive evaluation)
+- Audit-friendly (clear permission record)
 
 Master the tuple, and you master Aegis authorization.
