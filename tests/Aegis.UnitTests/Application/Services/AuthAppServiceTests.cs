@@ -8,35 +8,35 @@ namespace Aegis.UnitTests.Application.Services
     public class AuthAppServiceTests
     {
         [Fact]
-        public async Task AuthenticateAsync_WithValidCredentials_ReturnsToken()
+        public void AuthenticateAsync_WithValidCredentials_ReturnsToken()
         {
             // Should authenticate and return token
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task RefreshTokenAsync_WithValidToken_ReturnsNewToken()
+        public void RefreshTokenAsync_WithValidToken_ReturnsNewToken()
         {
             // Should refresh token
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task RevokeTokenAsync_WithValidToken_SuccessfullyRevokes()
+        public void RevokeTokenAsync_WithValidToken_SuccessfullyRevokes()
         {
             // Should revoke token
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task ValidateTokenAsync_WithExpiredToken_ReturnsFalse()
+        public void ValidateTokenAsync_WithExpiredToken_ReturnsFalse()
         {
             // Should validate token expiration
             Assert.True(true); // Placeholder
         }
 
         [Fact]
-        public async Task AuthenticateAsync_WithInvalidCredentials_ThrowsUnauthorizedException()
+        public void AuthenticateAsync_WithInvalidCredentials_ThrowsUnauthorizedException()
         {
             // Should throw on invalid credentials
             Assert.True(true); // Placeholder
