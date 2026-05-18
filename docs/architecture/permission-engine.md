@@ -151,7 +151,7 @@ public async Task<DecisionResult> CheckAsync(
         input.Relation);
 
     if (hasRbac)
-        return DecisionResult.Allow("ALLOW_RBAC");
+        return DecisionResult.Allow("ALLOW_RBAC_ROLE");
 
     return DecisionResult.Deny("DENY_NOT_FOUND");
 }

@@ -1,7 +1,9 @@
 using Aegis.Api.Middlewares;
+using Aegis.Api.Security;
 using Aegis.Application;
 using Aegis.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -46,7 +48,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.FromMinutes(1),
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AuthorizationPolicies.PermissionApiAccess, policy => policy
+        .RequireAuthenticatedUser()
+        .RequireAssertion(context => context.User.HasClaim(claim =>
+            string.Equals(claim.Type, "tenant_id", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(claim.Type, "tid", StringComparison.OrdinalIgnoreCase))));
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {

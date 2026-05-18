@@ -1,13 +1,16 @@
 using Aegis.Api.Controllers.Helpers;
+using Aegis.Api.Security;
 using Aegis.Application.Interfaces;
 using Aegis.Contracts.Common;
 using Aegis.Contracts.Permissions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Aegis.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/stores/{storeId}")]
+    [Authorize(Policy = AuthorizationPolicies.PermissionApiAccess)]
     public sealed class StoreCheckController : ControllerBase
     {
         private readonly IPermissionAppService _permissionAppService;
@@ -24,6 +27,12 @@ namespace Aegis.Api.Controllers
             [FromBody] CheckRequestDto request,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<CheckResponseDto>(this, storeId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _permissionAppService.CheckInStoreAsync(
                 storeId,
                 new StoreCheckRequestDto(
@@ -45,6 +54,12 @@ namespace Aegis.Api.Controllers
             [FromBody] CheckRequestDto request,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<CheckResponseDto>(this, storeId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _permissionAppService.ExplainInStoreAsync(
                 storeId,
                 new StoreCheckRequestDto(
@@ -66,6 +81,12 @@ namespace Aegis.Api.Controllers
             [FromBody] BatchCheckRequestDto request,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<BatchCheckResponseDto>(this, storeId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _permissionAppService.BatchCheckInStoreAsync(storeId, request, cancellationToken);
             return this.OkResponse(result);
         }

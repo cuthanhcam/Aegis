@@ -1,5 +1,7 @@
+using Aegis.Infrastructure.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 
 namespace Aegis.Infrastructure
 {
@@ -11,7 +13,15 @@ namespace Aegis.Infrastructure
             bool isDevelopment,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            var provider = configuration.GetSection("Storage").GetValue<string>("Provider") ?? "InMemory";
+            if (!provider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.CompletedTask;
+            }
+
+            using var scope = services.CreateScope();
+            var dataSource = scope.ServiceProvider.GetRequiredService<NpgsqlDataSource>();
+            return PostgresMigrationRunner.MigrateAsync(dataSource, cancellationToken);
         }
     }
 }

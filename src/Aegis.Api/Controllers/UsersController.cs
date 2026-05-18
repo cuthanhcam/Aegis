@@ -1,13 +1,16 @@
 using Aegis.Api.Controllers.Helpers;
+using Aegis.Api.Security;
 using Aegis.Application.Interfaces;
 using Aegis.Contracts.Administration;
 using Aegis.Contracts.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Aegis.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/tenants/{tenantId}/users")]
+    [Authorize(Policy = AuthorizationPolicies.PermissionApiAccess)]
     public sealed class UsersController : ControllerBase
     {
         private readonly IRbacAdminService _rbacAdminService;
@@ -23,6 +26,12 @@ namespace Aegis.Api.Controllers
             [FromRoute] string tenantId,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<IReadOnlyList<UserDto>>(this, tenantId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _rbacAdminService.GetUsersAsync(tenantId, cancellationToken);
             return this.OkResponse<IReadOnlyList<UserDto>>(result);
         }
@@ -34,6 +43,12 @@ namespace Aegis.Api.Controllers
             [FromBody] CreateUserRequestDto request,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<UserDto>(this, tenantId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _rbacAdminService.CreateUserAsync(tenantId, request, cancellationToken);
             return this.CreatedResponse(result);
         }
@@ -47,6 +62,12 @@ namespace Aegis.Api.Controllers
             [FromBody] UpdateUserRequestDto request,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<UserDto>(this, tenantId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _rbacAdminService.UpdateUserAsync(tenantId, userId, request, cancellationToken);
             if (result is null)
             {
@@ -63,6 +84,12 @@ namespace Aegis.Api.Controllers
             [FromRoute] string userId,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<string>(this, tenantId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var deleted = await _rbacAdminService.DeleteUserAsync(tenantId, userId, cancellationToken);
             return this.DeletedResponse(deleted);
         }
@@ -74,6 +101,12 @@ namespace Aegis.Api.Controllers
             [FromRoute] string userId,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<UserRolesDto>(this, tenantId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _rbacAdminService.GetUserRolesAsync(tenantId, userId, cancellationToken);
             return this.OkResponse(result);
         }
