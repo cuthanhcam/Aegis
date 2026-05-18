@@ -11,7 +11,7 @@ public class AuthorizationCacheTests
     {
         var cache = new AuthorizationCache(TimeSpan.FromMinutes(1));
         var request = BuildRequest("tenant-a", "user:alice", "read", "doc:1");
-        var expected = new DecisionResult(true, "ALLOW", "ALLOW_RBAC", Array.Empty<TraceStep>());
+        var expected = new DecisionResult(true, "ALLOW", "ALLOW_RBAC_ROLE", Array.Empty<TraceStep>());
 
         cache.Set(request, includeTrace: false, expected);
 
@@ -27,7 +27,7 @@ public class AuthorizationCacheTests
         var cache = new AuthorizationCache(TimeSpan.Zero);
         var request = BuildRequest("tenant-a", "user:alice", "read", "doc:1");
 
-        cache.Set(request, includeTrace: false, new DecisionResult(true, "ALLOW", "ALLOW_RBAC", Array.Empty<TraceStep>()));
+        cache.Set(request, includeTrace: false, new DecisionResult(true, "ALLOW", "ALLOW_RBAC_ROLE", Array.Empty<TraceStep>()));
 
         var found = cache.TryGet(request, includeTrace: false, out _);
 
@@ -41,7 +41,7 @@ public class AuthorizationCacheTests
 
         var t1 = BuildRequest("tenant-a", "user:alice", "read", "doc:1");
         var t2 = BuildRequest("tenant-b", "user:bob", "read", "doc:2");
-        var result = new DecisionResult(true, "ALLOW", "ALLOW_RBAC", Array.Empty<TraceStep>());
+        var result = new DecisionResult(true, "ALLOW", "ALLOW_RBAC_ROLE", Array.Empty<TraceStep>());
 
         cache.Set(t1, includeTrace: false, result);
         cache.Set(t2, includeTrace: false, result);
@@ -58,7 +58,7 @@ public class AuthorizationCacheTests
     {
         var cache = new AuthorizationCache(TimeSpan.FromMinutes(1));
         var request = BuildRequest("tenant-a", "user:alice", "read", "doc:1");
-        var result = new DecisionResult(true, "ALLOW", "ALLOW_RBAC", Array.Empty<TraceStep>());
+        var result = new DecisionResult(true, "ALLOW", "ALLOW_RBAC_ROLE", Array.Empty<TraceStep>());
 
         cache.Set(request, includeTrace: false, result);
 
@@ -70,7 +70,7 @@ public class AuthorizationCacheTests
     public void TryGet_DoesNotShareEntry_WhenContextualTuplesDiffer()
     {
         var cache = new AuthorizationCache(TimeSpan.FromMinutes(1));
-        var result = new DecisionResult(true, "ALLOW", "ALLOW_RBAC", Array.Empty<TraceStep>());
+        var result = new DecisionResult(true, "ALLOW", "ALLOW_RBAC_ROLE", Array.Empty<TraceStep>());
 
         var withContextualTuple = new CheckRequest(
             TenantId: "tenant-a",
