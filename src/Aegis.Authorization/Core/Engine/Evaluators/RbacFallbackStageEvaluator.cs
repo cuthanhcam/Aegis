@@ -29,7 +29,7 @@ namespace Aegis.Authorization.Core.Engine.Evaluators
             {
                 AuthorizationStageSupport.AddTrace(trace, includeTrace, new TraceStep("RBAC_FALLBACK", "MATCHED"));
                 AuthorizationStageSupport.AddTrace(trace, includeTrace, new TraceStep("FINAL", "ALLOW"));
-                return new DecisionResult(true, "ALLOW", "ALLOW_RBAC", trace.ToList());
+                return new DecisionResult(true, "ALLOW", "ALLOW_RBAC_ROLE", trace.ToList());
             }
 
             AuthorizationStageSupport.AddTrace(trace, includeTrace, new TraceStep("RBAC_FALLBACK", "NOT_MATCHED"));
