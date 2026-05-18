@@ -20,10 +20,10 @@ namespace Aegis.Api.Middlewares
                 && !context.Request.Path.StartsWithSegments("/api/v1/stores", StringComparison.OrdinalIgnoreCase))
             {
                 var isAuthenticated = context.User.Identity?.IsAuthenticated ?? false;
-                var tenantId = context.User.FindFirst("tenant_id")?.Value;
+                var tenantId = context.Request.Headers["X-Tenant-Id"].ToString();
                 if (string.IsNullOrWhiteSpace(tenantId))
                 {
-                    tenantId = context.Request.Headers["X-Tenant-Id"].ToString();
+                    tenantId = context.User.FindFirst("tenant_id")?.Value;
                 }
 
                 if (!isAuthenticated && string.IsNullOrWhiteSpace(tenantId))
@@ -32,16 +32,10 @@ namespace Aegis.Api.Middlewares
                     return;
                 }
 
-                if (string.IsNullOrWhiteSpace(tenantId))
+                if (!string.IsNullOrWhiteSpace(tenantId))
                 {
-                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    context.Response.ContentType = "application/json";
-                    var payload = ApiResponse<string>.Fail("TENANT_REQUIRED", "Tenant context is required from JWT claim tenant_id or X-Tenant-Id header.");
-                    await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
-                    return;
+                    context.Items[TenantIdKey] = tenantId;
                 }
-
-                context.Items[TenantIdKey] = tenantId;
             }
 
             await _next(context);
