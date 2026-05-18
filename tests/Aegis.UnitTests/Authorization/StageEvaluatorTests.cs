@@ -78,7 +78,7 @@ public class StageEvaluatorTests
 
         Assert.NotNull(result);
         Assert.True(result!.Allowed);
-        Assert.Equal("ALLOW_RBAC", result.ReasonCode);
+        Assert.Equal("ALLOW_RBAC_ROLE", result.ReasonCode);
         Assert.Contains(trace, step => step.Step == "RBAC_FALLBACK" && step.Result == "MATCHED");
     }
 

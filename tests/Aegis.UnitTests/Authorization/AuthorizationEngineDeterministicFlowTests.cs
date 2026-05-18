@@ -82,7 +82,7 @@ public class AuthorizationEngineDeterministicFlowTests
             CancellationToken.None);
 
         Assert.True(result.Allowed);
-        Assert.Equal("ALLOW_RBAC", result.ReasonCode);
+        Assert.Equal("ALLOW_RBAC_ROLE", result.ReasonCode);
         Assert.Equal(1, rbac.CallCount);
     }
 
