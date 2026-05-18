@@ -36,7 +36,7 @@ namespace Aegis.Application.Services
         public Task CreatePermissionAsync(string tenantId, CreatePermissionRequestDto request, CancellationToken cancellationToken = default)
         {
             ValidatePermission(request.Relation, request.Object);
-            return _rbacAdminStore.UpsertPermissionAsync(tenantId, request.Relation, request.Object, cancellationToken);
+            return _rbacAdminStore.UpsertPermissionAsync(tenantId, request.Relation, request.Object, request.ConditionName, cancellationToken);
         }
 
         public Task AssignPermissionToRoleAsync(string tenantId, AssignPermissionToRoleRequestDto request, CancellationToken cancellationToken = default)
@@ -47,7 +47,7 @@ namespace Aegis.Application.Services
             }
 
             ValidatePermission(request.Relation, request.Object);
-            return _rbacAdminStore.AssignPermissionToRoleAsync(tenantId, request.RoleName, request.Relation, request.Object, cancellationToken);
+            return _rbacAdminStore.AssignPermissionToRoleAsync(tenantId, request.RoleName, request.Relation, request.Object, request.ConditionName, cancellationToken);
         }
 
         public Task AssignRoleToUserAsync(string tenantId, string userId, AssignRoleToUserRequestDto request, CancellationToken cancellationToken = default)

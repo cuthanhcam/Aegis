@@ -32,6 +32,7 @@ namespace Aegis.Application.Interfaces
             string tenantId,
             string relation,
             string obj,
+            string? conditionName = null,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -50,6 +51,7 @@ namespace Aegis.Application.Interfaces
             string roleName,
             string relation,
             string obj,
+            string? conditionName = null,
             CancellationToken cancellationToken = default);
 
         // User-Role Assignments
