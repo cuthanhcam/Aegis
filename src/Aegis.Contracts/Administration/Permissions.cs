@@ -5,14 +5,16 @@ namespace Aegis.Contracts.Administration
     /// </summary>
     public sealed record CreatePermissionRequestDto(
         string Relation,
-        string Object);
+        string Object,
+        string? ConditionName = null);
 
     /// <summary>
     /// Read model representing a permission entry.
     /// </summary>
     public sealed record PermissionDto(
         string Relation,
-        string Object);
+        string Object,
+        string? ConditionName = null);
 
     /// <summary>
     /// Request payload for assigning a permission to a role.
@@ -20,5 +22,6 @@ namespace Aegis.Contracts.Administration
     public sealed record AssignPermissionToRoleRequestDto(
         string RoleName,
         string Relation,
-        string Object);
+        string Object,
+        string? ConditionName = null);
 }

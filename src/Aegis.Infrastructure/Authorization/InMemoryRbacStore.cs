@@ -1,6 +1,8 @@
 using Aegis.Application.Interfaces;
+using Aegis.Authorization.ABAC;
 using Aegis.Authorization.Core.Interfaces;
 using Aegis.Authorization.Core.Models;
+using Aegis.Authorization.RBAC;
 using Aegis.Contracts.Administration;
 using Aegis.Domain.ValueObjects;
 using System.Collections.Concurrent;
@@ -10,8 +12,8 @@ namespace Aegis.Infrastructure.Authorization
     public sealed class InMemoryRbacStore : IRbacProvider, IRbacAdminStore
     {
         private readonly ConcurrentDictionary<string, string?> _roles = new(StringComparer.OrdinalIgnoreCase);
-        private readonly ConcurrentDictionary<string, byte> _permissions = new(StringComparer.OrdinalIgnoreCase);
-        private readonly ConcurrentDictionary<string, byte> _rolePermissions = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, PermissionEntry> _permissions = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, RolePermissionEntry> _rolePermissions = new(StringComparer.OrdinalIgnoreCase);
         private readonly ConcurrentDictionary<string, byte> _userRoles = new(StringComparer.OrdinalIgnoreCase);
         private readonly ConcurrentDictionary<string, InMemoryUser> _users = new(StringComparer.OrdinalIgnoreCase);
 
@@ -19,31 +21,8 @@ namespace Aegis.Infrastructure.Authorization
             CheckRequest request,
             CancellationToken cancellationToken = default)
         {
-            var userKeyPrefix = $"{request.TenantId}|{request.Subject.Value}|";
-
-            foreach (var userRole in _userRoles.Keys.Where(k => k.StartsWith(userKeyPrefix, StringComparison.OrdinalIgnoreCase)))
-            {
-                var roleName = userRole.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[2];
-                var rolePermissionPrefix = $"{request.TenantId}|{roleName}|";
-                foreach (var rolePermission in _rolePermissions.Keys.Where(k => k.StartsWith(rolePermissionPrefix, StringComparison.OrdinalIgnoreCase)))
-                {
-                    var parts = rolePermission.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                    if (parts.Length < 4)
-                    {
-                        continue;
-                    }
-
-                    var relationPattern = parts[2];
-                    var objectPattern = parts[3];
-                    if (MatchesRelationPattern(relationPattern, request.Relation)
-                        && MatchesObjectPattern(objectPattern, request.Object.Value))
-                    {
-                        return Task.FromResult(true);
-                    }
-                }
-            }
-
-            return Task.FromResult(false);
+            var evaluator = new Aegis.Authorization.RBAC.RbacPermissionEvaluator(GetGrantsAsync);
+            return evaluator.HasPermissionAsync(request, cancellationToken);
         }
 
         public Task UpsertRoleAsync(
@@ -74,9 +53,10 @@ namespace Aegis.Infrastructure.Authorization
             string tenantId,
             string relation,
             string obj,
+            string? conditionName = null,
             CancellationToken cancellationToken = default)
         {
-            _permissions[PermissionKey(tenantId, relation, obj)] = 1;
+            _permissions[PermissionKey(tenantId, relation, obj)] = new PermissionEntry(relation, obj, conditionName);
             return Task.CompletedTask;
         }
 
@@ -87,11 +67,8 @@ namespace Aegis.Infrastructure.Authorization
             var prefix = $"{tenantId}|";
             var data = _permissions.Keys
                 .Where(x => x.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                .Select(x =>
-                {
-                    var parts = x.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                    return new PermissionDto(parts[1], parts[2]);
-                })
+                .Select(x => _permissions[x])
+                .Select(x => new PermissionDto(x.Relation, x.Object, x.ConditionName))
                 .OrderBy(x => x.Relation)
                 .ThenBy(x => x.Object)
                 .ToList();
@@ -104,9 +81,16 @@ namespace Aegis.Infrastructure.Authorization
             string roleName,
             string relation,
             string obj,
+            string? conditionName = null,
             CancellationToken cancellationToken = default)
         {
-            _rolePermissions[RolePermissionKey(tenantId, roleName, relation, obj)] = 1;
+            var resolvedCondition = conditionName;
+            if (string.IsNullOrWhiteSpace(resolvedCondition) && _permissions.TryGetValue(PermissionKey(tenantId, relation, obj), out var permission))
+            {
+                resolvedCondition = permission.ConditionName;
+            }
+
+            _rolePermissions[RolePermissionKey(tenantId, roleName, relation, obj)] = new RolePermissionEntry(roleName, relation, obj, resolvedCondition);
             return Task.CompletedTask;
         }
 
@@ -288,10 +272,50 @@ namespace Aegis.Infrastructure.Authorization
             return split > 0 ? value[..split] : value;
         }
 
+        private Task<IReadOnlyList<RbacPermissionGrant>> GetGrantsAsync(string tenantId, Subject subject, CancellationToken cancellationToken)
+        {
+            var userKeyPrefix = $"{tenantId}|{subject.Value}|";
+            var grants = new List<RbacPermissionGrant>();
+
+            foreach (var userRoleKey in _userRoles.Keys.Where(k => k.StartsWith(userKeyPrefix, StringComparison.OrdinalIgnoreCase)))
+            {
+                var roleName = userRoleKey.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[2];
+                var rolePermissionPrefix = $"{tenantId}|{roleName}|";
+
+                foreach (var rolePermissionKey in _rolePermissions.Keys.Where(k => k.StartsWith(rolePermissionPrefix, StringComparison.OrdinalIgnoreCase)))
+                {
+                    if (!_rolePermissions.TryGetValue(rolePermissionKey, out var entry))
+                    {
+                        continue;
+                    }
+
+                    grants.Add(new RbacPermissionGrant(
+                        SubjectPattern: subject.Value,
+                        RelationPattern: entry.Relation,
+                        ObjectPattern: entry.Object,
+                        IsDeny: false,
+                        ConditionName: entry.ConditionName));
+                }
+            }
+
+            return Task.FromResult<IReadOnlyList<RbacPermissionGrant>>(grants);
+        }
+
         private sealed record InMemoryUser(
             string UserId,
             string? Email,
             string? DisplayName,
             DateTimeOffset CreatedAt);
+
+        private sealed record PermissionEntry(
+            string Relation,
+            string Object,
+            string? ConditionName);
+
+        private sealed record RolePermissionEntry(
+            string RoleName,
+            string Relation,
+            string Object,
+            string? ConditionName);
     }
 }
