@@ -1,13 +1,16 @@
 using Aegis.Api.Controllers.Helpers;
+using Aegis.Api.Security;
 using Aegis.Application.Interfaces;
 using Aegis.Contracts.Administration;
 using Aegis.Contracts.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Aegis.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/tenants/{tenantId}/roles")]
+    [Authorize(Policy = AuthorizationPolicies.PermissionApiAccess)]
     public sealed class RolesController : ControllerBase
     {
         private readonly IRbacAdminService _rbacAdminService;
@@ -23,6 +26,12 @@ namespace Aegis.Api.Controllers
             [FromRoute] string tenantId,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<IReadOnlyList<RoleDto>>(this, tenantId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _rbacAdminService.GetRolesAsync(tenantId, cancellationToken);
             return this.OkResponse<IReadOnlyList<RoleDto>>(result);
         }
@@ -34,6 +43,12 @@ namespace Aegis.Api.Controllers
             [FromBody] CreateRoleRequestDto request,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<string>(this, tenantId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             await _rbacAdminService.CreateRoleAsync(tenantId, request, cancellationToken);
             return this.OkResponse("created");
         }
@@ -45,6 +60,12 @@ namespace Aegis.Api.Controllers
             [FromBody] AssignPermissionToRoleRequestDto request,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<string>(this, tenantId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             await _rbacAdminService.AssignPermissionToRoleAsync(tenantId, request, cancellationToken);
             return this.OkResponse("assigned");
         }

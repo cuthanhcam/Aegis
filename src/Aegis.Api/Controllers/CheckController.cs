@@ -1,14 +1,17 @@
 using Aegis.Api.Controllers.Helpers;
 using Aegis.Api.Middlewares;
+using Aegis.Api.Security;
 using Aegis.Application.Interfaces;
 using Aegis.Contracts.Common;
 using Aegis.Contracts.Permissions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Aegis.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/check")]
+    [Authorize(Policy = AuthorizationPolicies.PermissionApiAccess)]
     public sealed class CheckController : ControllerBase
     {
         private readonly IPermissionAppService _permissionAppService;
@@ -25,6 +28,12 @@ namespace Aegis.Api.Controllers
             [FromBody] CheckRequestDto request,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateContextTenant<CheckResponseDto>(this, tenantId, ResolveContextTenantId());
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var resolvedTenantResult = ResolveTenantId(tenantId);
             if (resolvedTenantResult.ErrorResult is not null)
             {
@@ -37,9 +46,7 @@ namespace Aegis.Api.Controllers
 
         private (string? TenantId, ActionResult<ApiResponse<CheckResponseDto>>? ErrorResult) ResolveTenantId(string? queryTenantId)
         {
-            var contextualTenantId = HttpContext.Items.TryGetValue(TenantContextMiddleware.TenantIdKey, out var tenantContext)
-                ? tenantContext as string
-                : null;
+            var contextualTenantId = ResolveContextTenantId();
 
             if (!string.IsNullOrWhiteSpace(contextualTenantId)
                 && !string.IsNullOrWhiteSpace(queryTenantId)
@@ -66,6 +73,13 @@ namespace Aegis.Api.Controllers
             }
 
             return (effectiveTenantId, null);
+        }
+
+        private string? ResolveContextTenantId()
+        {
+            return HttpContext.Items.TryGetValue(TenantContextMiddleware.TenantIdKey, out var tenantContext)
+                ? tenantContext as string
+                : null;
         }
     }
 }

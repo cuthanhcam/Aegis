@@ -1,13 +1,16 @@
 using Aegis.Api.Controllers.Helpers;
+using Aegis.Api.Security;
 using Aegis.Application.Interfaces;
 using Aegis.Contracts.Administration;
 using Aegis.Contracts.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Aegis.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/tenants/{tenantId}/presets")]
+    [Authorize(Policy = AuthorizationPolicies.PermissionApiAccess)]
     public sealed class PresetsController : ControllerBase
     {
         private readonly IPresetAppService _presetAppService;

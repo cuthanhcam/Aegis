@@ -1,13 +1,16 @@
 using Aegis.Api.Controllers.Helpers;
+using Aegis.Api.Security;
 using Aegis.Application.Interfaces;
 using Aegis.Contracts.Administration;
 using Aegis.Contracts.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Aegis.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/stores/{storeId}/authorization-models")]
+    [Authorize(Policy = AuthorizationPolicies.PermissionApiAccess)]
     public sealed class AuthorizationModelsController : ControllerBase
     {
         private readonly IAuthorizationModelAppService _authorizationModelAppService;
@@ -23,6 +26,12 @@ namespace Aegis.Api.Controllers
             [FromRoute] string storeId,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<IReadOnlyList<AuthorizationModelDto>>(this, storeId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _authorizationModelAppService.ListAsync(storeId, cancellationToken);
             return this.OkResponse<IReadOnlyList<AuthorizationModelDto>>(result);
         }
@@ -34,6 +43,12 @@ namespace Aegis.Api.Controllers
             [FromRoute] string storeId,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<AuthorizationModelDto>(this, storeId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _authorizationModelAppService.GetLatestAsync(storeId, cancellationToken);
             if (result is null)
             {
@@ -51,6 +66,12 @@ namespace Aegis.Api.Controllers
             [FromRoute] string authorizationModelId,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<AuthorizationModelDto>(this, storeId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _authorizationModelAppService.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
             if (result is null)
             {
@@ -67,6 +88,12 @@ namespace Aegis.Api.Controllers
             [FromBody] CreateAuthorizationModelRequestDto request,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<AuthorizationModelDto>(this, storeId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _authorizationModelAppService.CreateAsync(storeId, request, cancellationToken);
             return this.CreatedResponse(result);
         }
@@ -80,6 +107,12 @@ namespace Aegis.Api.Controllers
             [FromBody] CreateAuthorizationModelRequestDto request,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<AuthorizationModelDto>(this, storeId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _authorizationModelAppService.UpdateAsync(storeId, authorizationModelId, request, cancellationToken);
             if (result is null)
             {
@@ -96,6 +129,12 @@ namespace Aegis.Api.Controllers
             [FromRoute] string authorizationModelId,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<string>(this, storeId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var deleted = await _authorizationModelAppService.DeleteAsync(storeId, authorizationModelId, cancellationToken);
             return this.DeletedResponse(deleted);
         }
