@@ -1,6 +1,7 @@
 using Aegis.Application.DomainEvents;
 using Aegis.Application.Interfaces;
 using Aegis.Authorization.Core.Engine;
+using Aegis.Authorization.Caching;
 using Aegis.Authorization.Core.Interfaces;
 using Aegis.Domain.Repositories;
 using Aegis.Infrastructure.Authorization;
@@ -65,7 +66,15 @@ namespace Aegis.Infrastructure
 
             services.AddSingleton<IAuthorizationModelProvider, AuthorizationModelProvider>();
 
-            services.AddScoped<IAuthorizationEngine, AuthorizationEngine>();
+            // Configure AuthorizationEngine with options from configuration (section: AuthorizationEngine)
+            var authorizationEngineOptions = configuration.GetSection("AuthorizationEngine").Get<AuthorizationEngineOptions>() ?? new AuthorizationEngineOptions();
+            services.AddScoped<IAuthorizationEngine>(sp =>
+                new AuthorizationEngine(
+                    sp.GetRequiredService<IRelationshipStore>(),
+                    sp.GetRequiredService<IRbacProvider>(),
+                    sp.GetService<IAuthorizationModelProvider>(),
+                    sp.GetService<AuthorizationCache>(),
+                    authorizationEngineOptions));
             services.AddSingleton<IAuthSessionService, JwtAuthSessionService>();
 
             return services;

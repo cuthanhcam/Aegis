@@ -18,7 +18,7 @@ namespace Aegis.Authorization.Core.Engine
         private readonly AuthorizationCache? _authorizationCache;
         private readonly RewriteEvaluator _rewriteEvaluator;
         private readonly IReadOnlyList<IAuthorizationStageEvaluator> _stageEvaluators;
-        private const int MaxDepth = 8;
+        private readonly int _maxDepth;
 
         /// <summary>
         /// Creates an authorization engine with required relationship and RBAC providers.
@@ -27,12 +27,14 @@ namespace Aegis.Authorization.Core.Engine
             IRelationshipStore relationshipStore,
             IRbacProvider rbacProvider,
             IAuthorizationModelProvider? authorizationModelProvider = null,
-            AuthorizationCache? authorizationCache = null)
+            AuthorizationCache? authorizationCache = null,
+            AuthorizationEngineOptions? options = null)
         {
             _relationshipStore = relationshipStore;
             _authorizationModelProvider = authorizationModelProvider;
             _authorizationCache = authorizationCache;
             _rewriteEvaluator = new RewriteEvaluator(relationshipStore, IsAllowedByRebacAsync);
+            _maxDepth = options?.MaxDepth ?? 8;
             _stageEvaluators =
             [
                 new DenyPolicyStageEvaluator(relationshipStore),
@@ -90,16 +92,22 @@ namespace Aegis.Authorization.Core.Engine
             int depth,
             CancellationToken cancellationToken)
         {
-            if (depth > MaxDepth)
+            if (depth > _maxDepth)
             {
-                AuthorizationStageSupport.AddTrace(trace, includeTrace, new TraceStep("REBAC_REWRITE", "MAX_DEPTH_REACHED"));
+                AuthorizationStageSupport.AddTrace(
+                    trace,
+                    includeTrace,
+                    new TraceStep("REBAC_REWRITE", "MAX_DEPTH_REACHED", $"depth={depth} max={_maxDepth}"));
                 return false;
             }
 
             var visitKey = $"{request.Subject.Value}|{request.Relation}|{request.Object.Value}";
             if (!visited.Add(visitKey))
             {
-                AuthorizationStageSupport.AddTrace(trace, includeTrace, new TraceStep("REBAC_REWRITE", "CYCLE_DETECTED", visitKey));
+                AuthorizationStageSupport.AddTrace(
+                    trace,
+                    includeTrace,
+                    new TraceStep("REBAC_REWRITE", "CYCLE_DETECTED", $"node={visitKey} visited={string.Join("=>", visited)} depth={depth}"));
                 return false;
             }
 
