@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Configuration;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -156,6 +157,13 @@ internal sealed class TestApiFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Storage:Provider"] = "InMemory",
+            });
+        });
         builder.ConfigureServices(services =>
         {
             services.AddAuthentication(options =>
