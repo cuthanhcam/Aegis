@@ -156,14 +156,7 @@ internal sealed class TestApiFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Development");
-        builder.ConfigureAppConfiguration((_, config) =>
-        {
-            config.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Storage:Provider"] = "InMemory",
-            });
-        });
+        builder.UseEnvironment("Testing");
         builder.ConfigureServices(services =>
         {
             services.AddAuthentication(options =>

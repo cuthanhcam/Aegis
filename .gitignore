@@ -151,6 +151,7 @@ secrets.json
 # Keep base appsettings and ignore environment-specific variants
 appsettings.*.json
 !appsettings.json
+!appsettings.Testing.json
 
 # ---------------------------------------------------------------------------
 # Docker & DevOps
