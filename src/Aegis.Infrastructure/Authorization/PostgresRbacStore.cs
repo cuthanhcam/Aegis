@@ -123,6 +123,23 @@ namespace Aegis.Infrastructure.Authorization
             return permissions;
         }
 
+        public async Task<PermissionDto?> GetPermissionAsync(string tenantId, string relation, string obj, CancellationToken cancellationToken = default)
+        {
+            const string sql = "SELECT relation, object_ref, condition_name FROM rbac_permissions WHERE tenant_id = @tenant_id AND relation = @relation AND object_ref = @object_ref LIMIT 1;";
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            await using var command = new NpgsqlCommand(sql, connection);
+            command.Parameters.AddWithValue("tenant_id", tenantId);
+            command.Parameters.AddWithValue("relation", relation);
+            command.Parameters.AddWithValue("object_ref", obj);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+            {
+                return null;
+            }
+
+            return new PermissionDto(reader.GetString(0), reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2));
+        }
+
         public Task AssignPermissionToRoleAsync(string tenantId, string roleName, string relation, string obj, CancellationToken cancellationToken = default)
         {
             return AssignPermissionToRoleAsync(tenantId, roleName, relation, obj, null, cancellationToken);

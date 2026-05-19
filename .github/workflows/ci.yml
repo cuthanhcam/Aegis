@@ -2,8 +2,13 @@ name: .NET CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "develop"]
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ci:
@@ -19,13 +24,10 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Restore
-        run: |
-          find . -name "*.sln" -exec dotnet restore {} \;
+        run: dotnet restore Aegis.sln
 
       - name: Build
-        run: |
-          find . -name "*.sln" -exec dotnet build {} --configuration Release --no-restore \;
+        run: dotnet build Aegis.sln --configuration Release --no-restore
 
       - name: Test
-        run: |
-          find . -name "*.sln" -exec dotnet test {} --configuration Release --no-build --verbosity normal \;
+        run: dotnet test Aegis.sln --configuration Release --no-build --verbosity normal

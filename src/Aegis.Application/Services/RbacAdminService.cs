@@ -33,6 +33,12 @@ namespace Aegis.Application.Services
             return await _rbacAdminStore.GetPermissionsAsync(tenantId, cancellationToken);
         }
 
+        public async Task<PermissionDto?> GetPermissionAsync(string tenantId, string relation, string obj, CancellationToken cancellationToken = default)
+        {
+            ValidatePermission(relation, obj);
+            return await _rbacAdminStore.GetPermissionAsync(tenantId, relation, obj, cancellationToken);
+        }
+
         public Task CreatePermissionAsync(string tenantId, CreatePermissionRequestDto request, CancellationToken cancellationToken = default)
         {
             ValidatePermission(request.Relation, request.Object);

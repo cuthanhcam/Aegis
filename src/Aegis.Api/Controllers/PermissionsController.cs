@@ -36,6 +36,30 @@ namespace Aegis.Api.Controllers
             return this.OkResponse<IReadOnlyList<PermissionDto>>(result);
         }
 
+        [HttpGet("resolve")]
+        [ProducesResponseType(typeof(ApiResponse<PermissionDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ApiResponse<PermissionDto>>> Get(
+            [FromRoute] string tenantId,
+            [FromQuery] string relation,
+            [FromQuery(Name = "object")] string objectRef,
+            CancellationToken cancellationToken)
+        {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<PermissionDto>(this, tenantId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
+            var result = await _rbacAdminService.GetPermissionAsync(tenantId, relation, objectRef, cancellationToken);
+            if (result is null)
+            {
+                return this.NotFoundResponse<PermissionDto>("PERMISSION_NOT_FOUND", "Permission was not found.");
+            }
+
+            return this.OkResponse(result);
+        }
+
         [HttpPost]
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
         public async Task<ActionResult<ApiResponse<string>>> Create(

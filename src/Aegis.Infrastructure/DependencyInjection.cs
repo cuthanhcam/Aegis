@@ -58,7 +58,7 @@ namespace Aegis.Infrastructure
                 services.AddSingleton<IRelationshipStore, InMemoryRelationshipStore>();
                 services.AddSingleton<IRelationshipRepository>(sp => sp.GetRequiredService<IRelationshipStore>() as IRelationshipRepository ?? throw new InvalidOperationException("Relationship repository is unavailable."));
                 services.AddSingleton<InMemoryRbacStore>();
-                services.AddSingleton<IRbacProvider, InMemoryRbacStore>();
+                services.AddSingleton<IRbacProvider>(sp => sp.GetRequiredService<InMemoryRbacStore>());
                 services.AddSingleton<IRbacAdminStore>(sp => sp.GetRequiredService<InMemoryRbacStore>());
                 services.AddSingleton<IAuditStore, InMemoryAuditStore>();
             }

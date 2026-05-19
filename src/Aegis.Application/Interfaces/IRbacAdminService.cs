@@ -17,6 +17,12 @@ public interface IRbacAdminService
         string tenantId,
         CancellationToken cancellationToken = default);
 
+    Task<PermissionDto?> GetPermissionAsync(
+        string tenantId,
+        string relation,
+        string obj,
+        CancellationToken cancellationToken = default);
+
     Task CreatePermissionAsync(
         string tenantId,
         CreatePermissionRequestDto request,

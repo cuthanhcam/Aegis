@@ -42,6 +42,15 @@ namespace Aegis.Application.Interfaces
             string tenantId,
             CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// Retrieves one permission by relation/object for a tenant.
+        /// </summary>
+        Task<PermissionDto?> GetPermissionAsync(
+            string tenantId,
+            string relation,
+            string obj,
+            CancellationToken cancellationToken = default);
+
         // Role-Permission Assignments
         /// <summary>
         /// Assigns a permission to a role.
