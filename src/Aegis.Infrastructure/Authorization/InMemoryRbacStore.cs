@@ -76,6 +76,20 @@ namespace Aegis.Infrastructure.Authorization
             return Task.FromResult<IReadOnlyList<PermissionDto>>(data);
         }
 
+        public Task<PermissionDto?> GetPermissionAsync(
+            string tenantId,
+            string relation,
+            string obj,
+            CancellationToken cancellationToken = default)
+        {
+            if (!_permissions.TryGetValue(PermissionKey(tenantId, relation, obj), out var permission))
+            {
+                return Task.FromResult<PermissionDto?>(null);
+            }
+
+            return Task.FromResult<PermissionDto?>(new PermissionDto(permission.Relation, permission.Object, permission.ConditionName));
+        }
+
         public Task AssignPermissionToRoleAsync(
             string tenantId,
             string roleName,

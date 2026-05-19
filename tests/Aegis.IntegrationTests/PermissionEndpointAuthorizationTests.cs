@@ -90,6 +90,49 @@ public sealed class PermissionEndpointAuthorizationTests
         Assert.Equal("ALLOW_REBAC_DIRECT", payload.Data.ReasonCode);
     }
 
+    [Fact]
+    public async Task Permissions_list_includes_condition_name_in_payload()
+    {
+        await using var factory = new TestApiFactory();
+        await SeedPermissionAsync(factory.AppServices, "tenant-a", "viewer", "document:*", "feature_enabled");
+
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, "tenant-a");
+
+        var response = await client.GetAsync("/api/v1/tenants/tenant-a/permissions");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<IReadOnlyList<PermissionDto>>>(JsonOptions);
+        Assert.True(payload!.Success);
+        Assert.NotNull(payload.Data);
+        var permission = Assert.Single(payload.Data!);
+        Assert.Equal("viewer", permission.Relation);
+        Assert.Equal("document:*", permission.Object);
+        Assert.Equal("feature_enabled", permission.ConditionName);
+    }
+
+    [Fact]
+    public async Task Permissions_get_includes_condition_name_in_payload()
+    {
+        await using var factory = new TestApiFactory();
+        await SeedPermissionAsync(factory.AppServices, "tenant-a", "viewer", "document:*", "feature_enabled");
+
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, "tenant-a");
+
+        var response = await client.GetAsync("/api/v1/tenants/tenant-a/permissions/resolve?relation=viewer&object=document:*");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<PermissionDto>>(JsonOptions);
+        Assert.True(payload!.Success);
+        Assert.NotNull(payload.Data);
+        Assert.Equal("viewer", payload.Data!.Relation);
+        Assert.Equal("document:*", payload.Data.Object);
+        Assert.Equal("feature_enabled", payload.Data.ConditionName);
+    }
+
     private static async Task SeedDirectAllowAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
@@ -98,6 +141,13 @@ public sealed class PermissionEndpointAuthorizationTests
         await relationshipStore.UpsertAsync(
             "tenant-a",
             new RelationshipTuple(new Subject("user:alice"), "viewer", new ObjectRef("document:123"), RelationshipEffect.Allow, DateTimeOffset.UtcNow));
+    }
+
+    private static async Task SeedPermissionAsync(IServiceProvider services, string tenantId, string relation, string objectRef, string conditionName)
+    {
+        using var scope = services.CreateScope();
+        var adminStore = scope.ServiceProvider.GetRequiredService<IRbacAdminStore>();
+        await adminStore.UpsertPermissionAsync(tenantId, relation, objectRef, conditionName);
     }
 }
 
