@@ -86,6 +86,97 @@ curl -X POST http://localhost:5000/api/v1/check \
 { "allowed": true }
 ```
 
+### Initial Orientation: Verify ReBAC, RBAC, ABAC
+
+Use one tenant (example: `tenant-a`) and run these in order to confirm a fresh setup behaves correctly.
+
+1) Create an authorization model for ReBAC rewrite:
+
+```bash
+curl -X POST http://localhost:5000/api/v1/stores/tenant-a/authorization-models \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: tenant-a" \
+  -d '{
+    "schemaVersion":"1.1",
+    "model":"type document\n  define viewer: viewer from parent\ntype folder\n  define viewer: this"
+  }'
+```
+
+2) Seed ReBAC tuples (document parent folder, and user viewer on folder):
+
+```bash
+curl -X POST http://localhost:5000/api/v1/relationships \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: tenant-a" \
+  -d '{"subject":"folder:eng","relation":"parent","object":"document:rebac-1","effect":"allow"}'
+
+curl -X POST http://localhost:5000/api/v1/relationships \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: tenant-a" \
+  -d '{"subject":"user:bob","relation":"viewer","object":"folder:eng","effect":"allow"}'
+```
+
+3) Seed RBAC permission and assignment:
+
+```bash
+curl -X POST http://localhost:5000/api/v1/tenants/tenant-a/roles \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: tenant-a" \
+  -d '{"name":"reader","description":"Default reader role"}'
+
+curl -X POST http://localhost:5000/api/v1/tenants/tenant-a/permissions \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: tenant-a" \
+  -d '{"relation":"viewer","object":"document:rbac-1"}'
+
+curl -X POST http://localhost:5000/api/v1/tenants/tenant-a/permissions/assign-to-role \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: tenant-a" \
+  -d '{"roleName":"reader","relation":"viewer","object":"document:rbac-1"}'
+```
+
+4) Seed ABAC-conditioned RBAC permission:
+
+```bash
+curl -X POST http://localhost:5000/api/v1/tenants/tenant-a/permissions \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: tenant-a" \
+  -d '{"relation":"viewer","object":"document:abac-1","conditionName":"feature_enabled"}'
+
+curl -X POST http://localhost:5000/api/v1/tenants/tenant-a/permissions/assign-to-role \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: tenant-a" \
+  -d '{"roleName":"reader","relation":"viewer","object":"document:abac-1","conditionName":"feature_enabled"}'
+```
+
+5) Run checks:
+
+```bash
+# ReBAC rewrite allow (user:bob -> folder:eng -> document:rebac-1)
+curl -X POST "http://localhost:5000/api/v1/check?tenantId=tenant-a" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: tenant-a" \
+  -d '{"subject":"user:bob","relation":"viewer","object":"document:rebac-1"}'
+
+# RBAC fallback allow
+curl -X POST "http://localhost:5000/api/v1/check?tenantId=tenant-a" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: tenant-a" \
+  -d '{"subject":"user:alice","relation":"viewer","object":"document:rbac-1"}'
+
+# ABAC condition false -> deny
+curl -X POST "http://localhost:5000/api/v1/check?tenantId=tenant-a" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: tenant-a" \
+  -d '{"subject":"user:alice","relation":"viewer","object":"document:abac-1","context":{"feature_enabled":false}}'
+
+# ABAC condition true -> allow
+curl -X POST "http://localhost:5000/api/v1/check?tenantId=tenant-a" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: tenant-a" \
+  -d '{"subject":"user:alice","relation":"viewer","object":"document:abac-1","context":{"feature_enabled":true}}'
+```
+
 ---
 
 ## 🧠 Authorization Model
