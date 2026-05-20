@@ -72,6 +72,19 @@ public class AuthorizationEngineCacheTests
             return Task.FromResult<IReadOnlyList<RelationshipTuple>>(Array.Empty<RelationshipTuple>());
         }
 
+        public Task<IReadOnlyList<IReadOnlyList<RelationshipTuple>>> QueryMultipleAsync(
+            string tenantId,
+            IReadOnlyList<(Subject? subject, string? relation, ObjectRef? obj, RelationshipEffect? effect)> queries,
+            CancellationToken cancellationToken = default)
+        {
+            var results = new List<IReadOnlyList<RelationshipTuple>>(queries.Count);
+            for (int i = 0; i < queries.Count; i++)
+            {
+                results.Add(Array.Empty<RelationshipTuple>());
+            }
+            return Task.FromResult<IReadOnlyList<IReadOnlyList<RelationshipTuple>>>(results);
+        }
+
         public Task UpsertAsync(string tenantId, RelationshipTuple tuple, CancellationToken cancellationToken = default)
         {
             throw new NotSupportedException();

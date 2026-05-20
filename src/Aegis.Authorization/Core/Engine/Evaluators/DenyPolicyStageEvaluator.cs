@@ -10,10 +10,12 @@ namespace Aegis.Authorization.Core.Engine.Evaluators
     internal sealed class DenyPolicyStageEvaluator : IAuthorizationStageEvaluator
     {
         private readonly IRelationshipStore _relationshipStore;
+        private readonly Aegis.Authorization.Core.Metrics.IAuthorizationMetrics? _metrics;
 
-        public DenyPolicyStageEvaluator(IRelationshipStore relationshipStore)
+        public DenyPolicyStageEvaluator(IRelationshipStore relationshipStore, Aegis.Authorization.Core.Metrics.IAuthorizationMetrics? metrics = null)
         {
             _relationshipStore = relationshipStore;
+            _metrics = metrics;
         }
 
         /// <summary>
@@ -32,7 +34,8 @@ namespace Aegis.Authorization.Core.Engine.Evaluators
                 request.Relation,
                 request.Object,
                 RelationshipEffect.Deny,
-                cancellationToken);
+                cancellationToken,
+                _metrics);
 
             if (denied.Count > 0)
             {
