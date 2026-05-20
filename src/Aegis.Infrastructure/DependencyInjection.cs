@@ -11,6 +11,7 @@ using Aegis.Infrastructure.Persistence;
 using Npgsql;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Aegis.Authorization.Core.Metrics;
 
 namespace Aegis.Infrastructure
 {
@@ -66,12 +67,16 @@ namespace Aegis.Infrastructure
 
             services.AddSingleton<IAuthorizationModelProvider, AuthorizationModelProvider>();
 
+            // Register authorization metrics
+            services.AddSingleton<IAuthorizationMetrics, InMemoryAuthorizationMetrics>();
+
             // Configure AuthorizationEngine with options from configuration (section: AuthorizationEngine)
             var authorizationEngineOptions = configuration.GetSection("AuthorizationEngine").Get<AuthorizationEngineOptions>() ?? new AuthorizationEngineOptions();
             services.AddScoped<IAuthorizationEngine>(sp =>
                 new AuthorizationEngine(
                     sp.GetRequiredService<IRelationshipStore>(),
                     sp.GetRequiredService<IRbacProvider>(),
+                    sp.GetRequiredService<IAuthorizationMetrics>(),
                     sp.GetService<IAuthorizationModelProvider>(),
                     sp.GetService<AuthorizationCache>(),
                     authorizationEngineOptions));
