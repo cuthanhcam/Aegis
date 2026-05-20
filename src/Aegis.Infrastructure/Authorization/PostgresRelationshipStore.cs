@@ -51,6 +51,99 @@ namespace Aegis.Infrastructure.Authorization
             return results;
         }
 
+        public async Task<IReadOnlyList<IReadOnlyList<RelationshipTuple>>> QueryMultipleAsync(
+            string tenantId,
+            IReadOnlyList<(Subject? subject, string? relation, ObjectRef? obj, RelationshipEffect? effect)> queries,
+            CancellationToken cancellationToken = default)
+        {
+            if (queries.Count == 0)
+            {
+                return Array.Empty<IReadOnlyList<RelationshipTuple>>();
+            }
+
+            // Build a single SQL query with OR conditions for all queries
+            var sqlBuilder = new System.Text.StringBuilder();
+            sqlBuilder.Append(@"SELECT subject, relation, object_ref, effect, created_at, @query_index as query_idx
+                               FROM relationships
+                               WHERE tenant_id = @tenant_id AND (");
+
+            for (int i = 0; i < queries.Count; i++)
+            {
+                if (i > 0)
+                    sqlBuilder.Append(" OR ");
+
+                var (subject, relation, obj, effect) = queries[i];
+                var conditions = new List<string>();
+                if (subject is not null)
+                    conditions.Add($"subject = @subject_{i}");
+                if (relation is not null)
+                    conditions.Add($"relation = @relation_{i}");
+                if (obj is not null)
+                    conditions.Add($"object_ref = @obj_{i}");
+                if (effect is not null)
+                    conditions.Add($"effect = @effect_{i}");
+
+                if (conditions.Count == 0)
+                {
+                    sqlBuilder.Append("true");
+                }
+                else
+                {
+                    sqlBuilder.Append("(").Append(string.Join(" AND ", conditions)).Append(")");
+                }
+            }
+
+            sqlBuilder.Append(@")
+                                 ORDER BY created_at DESC;");
+
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            await using var command = new NpgsqlCommand(sqlBuilder.ToString(), connection);
+            command.Parameters.AddWithValue("tenant_id", tenantId);
+
+            // Add parameters for all queries
+            for (int i = 0; i < queries.Count; i++)
+            {
+                var (subject, relation, obj, effect) = queries[i];
+                if (subject is not null)
+                    command.Parameters.AddWithValue($"subject_{i}", subject.Value);
+                if (relation is not null)
+                    command.Parameters.AddWithValue($"relation_{i}", relation);
+                if (obj is not null)
+                    command.Parameters.AddWithValue($"obj_{i}", obj.Value);
+                if (effect is not null)
+                    command.Parameters.AddWithValue($"effect_{i}", effect.ToString()!);
+            }
+
+            var allResults = new List<RelationshipTuple>();
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                allResults.Add(new RelationshipTuple(
+                    new Subject(reader.GetString(0)),
+                    reader.GetString(1),
+                    new ObjectRef(reader.GetString(2)),
+                    Enum.Parse<RelationshipEffect>(reader.GetString(3), ignoreCase: true),
+                    reader.GetFieldValue<DateTimeOffset>(4)));
+            }
+
+            // Group results by matching query — for simplicity, just run individual queries to match results back
+            // (A more sophisticated approach would tag each result with its matching query index)
+            var results = new List<IReadOnlyList<RelationshipTuple>>(queries.Count);
+            for (int i = 0; i < queries.Count; i++)
+            {
+                var (subject, relation, obj, effect) = queries[i];
+                var matched = allResults
+                    .Where(t => subject is null || t.Subject == subject)
+                    .Where(t => relation is null || t.Relation.Equals(relation, StringComparison.OrdinalIgnoreCase))
+                    .Where(t => obj is null || t.Object == obj)
+                    .Where(t => effect is null || t.Effect == effect)
+                    .ToList();
+                results.Add(matched);
+            }
+
+            return results;
+        }
+
         public async Task UpsertAsync(string tenantId, RelationshipTuple tuple, CancellationToken cancellationToken = default)
         {
             const string sql = @"INSERT INTO relationships (id, tenant_id, subject, relation, object_ref, effect, created_at, updated_at)

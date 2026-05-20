@@ -33,6 +33,28 @@ namespace Aegis.Infrastructure.Authorization
             return Task.FromResult<IReadOnlyList<RelationshipTuple>>(result);
         }
 
+        public Task<IReadOnlyList<IReadOnlyList<RelationshipTuple>>> QueryMultipleAsync(
+            string tenantId,
+            IReadOnlyList<(Subject? subject, string? relation, ObjectRef? obj, RelationshipEffect? effect)> queries,
+            CancellationToken cancellationToken = default)
+        {
+            var results = new List<IReadOnlyList<RelationshipTuple>>(queries.Count);
+            foreach (var (subject, relation, obj, effect) in queries)
+            {
+                var tuples = _tuples.Values
+                    .Where(x => string.Equals(x.TenantId, tenantId, StringComparison.OrdinalIgnoreCase))
+                    .Select(x => x.Tuple)
+                    .Where(x => x.Subject == (subject ?? x.Subject))
+                    .Where(x => relation is null || x.Relation.Equals(relation, StringComparison.OrdinalIgnoreCase))
+                    .Where(x => x.Object == (obj ?? x.Object))
+                    .Where(x => effect is null || x.Effect == effect)
+                    .ToList();
+                results.Add(tuples);
+            }
+
+            return Task.FromResult<IReadOnlyList<IReadOnlyList<RelationshipTuple>>>(results);
+        }
+
         public Task UpsertAsync(
             string tenantId,
             RelationshipTuple tuple,
