@@ -181,6 +181,26 @@ public class StageEvaluatorTests
             return Task.FromResult<IReadOnlyList<RelationshipTuple>>(result);
         }
 
+        public Task<IReadOnlyList<IReadOnlyList<RelationshipTuple>>> QueryMultipleAsync(
+            string tenantId,
+            IReadOnlyList<(Subject? subject, string? relation, ObjectRef? obj, RelationshipEffect? effect)> queries,
+            CancellationToken cancellationToken = default)
+        {
+            var results = new List<IReadOnlyList<RelationshipTuple>>(queries.Count);
+            foreach (var (subject, relation, obj, effect) in queries)
+            {
+                var tuples = _tuples
+                    .Where(x => subject is null || x.Subject == subject)
+                    .Where(x => relation is null || x.Relation.Equals(relation, StringComparison.OrdinalIgnoreCase))
+                    .Where(x => obj is null || x.Object == obj)
+                    .Where(x => effect is null || x.Effect == effect)
+                    .ToList();
+                results.Add(tuples);
+            }
+
+            return Task.FromResult<IReadOnlyList<IReadOnlyList<RelationshipTuple>>>(results);
+        }
+
         public Task UpsertAsync(string tenantId, RelationshipTuple tuple, CancellationToken cancellationToken = default)
         {
             _tuples.Add(tuple);
