@@ -10,7 +10,7 @@ namespace Aegis.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/tenants/{tenantId}/audit")]
-    [Authorize(Policy = AuthorizationPolicies.PermissionApiAccess)]
+    [Authorize(Policy = AuthorizationPolicies.ManagementApiAccess)]
     public sealed class AuditController : ControllerBase
     {
         private readonly IPermissionAppService _permissionAppService;

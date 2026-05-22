@@ -10,7 +10,7 @@ namespace Aegis.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/stores/{storeId}/relationships")]
-    [Authorize(Policy = AuthorizationPolicies.PermissionApiAccess)]
+    [Authorize(Policy = AuthorizationPolicies.ManagementApiAccess)]
     public sealed class StoreRelationshipsController : ControllerBase
     {
         private readonly IRelationshipService _relationshipAppService;

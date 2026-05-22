@@ -10,7 +10,7 @@ namespace Aegis.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/tenants/{tenantId}/roles")]
-    [Authorize(Policy = AuthorizationPolicies.PermissionApiAccess)]
+    [Authorize(Policy = AuthorizationPolicies.ManagementApiAccess)]
     public sealed class RolesController : ControllerBase
     {
         private readonly IRbacAdminService _rbacAdminService;

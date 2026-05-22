@@ -42,6 +42,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
+            RoleClaimType = "role",
             ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "Aegis",
             ValidAudience = builder.Configuration["Jwt:Audience"] ?? "Aegis.Client",
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)),
@@ -55,6 +56,13 @@ builder.Services.AddAuthorization(options =>
         .RequireAssertion(context => context.User.HasClaim(claim =>
             string.Equals(claim.Type, "tenant_id", StringComparison.OrdinalIgnoreCase)
             || string.Equals(claim.Type, "tid", StringComparison.OrdinalIgnoreCase))));
+
+    options.AddPolicy(AuthorizationPolicies.ManagementApiAccess, policy => policy
+        .RequireAuthenticatedUser()
+        .RequireAssertion(context => context.User.HasClaim(claim =>
+            string.Equals(claim.Type, "tenant_id", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(claim.Type, "tid", StringComparison.OrdinalIgnoreCase)))
+        .RequireRole("authorization_admin"));
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
