@@ -45,6 +45,7 @@ public sealed class PermissionEndpointAuthorizationTests
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
         client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, "tenant-b");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
 
         var response = await client.GetAsync("/api/v1/tenants/tenant-a/roles");
 
@@ -92,6 +93,29 @@ public sealed class PermissionEndpointAuthorizationTests
     }
 
     [Fact]
+    public async Task Management_endpoint_requires_authorization_admin_role()
+    {
+        await using var factory = new TestApiFactory();
+
+        var unauthorizedClient = factory.CreateClient();
+        unauthorizedClient.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
+        unauthorizedClient.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, "tenant-a");
+
+        var forbiddenResponse = await unauthorizedClient.GetAsync("/api/v1/tenants/tenant-a/roles");
+
+        Assert.Equal(HttpStatusCode.Forbidden, forbiddenResponse.StatusCode);
+
+        var authorizedClient = factory.CreateClient();
+        authorizedClient.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
+        authorizedClient.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, "tenant-a");
+        authorizedClient.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
+
+        var allowedResponse = await authorizedClient.GetAsync("/api/v1/tenants/tenant-a/roles");
+
+        Assert.Equal(HttpStatusCode.OK, allowedResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task Permissions_list_includes_condition_name_in_payload()
     {
         await using var factory = new TestApiFactory();
@@ -100,6 +124,7 @@ public sealed class PermissionEndpointAuthorizationTests
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
         client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, "tenant-a");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
 
         var response = await client.GetAsync("/api/v1/tenants/tenant-a/permissions");
 
@@ -122,6 +147,7 @@ public sealed class PermissionEndpointAuthorizationTests
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
         client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, "tenant-a");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
 
         var response = await client.GetAsync("/api/v1/tenants/tenant-a/permissions/resolve?relation=viewer&object=document:*");
 
@@ -180,6 +206,7 @@ internal sealed class TestAuthHandler : AuthenticationHandler<AuthenticationSche
     public const string SchemeName = "TestScheme";
     public const string AuthenticatedHeader = "X-Test-Authenticated";
     public const string TenantHeader = "X-Test-Tenant";
+    public const string RoleHeader = "X-Test-Role";
     public const string RequestTenantHeader = "X-Tenant-Id";
 
     public TestAuthHandler(
@@ -208,7 +235,12 @@ internal sealed class TestAuthHandler : AuthenticationHandler<AuthenticationSche
             claims.Add(new Claim("tenant_id", tenantValue.ToString()));
         }
 
-        var identity = new ClaimsIdentity(claims, SchemeName);
+        if (Request.Headers.TryGetValue(RoleHeader, out var roleValue) && !string.IsNullOrWhiteSpace(roleValue))
+        {
+            claims.Add(new Claim("role", roleValue.ToString()));
+        }
+
+        var identity = new ClaimsIdentity(claims, SchemeName, ClaimTypes.Name, "role");
         var principal = new ClaimsPrincipal(identity);
         var ticket = new AuthenticationTicket(principal, SchemeName);
         return Task.FromResult(AuthenticateResult.Success(ticket));
