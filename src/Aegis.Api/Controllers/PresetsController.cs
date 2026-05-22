@@ -10,7 +10,7 @@ namespace Aegis.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/tenants/{tenantId}/presets")]
-    [Authorize(Policy = AuthorizationPolicies.PermissionApiAccess)]
+    [Authorize(Policy = AuthorizationPolicies.ManagementApiAccess)]
     public sealed class PresetsController : ControllerBase
     {
         private readonly IPresetAppService _presetAppService;
@@ -28,6 +28,12 @@ namespace Aegis.Api.Controllers
             [FromQuery] string? source,
             [FromQuery] string? scope)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<IReadOnlyList<PresetItemDto>>(this, tenantId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = _presetAppService.List(tenantId, storeId, source, scope);
             return this.OkResponse<IReadOnlyList<PresetItemDto>>(result);
         }
@@ -38,6 +44,12 @@ namespace Aegis.Api.Controllers
             [FromRoute] string tenantId,
             [FromBody] UpsertPresetRequestDto request)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<PresetItemDto>(this, tenantId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = _presetAppService.Upsert(tenantId, request);
             return this.CreatedResponse(result);
         }
@@ -48,6 +60,12 @@ namespace Aegis.Api.Controllers
             [FromRoute] string tenantId,
             [FromBody] DeletePresetRequestDto request)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<string>(this, tenantId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var deleted = _presetAppService.Delete(tenantId, request);
             return this.DeletedResponse(deleted);
         }
@@ -56,6 +74,12 @@ namespace Aegis.Api.Controllers
         [ProducesResponseType(typeof(ApiResponse<IReadOnlyDictionary<string, PresetMetaDto>>), StatusCodes.Status200OK)]
         public ActionResult<ApiResponse<IReadOnlyDictionary<string, PresetMetaDto>>> GetMeta([FromRoute] string tenantId)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<IReadOnlyDictionary<string, PresetMetaDto>>(this, tenantId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = _presetAppService.GetMeta(tenantId);
             return this.OkResponse<IReadOnlyDictionary<string, PresetMetaDto>>(result);
         }
@@ -66,6 +90,12 @@ namespace Aegis.Api.Controllers
             [FromRoute] string tenantId,
             [FromBody] SetPresetMetaRequestDto request)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<IReadOnlyDictionary<string, PresetMetaDto>>(this, tenantId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = _presetAppService.SetMeta(tenantId, request.Meta);
             return this.OkResponse<IReadOnlyDictionary<string, PresetMetaDto>>(result);
         }

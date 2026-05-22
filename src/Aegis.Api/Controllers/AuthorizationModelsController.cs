@@ -10,7 +10,7 @@ namespace Aegis.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/stores/{storeId}/authorization-models")]
-    [Authorize(Policy = AuthorizationPolicies.PermissionApiAccess)]
+    [Authorize(Policy = AuthorizationPolicies.ManagementApiAccess)]
     public sealed class AuthorizationModelsController : ControllerBase
     {
         private readonly IAuthorizationModelAppService _authorizationModelAppService;

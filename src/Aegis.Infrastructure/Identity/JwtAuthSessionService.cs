@@ -15,10 +15,10 @@ namespace Aegis.Infrastructure.Identity
         private readonly JwtSecurityTokenHandler _tokenHandler = new();
         private readonly ConcurrentDictionary<string, RefreshSession> _refreshStore = new(StringComparer.Ordinal);
 
-        private static readonly IReadOnlyList<(string Username, string Password, string Subject, string TenantId)> Users =
+        private static readonly IReadOnlyList<DemoUser> Users =
         [
-            ("admin", "admin123", "user:admin", "default"),
-            ("dev", "dev123", "user:dev", "tenant-dev"),
+            new DemoUser("admin", "admin123", "user:admin", "default", ["authorization_admin"]),
+            new DemoUser("dev", "dev123", "user:dev", "tenant-dev", Array.Empty<string>()),
         ];
 
         public JwtAuthSessionService(IConfiguration configuration)
@@ -29,12 +29,12 @@ namespace Aegis.Infrastructure.Identity
         public Task<LoginResponseDto?> LoginAsync(string username, string password, CancellationToken cancellationToken = default)
         {
             var user = Users.FirstOrDefault(x => string.Equals(x.Username, username, StringComparison.OrdinalIgnoreCase) && x.Password == password);
-            if (string.IsNullOrWhiteSpace(user.Username))
+            if (user is null)
             {
                 return Task.FromResult<LoginResponseDto?>(null);
             }
 
-            return Task.FromResult<LoginResponseDto?>(IssueTokens(user.Subject, user.Username, user.TenantId));
+            return Task.FromResult<LoginResponseDto?>(IssueTokens(user.Subject, user.Username, user.TenantId, user.Roles));
         }
 
         public Task<LoginResponseDto?> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default)
@@ -45,7 +45,7 @@ namespace Aegis.Infrastructure.Identity
             }
 
             _refreshStore.TryRemove(refreshToken, out _);
-            return Task.FromResult<LoginResponseDto?>(IssueTokens(session.Subject, session.Username, session.TenantId));
+            return Task.FromResult<LoginResponseDto?>(IssueTokens(session.Subject, session.Username, session.TenantId, session.Roles));
         }
 
         public Task<bool> RevokeAsync(string refreshToken, CancellationToken cancellationToken = default)
@@ -73,7 +73,7 @@ namespace Aegis.Infrastructure.Identity
             return Task.FromResult(removed);
         }
 
-        private LoginResponseDto IssueTokens(string subject, string username, string tenantId)
+        private LoginResponseDto IssueTokens(string subject, string username, string tenantId, IReadOnlyList<string> roles)
         {
             var secret = _configuration["Jwt:Secret"] ?? throw new InvalidOperationException("Jwt:Secret configuration is missing.");
             var issuer = _configuration["Jwt:Issuer"] ?? "Aegis";
@@ -91,20 +91,23 @@ namespace Aegis.Infrastructure.Identity
                 claims:
                 [
                     new Claim(JwtRegisteredClaimNames.Sub, subject),
-                new Claim("preferred_username", username),
-                new Claim("unique_name", username),
-                new Claim("tenant_id", tenantId),
+                    new Claim("preferred_username", username),
+                    new Claim("unique_name", username),
+                    new Claim("tenant_id", tenantId),
+                    ..roles.Select(role => new Claim("role", role)),
                 ],
                 expires: expires,
                 signingCredentials: credentials);
 
             var accessToken = _tokenHandler.WriteToken(jwt);
             var refreshToken = Convert.ToBase64String(Guid.NewGuid().ToByteArray()) + Convert.ToBase64String(Guid.NewGuid().ToByteArray());
-            _refreshStore[refreshToken] = new RefreshSession(subject, username, tenantId, DateTimeOffset.UtcNow.AddDays(refreshDays));
+            _refreshStore[refreshToken] = new RefreshSession(subject, username, tenantId, roles, DateTimeOffset.UtcNow.AddDays(refreshDays));
 
             return new LoginResponseDto(accessToken, refreshToken, accessMinutes * 60);
         }
 
-        private sealed record RefreshSession(string Subject, string Username, string TenantId, DateTimeOffset ExpiresAt);
+        private sealed record DemoUser(string Username, string Password, string Subject, string TenantId, IReadOnlyList<string> Roles);
+
+        private sealed record RefreshSession(string Subject, string Username, string TenantId, IReadOnlyList<string> Roles, DateTimeOffset ExpiresAt);
     }
 }

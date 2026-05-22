@@ -1,14 +1,17 @@
 using Aegis.Api.Controllers.Helpers;
+using Aegis.Api.Security;
 using Aegis.Application.Interfaces;
 using Aegis.Contracts.Common;
 using Aegis.Contracts.Compatibility;
 using Aegis.Contracts.Query;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Aegis.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/stores/{storeId}/graph")]
+    [Authorize(Policy = AuthorizationPolicies.ManagementApiAccess)]
     public sealed class StoreGraphController : ControllerBase
     {
         private readonly IAuthorizationQueryAppService _authorizationQueryAppService;
