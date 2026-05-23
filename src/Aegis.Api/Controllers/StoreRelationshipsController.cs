@@ -40,6 +40,29 @@ namespace Aegis.Api.Controllers
             return this.OkResponse<IReadOnlyList<RelationshipTupleDto>>(result);
         }
 
+        [HttpGet("changes")]
+        [ProducesResponseType(typeof(ApiResponse<ReadChangesResponseDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<ApiResponse<ReadChangesResponseDto>>> ReadChanges(
+            [FromRoute] string storeId,
+            [FromQuery(Name = "page_size")] int? pageSize,
+            [FromQuery(Name = "continuation_token")] string? continuationToken,
+            [FromQuery] string? type,
+            CancellationToken cancellationToken)
+        {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<ReadChangesResponseDto>(this, storeId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
+            var result = await _relationshipAppService.ReadChangesAsync(
+                storeId,
+                new ReadChangesRequestDto(pageSize, continuationToken, type),
+                cancellationToken);
+
+            return this.OkResponse(result);
+        }
+
         [HttpPost]
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
         public async Task<ActionResult<ApiResponse<string>>> Upsert(
