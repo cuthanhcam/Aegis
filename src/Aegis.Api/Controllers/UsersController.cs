@@ -110,5 +110,23 @@ namespace Aegis.Api.Controllers
             var result = await _rbacAdminService.GetUserRolesAsync(tenantId, userId, cancellationToken);
             return this.OkResponse(result);
         }
+
+        [HttpPost("{userId}/roles")]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<ApiResponse<string>>> AssignRole(
+            [FromRoute] string tenantId,
+            [FromRoute] string userId,
+            [FromBody] AssignRoleToUserRequestDto request,
+            CancellationToken cancellationToken)
+        {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<string>(this, tenantId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
+            await _rbacAdminService.AssignRoleToUserAsync(tenantId, userId, request, cancellationToken);
+            return this.OkResponse("assigned");
+        }
     }
 }
