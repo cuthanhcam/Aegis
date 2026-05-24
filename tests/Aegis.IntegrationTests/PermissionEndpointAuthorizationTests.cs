@@ -1,6 +1,7 @@
 using Aegis.Application.Interfaces;
 using Aegis.Contracts.Administration;
 using Aegis.Contracts.Common;
+using Aegis.Contracts.Query;
 using Aegis.Contracts.Permissions;
 using Aegis.Authorization.Core.Interfaces;
 using Aegis.Authorization.Core.Models;
@@ -51,6 +52,49 @@ public sealed class PermissionEndpointAuthorizationTests
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         var payload = await response.Content.ReadFromJsonAsync<ApiResponse<IReadOnlyList<RoleDto>>>(JsonOptions);
+        Assert.False(payload!.Success);
+        Assert.Equal("TENANT_FORBIDDEN", payload.Error!.Code);
+    }
+
+    [Fact]
+    public async Task Store_graph_endpoint_with_mismatched_claim_returns_403()
+    {
+        await using var factory = new TestApiFactory();
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, "tenant-b");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
+
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/stores/tenant-a/graph/list-users",
+            new ListUsersRequestDto("viewer", "document:roadmap"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<ListUsersResponseDto>>(JsonOptions);
+        Assert.False(payload!.Success);
+        Assert.Equal("TENANT_FORBIDDEN", payload.Error!.Code);
+    }
+
+    [Fact]
+    public async Task Store_graph_compat_endpoint_with_mismatched_claim_returns_403()
+    {
+        await using var factory = new TestApiFactory();
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, "tenant-b");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
+
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/stores/tenant-a/graph/list-users/compat",
+            new
+            {
+                relation = "viewer",
+                @object = new { type = "document", id = "roadmap" },
+                user_filters = Array.Empty<object>(),
+            });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<object>>(JsonOptions);
         Assert.False(payload!.Success);
         Assert.Equal("TENANT_FORBIDDEN", payload.Error!.Code);
     }
