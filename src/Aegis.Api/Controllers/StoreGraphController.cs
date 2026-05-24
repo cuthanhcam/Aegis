@@ -28,6 +28,12 @@ namespace Aegis.Api.Controllers
             [FromBody] ListUsersRequestDto request,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<ListUsersResponseDto>(this, storeId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _authorizationQueryAppService.ListUsersAsync(storeId, request, cancellationToken);
             return this.OkResponse(result);
         }
@@ -39,6 +45,12 @@ namespace Aegis.Api.Controllers
             [FromBody] ListObjectsRequestDto request,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<ListObjectsResponseDto>(this, storeId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _authorizationQueryAppService.ListObjectsAsync(storeId, request, cancellationToken);
             return this.OkResponse(result);
         }
@@ -50,6 +62,12 @@ namespace Aegis.Api.Controllers
             [FromBody] ExpandRequestDto request,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenant<ExpandNodeDto>(this, storeId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _authorizationQueryAppService.ExpandAsync(storeId, request, cancellationToken);
             return this.OkResponse(result);
         }
@@ -61,6 +79,12 @@ namespace Aegis.Api.Controllers
             [FromBody] AegisCompatListUsersRequestDto request,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenantResult<AegisCompatListUsersResponseDto>(this, storeId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _authorizationQueryAppService.ListUsersAegisCompatAsync(storeId, request, cancellationToken);
             return Ok(result);
         }
@@ -72,6 +96,12 @@ namespace Aegis.Api.Controllers
             [FromBody] AegisCompatListObjectsRequestDto request,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenantResult<AegisCompatListObjectsResponseDto>(this, storeId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _authorizationQueryAppService.ListObjectsAegisCompatAsync(storeId, request, cancellationToken);
             return Ok(result);
         }
@@ -83,6 +113,12 @@ namespace Aegis.Api.Controllers
             [FromBody] AegisCompatExpandRequestDto request,
             CancellationToken cancellationToken)
         {
+            var accessResult = TenantAccessGuard.ValidateRouteTenantResult<AegisCompatExpandResponseDto>(this, storeId);
+            if (accessResult is not null)
+            {
+                return accessResult;
+            }
+
             var result = await _authorizationQueryAppService.ExpandAegisCompatAsync(storeId, request, cancellationToken);
             return Ok(result);
         }
