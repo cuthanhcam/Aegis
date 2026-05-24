@@ -27,12 +27,6 @@ namespace Aegis.Api.Controllers
             [FromBody] CheckRequestDto request,
             CancellationToken cancellationToken)
         {
-            var accessResult = TenantAccessGuard.ValidateRouteTenant<CheckResponseDto>(this, storeId);
-            if (accessResult is not null)
-            {
-                return accessResult;
-            }
-
             var result = await _permissionAppService.CheckInStoreAsync(
                 storeId,
                 new StoreCheckRequestDto(
@@ -54,12 +48,6 @@ namespace Aegis.Api.Controllers
             [FromBody] CheckRequestDto request,
             CancellationToken cancellationToken)
         {
-            var accessResult = TenantAccessGuard.ValidateRouteTenant<CheckResponseDto>(this, storeId);
-            if (accessResult is not null)
-            {
-                return accessResult;
-            }
-
             var result = await _permissionAppService.ExplainInStoreAsync(
                 storeId,
                 new StoreCheckRequestDto(
@@ -81,12 +69,6 @@ namespace Aegis.Api.Controllers
             [FromBody] BatchCheckRequestDto request,
             CancellationToken cancellationToken)
         {
-            var accessResult = TenantAccessGuard.ValidateRouteTenant<BatchCheckResponseDto>(this, storeId);
-            if (accessResult is not null)
-            {
-                return accessResult;
-            }
-
             var result = await _permissionAppService.BatchCheckInStoreAsync(storeId, request, cancellationToken);
             return this.OkResponse(result);
         }
