@@ -1,4 +1,6 @@
 using Aegis.Application.Interfaces;
+using Aegis.Contracts.Authentication;
+using Aegis.Contracts.Compatibility;
 using Aegis.Contracts.Administration;
 using Aegis.Contracts.Common;
 using Aegis.Contracts.Query;
@@ -94,9 +96,59 @@ public sealed class PermissionEndpointAuthorizationTests
             });
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<object>>(JsonOptions);
+        var payload = await response.Content.ReadFromJsonAsync<AegisCompatErrorResponseDto>(JsonOptions);
+        Assert.NotNull(payload);
+        Assert.Equal("tenant_forbidden", payload!.Code);
+    }
+
+    [Fact]
+    public async Task Login_with_invalid_payload_returns_400_with_standard_envelope()
+    {
+        await using var factory = new TestApiFactory();
+        var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/auth/login",
+            new
+            {
+                username = "ab",
+                password = "123",
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<string>>(JsonOptions);
+        Assert.NotNull(payload);
         Assert.False(payload!.Success);
-        Assert.Equal("TENANT_FORBIDDEN", payload.Error!.Code);
+        Assert.Equal("VALIDATION_ERROR", payload.Error!.Code);
+    }
+
+    [Fact]
+    public async Task Login_is_rate_limited_after_configured_burst()
+    {
+        await using var factory = new TestApiFactory();
+        var client = factory.CreateClient();
+
+        HttpResponseMessage? throttledResponse = null;
+        for (var i = 0; i < 20; i++)
+        {
+            var response = await client.PostAsJsonAsync(
+                "/api/v1/auth/login",
+                new LoginRequestDto("alice", "wrong-password"));
+
+            if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            {
+                throttledResponse = response;
+                break;
+            }
+        }
+
+        Assert.NotNull(throttledResponse);
+        Assert.Equal(HttpStatusCode.TooManyRequests, throttledResponse!.StatusCode);
+
+        var payload = await throttledResponse.Content.ReadFromJsonAsync<ApiResponse<string>>(JsonOptions);
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.Equal("RATE_LIMIT_EXCEEDED", payload.Error!.Code);
     }
 
     [Fact]
@@ -227,6 +279,15 @@ internal sealed class TestApiFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+        builder.ConfigureAppConfiguration((_, configurationBuilder) =>
+        {
+            configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["RateLimiting:Auth:PermitLimit"] = "2",
+                ["RateLimiting:Auth:WindowSeconds"] = "60",
+            });
+        });
+
         builder.ConfigureServices(services =>
         {
             services.AddAuthentication(options =>

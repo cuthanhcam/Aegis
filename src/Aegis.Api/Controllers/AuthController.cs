@@ -5,6 +5,7 @@ using Aegis.Contracts.Common;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
@@ -24,7 +25,9 @@ namespace Aegis.Api.Controllers
         }
 
         [HttpPost("login")]
+        [EnableRateLimiting("auth-sensitive")]
         [ProducesResponseType(typeof(ApiResponse<LoginResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status429TooManyRequests)]
         public async Task<ActionResult<ApiResponse<LoginResponseDto>>> Login(
             [FromBody] LoginRequestDto request,
             CancellationToken cancellationToken)
@@ -44,7 +47,9 @@ namespace Aegis.Api.Controllers
         }
 
         [HttpPost("refresh")]
+        [EnableRateLimiting("auth-sensitive")]
         [ProducesResponseType(typeof(ApiResponse<LoginResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status429TooManyRequests)]
         public async Task<ActionResult<ApiResponse<LoginResponseDto>>> Refresh(
             [FromBody] RefreshRequestDto request,
             CancellationToken cancellationToken)

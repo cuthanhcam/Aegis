@@ -1,19 +1,84 @@
 using Aegis.Api.Middlewares;
 using Aegis.Api.Security;
 using Aegis.Application;
+using Aegis.Contracts.Common;
+using Aegis.Contracts.Compatibility;
 using Aegis.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Text.Json;
 using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services
+    .AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var firstError = context.ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .FirstOrDefault(message => !string.IsNullOrWhiteSpace(message))
+                ?? "Request payload validation failed.";
+
+            if (ErrorEnvelopePathClassifier.IsCompatibilityPath(context.HttpContext.Request.Path))
+            {
+                return new BadRequestObjectResult(new AegisCompatErrorResponseDto("validation_error", firstError));
+            }
+
+            return new BadRequestObjectResult(ApiResponse<string>.Fail("VALIDATION_ERROR", firstError));
+        };
+    });
 builder.Services.AddAegisApplication();
 builder.Services.AddAegisInfrastructure(builder.Configuration);
+
+var authRatePermitLimit = builder.Configuration.GetValue<int?>("RateLimiting:Auth:PermitLimit") ?? 10;
+var authRateWindowSeconds = builder.Configuration.GetValue<int?>("RateLimiting:Auth:WindowSeconds") ?? 60;
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth-sensitive", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = authRatePermitLimit,
+                Window = TimeSpan.FromSeconds(authRateWindowSeconds),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            }));
+
+    options.OnRejected = async (rateLimitContext, cancellationToken) =>
+    {
+        var response = rateLimitContext.HttpContext.Response;
+        if (response.HasStarted)
+        {
+            return;
+        }
+
+        response.ContentType = "application/json";
+
+        if (ErrorEnvelopePathClassifier.IsCompatibilityPath(rateLimitContext.HttpContext.Request.Path))
+        {
+            await response.WriteAsync(
+                JsonSerializer.Serialize(new AegisCompatErrorResponseDto("rate_limit_exceeded", "Too many requests.")),
+                cancellationToken);
+            return;
+        }
+
+        await response.WriteAsync(
+            JsonSerializer.Serialize(ApiResponse<string>.Fail("RATE_LIMIT_EXCEEDED", "Too many requests.")),
+            cancellationToken);
+    };
+});
 
 // CORS Configuration
 var corsOrigins = builder.Configuration
@@ -107,6 +172,8 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseCors("FrontendDev");
 app.UseHttpsRedirection();
+app.UseRouting();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<TenantContextMiddleware>();
 app.UseAuthorization();
