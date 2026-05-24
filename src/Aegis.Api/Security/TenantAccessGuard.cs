@@ -1,4 +1,5 @@
 using Aegis.Contracts.Common;
+using Aegis.Contracts.Compatibility;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -36,12 +37,16 @@ namespace Aegis.Api.Security
             var tenantId = ResolveTenantId(controller.User);
             if (string.IsNullOrWhiteSpace(tenantId))
             {
-                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<object>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+                return controller.StatusCode(
+                    StatusCodes.Status403Forbidden,
+                    new AegisCompatErrorResponseDto("tenant_forbidden", "Tenant claim is required."));
             }
 
             if (!tenantId.Equals(routeTenantId, StringComparison.OrdinalIgnoreCase))
             {
-                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<object>.Fail("TENANT_FORBIDDEN", "Tenant claim does not match the requested tenant."));
+                return controller.StatusCode(
+                    StatusCodes.Status403Forbidden,
+                    new AegisCompatErrorResponseDto("tenant_forbidden", "Tenant claim does not match the requested tenant."));
             }
 
             return null;

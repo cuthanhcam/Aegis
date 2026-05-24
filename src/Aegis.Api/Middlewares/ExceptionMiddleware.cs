@@ -63,7 +63,7 @@ namespace Aegis.Api.Middlewares
             context.Response.StatusCode = statusCode;
             context.Response.ContentType = "application/json";
 
-            if (IsAegisCompatCompatibilityPath(context.Request.Path))
+            if (ErrorEnvelopePathClassifier.IsCompatibilityPath(context.Request.Path))
             {
                 return context.Response.WriteAsync(
                     JsonSerializer.Serialize(new AegisCompatErrorResponseDto(code.ToLowerInvariant(), message)));
@@ -74,37 +74,7 @@ namespace Aegis.Api.Middlewares
         }
 
         /// <summary>
-        /// Detects if request is to a compatibility (OpenFGA-like) endpoint.
-        /// These endpoints live under /api/v1/stores/{storeId}/ and should emit
-        /// AegisCompatErrorResponseDto for backward compatibility with OpenFGA clients.
+        /// Path classification now lives in ErrorEnvelopePathClassifier for reuse across middleware and API behavior.
         /// </summary>
-        private static bool IsAegisCompatCompatibilityPath(PathString path)
-        {
-            var pathValue = path.Value ?? string.Empty;
-
-            // All compatibility endpoints are store-scoped under /api/v1/stores/{storeId}/
-            if (!pathValue.StartsWith("/api/v1/stores/", StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            // Compatibility operation names (case-insensitive)
-            var compatOperations = new[]
-            {
-                "/read",
-                "/write",
-                "/check",
-                "/batch-check",
-                "/list-objects",
-                "/streamed-list-objects",
-                "/list-users",
-                "/expand",
-                "/assertions",
-                "/assertions/read",
-                "/assertions/write",
-            };
-
-            return compatOperations.Any(op => pathValue.EndsWith(op, StringComparison.OrdinalIgnoreCase));
-        }
     }
 }

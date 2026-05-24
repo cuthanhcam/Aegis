@@ -1,9 +1,13 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Aegis.Contracts.Authentication
 {
     /// <summary>
     /// Request payload for signing in with username and password.
     /// </summary>
-    public sealed record LoginRequestDto(string Username, string Password);
+    public sealed record LoginRequestDto(
+        [Required, MinLength(3)] string Username,
+        [Required, MinLength(6)] string Password);
 
     /// <summary>
     /// Request payload for renewing a session using a refresh token.
