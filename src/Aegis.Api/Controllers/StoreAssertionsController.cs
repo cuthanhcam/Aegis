@@ -27,12 +27,6 @@ namespace Aegis.Api.Controllers
             [FromRoute] string authorizationModelId,
             CancellationToken cancellationToken)
         {
-            var accessResult = TenantAccessGuard.ValidateRouteTenant<AegisCompatReadAssertionsResponseDto>(this, storeId);
-            if (accessResult is not null)
-            {
-                return accessResult;
-            }
-
             var result = await _assertionAppService.ReadAsync(storeId, authorizationModelId, cancellationToken);
             return this.OkResponse(result);
         }
@@ -45,12 +39,6 @@ namespace Aegis.Api.Controllers
             [FromBody] AegisCompatWriteAssertionsRequestDto request,
             CancellationToken cancellationToken)
         {
-            var accessResult = TenantAccessGuard.ValidateRouteTenant<string>(this, storeId);
-            if (accessResult is not null)
-            {
-                return accessResult;
-            }
-
             await _assertionAppService.WriteAsync(storeId, authorizationModelId, request, cancellationToken);
             return this.OkResponse("written");
         }

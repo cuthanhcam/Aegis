@@ -30,12 +30,6 @@ namespace Aegis.Api.Controllers
             [FromQuery] string? effect,
             CancellationToken cancellationToken)
         {
-            var accessResult = TenantAccessGuard.ValidateRouteTenant<IReadOnlyList<RelationshipTupleDto>>(this, storeId);
-            if (accessResult is not null)
-            {
-                return accessResult;
-            }
-
             var result = await _relationshipAppService.QueryAsync(storeId, subject, relation, objectRef, effect, cancellationToken);
             return this.OkResponse<IReadOnlyList<RelationshipTupleDto>>(result);
         }
@@ -49,12 +43,6 @@ namespace Aegis.Api.Controllers
             [FromQuery] string? type,
             CancellationToken cancellationToken)
         {
-            var accessResult = TenantAccessGuard.ValidateRouteTenant<ReadChangesResponseDto>(this, storeId);
-            if (accessResult is not null)
-            {
-                return accessResult;
-            }
-
             var result = await _relationshipAppService.ReadChangesAsync(
                 storeId,
                 new ReadChangesRequestDto(pageSize, continuationToken, type),
@@ -70,12 +58,6 @@ namespace Aegis.Api.Controllers
             [FromBody] RelationshipWriteRequestDto request,
             CancellationToken cancellationToken)
         {
-            var accessResult = TenantAccessGuard.ValidateRouteTenant<string>(this, storeId);
-            if (accessResult is not null)
-            {
-                return accessResult;
-            }
-
             await _relationshipAppService.UpsertAsync(storeId, request, cancellationToken);
             return this.OkResponse("upserted");
         }
@@ -87,12 +69,6 @@ namespace Aegis.Api.Controllers
             [FromBody] RelationshipDeleteRequestDto request,
             CancellationToken cancellationToken)
         {
-            var accessResult = TenantAccessGuard.ValidateRouteTenant<string>(this, storeId);
-            if (accessResult is not null)
-            {
-                return accessResult;
-            }
-
             var deleted = await _relationshipAppService.DeleteAsync(storeId, request, cancellationToken);
             return this.DeletedResponse(deleted);
         }

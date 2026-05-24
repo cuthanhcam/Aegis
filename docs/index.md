@@ -36,6 +36,9 @@ docs/
     ├── project-structure.md
     ├── permission-engine.md
     └── database-design.md
+└── frontend/
+    ├── README.md
+    └── tracking.md
 ```
 
 ## By Audience
@@ -65,6 +68,11 @@ docs/
 - [Project Structure](architecture/project-structure.md)
 - [Permission Engine](architecture/permission-engine.md)
 - [Core Concepts](concepts/core-concepts-tuple-model.md)
+
+### Frontend
+
+- [Frontend README](frontend/README.md)
+- [Frontend Tracking](frontend/tracking.md)
 
 ## Reading Paths
 

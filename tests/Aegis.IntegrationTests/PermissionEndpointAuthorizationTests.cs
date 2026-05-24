@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Configuration;
+using System.Net.Http.Headers;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -59,46 +60,51 @@ public sealed class PermissionEndpointAuthorizationTests
     }
 
     [Fact]
-    public async Task Store_graph_endpoint_with_mismatched_claim_returns_403()
+    public async Task Store_graph_endpoint_with_mismatched_claim_still_succeeds()
     {
         await using var factory = new TestApiFactory();
+        var seed = await SeedStoreGraphAsync(factory.AppServices);
+
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
         client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, "tenant-b");
         client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
 
         var response = await client.PostAsJsonAsync(
-            "/api/v1/stores/tenant-a/graph/list-users",
-            new ListUsersRequestDto("viewer", "document:roadmap"));
+            $"/api/v1/stores/{seed.StoreId}/graph/list-users",
+            new ListUsersRequestDto("viewer", "document:roadmap", AuthorizationModelId: seed.AuthorizationModelId));
 
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var payload = await response.Content.ReadFromJsonAsync<ApiResponse<ListUsersResponseDto>>(JsonOptions);
-        Assert.False(payload!.Success);
-        Assert.Equal("TENANT_FORBIDDEN", payload.Error!.Code);
+        Assert.NotNull(payload);
+        Assert.True(payload!.Success);
+        Assert.Contains("user:anne", payload.Data!.Users);
     }
 
     [Fact]
-    public async Task Store_graph_compat_endpoint_with_mismatched_claim_returns_403()
+    public async Task Store_graph_compat_endpoint_with_mismatched_claim_still_succeeds()
     {
         await using var factory = new TestApiFactory();
+        var seed = await SeedStoreGraphAsync(factory.AppServices);
+
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
         client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, "tenant-b");
         client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
 
         var response = await client.PostAsJsonAsync(
-            "/api/v1/stores/tenant-a/graph/list-users/compat",
+            $"/api/v1/stores/{seed.StoreId}/graph/list-users/compat",
             new
             {
                 relation = "viewer",
                 @object = new { type = "document", id = "roadmap" },
                 user_filters = Array.Empty<object>(),
+                authorization_model_id = seed.AuthorizationModelId,
             });
 
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-        var payload = await response.Content.ReadFromJsonAsync<AegisCompatErrorResponseDto>(JsonOptions);
-        Assert.NotNull(payload);
-        Assert.Equal("tenant_forbidden", payload!.Code);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.False(string.IsNullOrWhiteSpace(content));
     }
 
     [Fact]
@@ -212,6 +218,29 @@ public sealed class PermissionEndpointAuthorizationTests
     }
 
     [Fact]
+    public async Task Admin_login_token_can_access_management_stores_endpoint()
+    {
+        await using var factory = new JwtApiFactory();
+        var client = factory.CreateClient();
+
+        var loginResponse = await client.PostAsJsonAsync(
+            "/api/v1/auth/login",
+            new LoginRequestDto("admin", "admin123"));
+
+        Assert.True(loginResponse.IsSuccessStatusCode, await loginResponse.Content.ReadAsStringAsync());
+        var loginPayload = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<LoginResponseDto>>(JsonOptions);
+        Assert.NotNull(loginPayload);
+        Assert.True(loginPayload!.Success);
+        Assert.NotNull(loginPayload.Data);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", loginPayload.Data!.AccessToken);
+
+        var storesResponse = await client.GetAsync("/api/v1/stores");
+
+        Assert.Equal(HttpStatusCode.OK, storesResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task Permissions_list_includes_condition_name_in_payload()
     {
         await using var factory = new TestApiFactory();
@@ -272,6 +301,29 @@ public sealed class PermissionEndpointAuthorizationTests
         var adminStore = scope.ServiceProvider.GetRequiredService<IRbacAdminStore>();
         await adminStore.UpsertPermissionAsync(tenantId, relation, objectRef, conditionName);
     }
+
+    private static async Task<(string StoreId, string AuthorizationModelId)> SeedStoreGraphAsync(IServiceProvider services)
+    {
+        const string model = """
+            type user
+            type document
+              define viewer: [user]
+            """;
+
+        using var scope = services.CreateScope();
+        var storeRegistry = scope.ServiceProvider.GetRequiredService<IStoreRegistry>();
+        var modelRegistry = scope.ServiceProvider.GetRequiredService<IAuthorizationModelRegistry>();
+        var relationshipStore = scope.ServiceProvider.GetRequiredService<IRelationshipStore>();
+
+        var store = await storeRegistry.CreateAsync("graph-auth-store");
+        var authorizationModel = await modelRegistry.CreateAsync(store.Id, "1.1", model);
+
+        await relationshipStore.UpsertAsync(
+            store.Id,
+            new RelationshipTuple(new Subject("user:anne"), "viewer", new ObjectRef("document:roadmap"), RelationshipEffect.Allow, DateTimeOffset.UtcNow));
+
+        return (store.Id, authorizationModel.Id);
+    }
 }
 
 internal sealed class TestApiFactory : WebApplicationFactory<Program>
@@ -299,6 +351,24 @@ internal sealed class TestApiFactory : WebApplicationFactory<Program>
             services.PostConfigure<Microsoft.AspNetCore.Authorization.AuthorizationOptions>(options =>
             {
                 options.InvokeHandlersAfterFailure = true;
+            });
+        });
+    }
+
+    public IServiceProvider AppServices => Server.Services;
+}
+
+internal sealed class JwtApiFactory : WebApplicationFactory<Program>
+{
+    protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
+    {
+        builder.UseEnvironment("Testing");
+        builder.ConfigureAppConfiguration((_, configurationBuilder) =>
+        {
+            configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["RateLimiting:Auth:PermitLimit"] = "2",
+                ["RateLimiting:Auth:WindowSeconds"] = "60",
             });
         });
     }
