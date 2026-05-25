@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Text.Json;
 using System.Text;
 using Aegis.Authorization.Core.Models;
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace Aegis.Authorization.Caching
 {
@@ -10,15 +12,25 @@ namespace Aegis.Authorization.Caching
     /// </summary>
     public sealed class AuthorizationCache
     {
+        private const string EntryPrefix = "aegis:authorization-cache:entry:";
+        private const string TenantIndexPrefix = "aegis:authorization-cache:tenant:";
+        private const string AllKeysIndex = "aegis:authorization-cache:keys";
+        private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
+        {
+            WriteIndented = false,
+        };
+
         private readonly ConcurrentDictionary<string, CacheEntry> _entries = new(StringComparer.Ordinal);
         private readonly TimeSpan _ttl;
+        private readonly IDistributedCache? _distributedCache;
 
         /// <summary>
         /// Creates a decision cache with optional custom TTL.
         /// </summary>
-        public AuthorizationCache(TimeSpan? ttl = null)
+        public AuthorizationCache(TimeSpan? ttl = null, IDistributedCache? distributedCache = null)
         {
             _ttl = ttl ?? TimeSpan.FromSeconds(15);
+            _distributedCache = distributedCache;
         }
 
         /// <summary>
@@ -29,8 +41,15 @@ namespace Aegis.Authorization.Caching
             var key = BuildCacheKey(request, includeTrace);
             if (!_entries.TryGetValue(key, out var entry))
             {
-                result = default!;
-                return false;
+                if (TryGetDistributed(key, out entry))
+                {
+                    _entries[key] = entry;
+                }
+                else
+                {
+                    result = default!;
+                    return false;
+                }
             }
 
             if (entry.ExpiresAtUtc <= DateTimeOffset.UtcNow)
@@ -50,7 +69,9 @@ namespace Aegis.Authorization.Caching
         public void Set(CheckRequest request, bool includeTrace, DecisionResult result)
         {
             var key = BuildCacheKey(request, includeTrace);
-            _entries[key] = new CacheEntry(result, DateTimeOffset.UtcNow.Add(_ttl), request.TenantId);
+            var entry = new CacheEntry(result, DateTimeOffset.UtcNow.Add(_ttl), request.TenantId);
+            _entries[key] = entry;
+            SetDistributed(key, entry);
         }
 
         /// <summary>
@@ -64,6 +85,7 @@ namespace Aegis.Authorization.Caching
             }
 
             var removed = 0;
+            var distributedKeys = GetDistributedIndex(TenantIndexPrefix + tenantId);
             foreach (var pair in _entries)
             {
                 if (!pair.Value.TenantId.Equals(tenantId, StringComparison.Ordinal))
@@ -77,6 +99,20 @@ namespace Aegis.Authorization.Caching
                 }
             }
 
+            foreach (var key in distributedKeys)
+            {
+                if (_distributedCache is not null)
+                {
+                    _distributedCache.Remove(EntryPrefix + key);
+                    removed++;
+                }
+            }
+
+            if (_distributedCache is not null)
+            {
+                _distributedCache.Remove(TenantIndexPrefix + tenantId);
+            }
+
             return removed;
         }
 
@@ -86,6 +122,99 @@ namespace Aegis.Authorization.Caching
         public void Clear()
         {
             _entries.Clear();
+            if (_distributedCache is null)
+            {
+                return;
+            }
+
+            foreach (var key in GetDistributedIndex(AllKeysIndex))
+            {
+                _distributedCache.Remove(EntryPrefix + key);
+            }
+
+            _distributedCache.Remove(AllKeysIndex);
+        }
+
+        private bool TryGetDistributed(string key, out CacheEntry entry)
+        {
+            entry = default!;
+            if (_distributedCache is null)
+            {
+                return false;
+            }
+
+            var bytes = _distributedCache.Get(EntryPrefix + key);
+            if (bytes is null || bytes.Length == 0)
+            {
+                return false;
+            }
+
+            entry = JsonSerializer.Deserialize<CacheEntry>(bytes, SerializerOptions) ?? default!;
+            if (entry.ExpiresAtUtc <= DateTimeOffset.UtcNow)
+            {
+                _distributedCache.Remove(EntryPrefix + key);
+                return false;
+            }
+
+            return true;
+        }
+
+        private void SetDistributed(string key, CacheEntry entry)
+        {
+            if (_distributedCache is null)
+            {
+                return;
+            }
+
+            var payload = JsonSerializer.SerializeToUtf8Bytes(entry, SerializerOptions);
+            _distributedCache.Set(
+                EntryPrefix + key,
+                payload,
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = _ttl,
+                });
+
+            UpdateDistributedIndex(AllKeysIndex, key);
+            UpdateDistributedIndex(TenantIndexPrefix + entry.TenantId, key);
+        }
+
+        private IReadOnlyList<string> GetDistributedIndex(string indexKey)
+        {
+            if (_distributedCache is null)
+            {
+                return Array.Empty<string>();
+            }
+
+            var bytes = _distributedCache.Get(indexKey);
+            if (bytes is null || bytes.Length == 0)
+            {
+                return Array.Empty<string>();
+            }
+
+            return JsonSerializer.Deserialize<string[]>(bytes, SerializerOptions) ?? Array.Empty<string>();
+        }
+
+        private void UpdateDistributedIndex(string indexKey, string key)
+        {
+            if (_distributedCache is null)
+            {
+                return;
+            }
+
+            var keys = GetDistributedIndex(indexKey).ToList();
+            if (!keys.Contains(key, StringComparer.Ordinal))
+            {
+                keys.Add(key);
+            }
+
+            _distributedCache.Set(
+                indexKey,
+                JsonSerializer.SerializeToUtf8Bytes(keys, SerializerOptions),
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = _ttl,
+                });
         }
 
         private static string BuildCacheKey(CheckRequest request, bool includeTrace)

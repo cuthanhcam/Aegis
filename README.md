@@ -59,18 +59,11 @@ Built with **Domain-Driven Design (DDD)** and clean architecture principles, Aeg
 ### Run locally
 
 ```bash
-# Start PostgreSQL
-docker run --name aegis-postgres \
-  -e POSTGRES_USER=aegis \
-  -e POSTGRES_PASSWORD=aegis123 \
-  -e POSTGRES_DB=aegis_dev \
-  -p 5432:5432 -d postgres:15
-
-# Apply migrations & run API
-cd src/Aegis.Api
-dotnet ef database update
-dotnet run
+ $env:JWT_SECRET = "your-local-dev-secret"
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.development.yml up --build
 ```
+
+This starts Postgres, Redis, runs the one-shot migration container, and then starts the API.
 
 ### Test
 

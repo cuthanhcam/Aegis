@@ -12,6 +12,8 @@ using Npgsql;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Aegis.Authorization.Core.Metrics;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 
 namespace Aegis.Infrastructure
 {
@@ -20,6 +22,20 @@ namespace Aegis.Infrastructure
         public static IServiceCollection AddAegisInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
             var storageProvider = configuration.GetSection("Storage").GetValue<string>("Provider") ?? "InMemory";
+            var cacheProvider = configuration.GetSection("Cache").GetValue<string>("Provider") ?? "Memory";
+            var cacheTtlSeconds = configuration.GetSection("Cache").GetValue<int?>("DecisionTtlSeconds") ?? 15;
+
+            if (cacheProvider.Equals("Redis", StringComparison.OrdinalIgnoreCase))
+            {
+                var redisConfiguration = configuration.GetSection("Cache:Redis").GetValue<string>("Configuration")
+                    ?? throw new InvalidOperationException("Cache:Redis:Configuration is missing.");
+
+                services.AddStackExchangeRedisCache(options =>
+                {
+                    options.Configuration = redisConfiguration;
+                    options.InstanceName = "aegis:";
+                });
+            }
 
             services.AddSingleton<IDomainEventOutboxStore, InMemoryDomainEventOutboxStore>();
             services.AddScoped<IDomainEventDispatcher, InProcessDomainEventDispatcher>();
@@ -69,6 +85,7 @@ namespace Aegis.Infrastructure
 
             // Register authorization metrics
             services.AddSingleton<IAuthorizationMetrics, InMemoryAuthorizationMetrics>();
+            services.AddSingleton(sp => new AuthorizationCache(TimeSpan.FromSeconds(cacheTtlSeconds), sp.GetService<IDistributedCache>()));
 
             // Configure AuthorizationEngine with options from configuration (section: AuthorizationEngine)
             var authorizationEngineOptions = configuration.GetSection("AuthorizationEngine").Get<AuthorizationEngineOptions>() ?? new AuthorizationEngineOptions();

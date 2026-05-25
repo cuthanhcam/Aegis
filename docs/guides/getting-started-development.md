@@ -35,6 +35,8 @@ docker run --name aegis-postgres \
   -d postgres:15
 ```
 
+This creates the `aegis_dev` database automatically when the container starts.
+
 **Option B: Local PostgreSQL**
 
 Create database:
@@ -52,32 +54,29 @@ Edit `src/Aegis.Api/appsettings.Development.json`:
 ```json
 {
     "ConnectionStrings": {
-        "DefaultConnection": "Host=localhost;Port=5432;Database=aegis_dev;Username=aegis;Password=aegis123"
+    "Aegis": "Host=localhost;Port=5432;Database=aegis_dev;Username=aegis;Password=aegis123"
     }
 }
 ```
+
+Before running Docker, set `JWT_SECRET` in your shell or in an ignored local `.env` file.
 
 ---
 
 ### Step 4: Apply Migrations
 
 ```bash
-cd src/Aegis.Api
-
-# Build migrations
-dotnet ef migrations add Initial -p ../Aegis.Infrastructure
-
-# Apply to database
-dotnet ef database update
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.development.yml up --build migrate
 ```
+
+That one-shot container starts Postgres, creates the database, and applies the schema before the API serves traffic.
 
 ---
 
 ### Step 5: Run the API
 
 ```bash
-cd src/Aegis.Api
-dotnet run
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.development.yml up --build api
 ```
 
 **Expected output:**

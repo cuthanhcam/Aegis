@@ -163,6 +163,11 @@ var app = builder.Build();
 
 await app.Services.InitializeAegisInfrastructureAsync(app.Configuration, app.Environment.IsDevelopment());
 
+if (args.Any(arg => string.Equals(arg, "--migrate-only", StringComparison.OrdinalIgnoreCase)))
+{
+    return;
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
