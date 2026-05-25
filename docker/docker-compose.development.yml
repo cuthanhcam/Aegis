@@ -1,0 +1,8 @@
+services:
+  migrate:
+    environment:
+      Jwt__Secret: ${JWT_SECRET:?set JWT_SECRET before running the dev stack}
+
+  api:
+    environment:
+      Jwt__Secret: ${JWT_SECRET:?set JWT_SECRET before running the dev stack}
