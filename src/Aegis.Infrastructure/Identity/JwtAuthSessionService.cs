@@ -1,6 +1,8 @@
 using Aegis.Application.Interfaces;
 using Aegis.Contracts.Authentication;
+using Aegis.SharedKernel.Configuration;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Collections.Concurrent;
 using System.IdentityModel.Tokens.Jwt;
@@ -11,13 +13,15 @@ namespace Aegis.Infrastructure.Identity
 {
     public sealed class JwtAuthSessionService : IAuthSessionService
     {
-        private readonly IConfiguration _configuration;
+        private readonly AuthOptions _authOptions;
+        private readonly JwtOptions _jwtOptions;
         private readonly JwtSecurityTokenHandler _tokenHandler = new();
         private readonly ConcurrentDictionary<string, RefreshSession> _refreshStore = new(StringComparer.Ordinal);
 
-        public JwtAuthSessionService(IConfiguration configuration)
+        public JwtAuthSessionService(IConfiguration configuration, IOptions<AuthOptions> authOptions, IOptions<JwtOptions> jwtOptions)
         {
-            _configuration = configuration;
+            _authOptions = authOptions.Value;
+            _jwtOptions = jwtOptions.Value;
         }
 
         public Task<LoginResponseDto?> LoginAsync(string username, string password, CancellationToken cancellationToken = default)
@@ -70,19 +74,18 @@ namespace Aegis.Infrastructure.Identity
 
         private LoginResponseDto IssueTokens(string subject, string username, string tenantId, IReadOnlyList<string> roles)
         {
-            var secret = _configuration["Jwt:Secret"] ?? throw new InvalidOperationException("Jwt:Secret configuration is missing.");
-            var issuer = _configuration["Jwt:Issuer"] ?? "Aegis";
-            var audience = _configuration["Jwt:Audience"] ?? "Aegis.Client";
-            var accessMinutes = int.TryParse(_configuration["Jwt:AccessTokenMinutes"], out var am) ? am : 60;
-            var refreshDays = int.TryParse(_configuration["Jwt:RefreshTokenDays"], out var rd) ? rd : 7;
+            if (string.IsNullOrWhiteSpace(_jwtOptions.Secret))
+            {
+                throw new InvalidOperationException("Jwt:Secret configuration is missing.");
+            }
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.Secret));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var expires = DateTime.UtcNow.AddMinutes(accessMinutes);
+            var expires = DateTime.UtcNow.AddMinutes(_jwtOptions.AccessTokenMinutes);
             var jwt = new JwtSecurityToken(
-                issuer: issuer,
-                audience: audience,
+                issuer: _jwtOptions.Issuer,
+                audience: _jwtOptions.Audience,
                 claims:
                 [
                     new Claim(JwtRegisteredClaimNames.Sub, subject),
@@ -96,16 +99,16 @@ namespace Aegis.Infrastructure.Identity
 
             var accessToken = _tokenHandler.WriteToken(jwt);
             var refreshToken = Convert.ToBase64String(Guid.NewGuid().ToByteArray()) + Convert.ToBase64String(Guid.NewGuid().ToByteArray());
-            _refreshStore[refreshToken] = new RefreshSession(subject, username, tenantId, roles, DateTimeOffset.UtcNow.AddDays(refreshDays));
+            _refreshStore[refreshToken] = new RefreshSession(subject, username, tenantId, roles, DateTimeOffset.UtcNow.AddDays(_jwtOptions.RefreshTokenDays));
 
-            return new LoginResponseDto(accessToken, refreshToken, accessMinutes * 60);
+            return new LoginResponseDto(accessToken, refreshToken, _jwtOptions.AccessTokenMinutes * 60);
         }
 
         private IReadOnlyList<DemoUser> LoadDemoUsers()
         {
-            var users = _configuration
-                .GetSection("Auth:DemoUsers")
-                .Get<List<DemoUser>>();
+            var users = _authOptions.DemoUsers
+                .Select(x => new DemoUser(x.Username, x.Password, x.Subject, x.TenantId, x.Roles))
+                .ToList();
 
             return users is { Count: > 0 }
                 ? users

@@ -4,6 +4,7 @@ using Aegis.Application;
 using Aegis.Contracts.Common;
 using Aegis.Contracts.Compatibility;
 using Aegis.Infrastructure;
+using Aegis.SharedKernel.Configuration;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,8 +15,15 @@ using System.Text.Json;
 using System.Text;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var jwtOptions = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
+if (string.IsNullOrWhiteSpace(jwtOptions.Secret))
+{
+    throw new InvalidOperationException("Jwt:Secret configuration is missing.");
+}
 
 builder.Services
     .AddControllers()
@@ -39,6 +47,14 @@ builder.Services
     });
 builder.Services.AddAegisApplication();
 builder.Services.AddAegisInfrastructure(builder.Configuration);
+builder.Services.AddOptions<AuthOptions>()
+    .BindConfiguration("Auth")
+    .Validate(options => options.DemoUsers is { Count: > 0 }, "Auth:DemoUsers configuration is missing.")
+    .ValidateOnStart();
+builder.Services.AddOptions<JwtOptions>()
+    .BindConfiguration("Jwt")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.Secret), "Jwt:Secret configuration is missing.")
+    .ValidateOnStart();
 
 var authRatePermitLimit = builder.Configuration.GetValue<int?>("RateLimiting:Auth:PermitLimit") ?? 10;
 var authRateWindowSeconds = builder.Configuration.GetValue<int?>("RateLimiting:Auth:WindowSeconds") ?? 60;
@@ -101,7 +117,6 @@ builder.Services.AddCors(options =>
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        var secret = builder.Configuration["Jwt:Secret"] ?? throw new InvalidOperationException("Jwt:Secret configuration is missing.");
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -109,9 +124,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             RoleClaimType = ClaimTypes.Role,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "Aegis",
-            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "Aegis.Client",
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)),
+            ValidIssuer = jwtOptions.Issuer,
+            ValidAudience = jwtOptions.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Secret)),
             ClockSkew = TimeSpan.FromMinutes(1),
         };
     });
@@ -161,7 +176,7 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-await app.Services.InitializeAegisInfrastructureAsync(app.Configuration, app.Environment.IsDevelopment());
+await app.Services.InitializeAegisInfrastructureAsync(app.Configuration);
 
 if (args.Any(arg => string.Equals(arg, "--migrate-only", StringComparison.OrdinalIgnoreCase)))
 {

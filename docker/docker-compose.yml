@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: aegis
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD before running the stack}
     ports:
       - "5432:5432"
     volumes:
@@ -42,7 +42,16 @@ services:
       Cache__Provider: Redis
       Cache__DecisionTtlSeconds: 15
       Cache__Redis__Configuration: redis:6379
-      ConnectionStrings__Aegis: Host=postgres;Port=5432;Database=aegis;Username=postgres;Password=postgres
+      ConnectionStrings__Aegis: Host=postgres;Port=5432;Database=aegis;Username=postgres;Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD before running the stack}
+      Auth__DemoUsers__0__Username: admin
+      Auth__DemoUsers__0__Password: ${AEGIS_DEMO_ADMIN_PASSWORD:?set AEGIS_DEMO_ADMIN_PASSWORD before running the stack}
+      Auth__DemoUsers__0__Subject: user:admin
+      Auth__DemoUsers__0__TenantId: default
+      Auth__DemoUsers__0__Roles__0: authorization_admin
+      Auth__DemoUsers__1__Username: dev
+      Auth__DemoUsers__1__Password: ${AEGIS_DEMO_DEV_PASSWORD:?set AEGIS_DEMO_DEV_PASSWORD before running the stack}
+      Auth__DemoUsers__1__Subject: user:dev
+      Auth__DemoUsers__1__TenantId: tenant-dev
 
   api:
     build:
@@ -59,7 +68,16 @@ services:
       Cache__Provider: Redis
       Cache__DecisionTtlSeconds: 15
       Cache__Redis__Configuration: redis:6379
-      ConnectionStrings__Aegis: Host=postgres;Port=5432;Database=aegis;Username=postgres;Password=postgres
+      ConnectionStrings__Aegis: Host=postgres;Port=5432;Database=aegis;Username=postgres;Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD before running the stack}
+      Auth__DemoUsers__0__Username: admin
+      Auth__DemoUsers__0__Password: ${AEGIS_DEMO_ADMIN_PASSWORD:?set AEGIS_DEMO_ADMIN_PASSWORD before running the stack}
+      Auth__DemoUsers__0__Subject: user:admin
+      Auth__DemoUsers__0__TenantId: default
+      Auth__DemoUsers__0__Roles__0: authorization_admin
+      Auth__DemoUsers__1__Username: dev
+      Auth__DemoUsers__1__Password: ${AEGIS_DEMO_DEV_PASSWORD:?set AEGIS_DEMO_DEV_PASSWORD before running the stack}
+      Auth__DemoUsers__1__Subject: user:dev
+      Auth__DemoUsers__1__TenantId: tenant-dev
       Cors__AllowedOrigins__0: http://localhost:5173
       Cors__AllowedOrigins__1: http://localhost:3000
     ports:

@@ -10,7 +10,6 @@ namespace Aegis.Infrastructure
         public static Task InitializeAegisInfrastructureAsync(
             this IServiceProvider services,
             IConfiguration configuration,
-            bool isDevelopment,
             CancellationToken cancellationToken = default)
         {
             var provider = configuration.GetSection("Storage").GetValue<string>("Provider") ?? "InMemory";
