@@ -23,7 +23,8 @@ namespace Aegis.Api.Controllers.Helpers
             HttpResponse response,
             string cookieName,
             string refreshToken,
-            string cookiePath)
+            string cookiePath,
+            TimeSpan refreshTokenLifetime)
         {
             var secure = string.Equals(request.Scheme, "https", StringComparison.OrdinalIgnoreCase);
             var sameSite = secure ? SameSiteMode.None : SameSiteMode.Lax;
@@ -35,7 +36,7 @@ namespace Aegis.Api.Controllers.Helpers
                 SameSite = sameSite,
                 IsEssential = true,
                 Path = cookiePath,
-                Expires = DateTimeOffset.UtcNow.AddDays(7),
+                Expires = DateTimeOffset.UtcNow.Add(refreshTokenLifetime),
             });
         }
 
