@@ -27,8 +27,11 @@ namespace Aegis.Infrastructure
 
             if (cacheProvider.Equals("Redis", StringComparison.OrdinalIgnoreCase))
             {
-                var redisConfiguration = configuration.GetSection("Cache:Redis").GetValue<string>("Configuration")
-                    ?? throw new InvalidOperationException("Cache:Redis:Configuration is missing.");
+                var redisConfiguration = configuration.GetSection("Cache:Redis").GetValue<string>("Configuration");
+                if (string.IsNullOrWhiteSpace(redisConfiguration))
+                {
+                    throw new InvalidOperationException("Cache:Redis:Configuration is missing.");
+                }
 
                 services.AddStackExchangeRedisCache(options =>
                 {
@@ -47,8 +50,11 @@ namespace Aegis.Infrastructure
 
             if (storageProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
             {
-                var connectionString = configuration.GetConnectionString("Aegis")
-                    ?? throw new InvalidOperationException("ConnectionStrings:Aegis configuration is missing.");
+                var connectionString = configuration.GetConnectionString("Aegis");
+                if (string.IsNullOrWhiteSpace(connectionString))
+                {
+                    throw new InvalidOperationException("ConnectionStrings:Aegis configuration is missing.");
+                }
 
                 services.AddSingleton(NpgsqlDataSource.Create(connectionString));
                 services.AddSingleton<PostgresStoreRegistry>();

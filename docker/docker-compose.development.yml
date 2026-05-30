@@ -2,7 +2,11 @@ services:
   migrate:
     environment:
       Jwt__Secret: ${JWT_SECRET:?set JWT_SECRET before running the dev stack}
+      Auth__DemoUsers__0__Password: ${AEGIS_DEMO_ADMIN_PASSWORD:?set AEGIS_DEMO_ADMIN_PASSWORD before running the dev stack}
+      Auth__DemoUsers__1__Password: ${AEGIS_DEMO_DEV_PASSWORD:?set AEGIS_DEMO_DEV_PASSWORD before running the dev stack}
 
   api:
     environment:
       Jwt__Secret: ${JWT_SECRET:?set JWT_SECRET before running the dev stack}
+      Auth__DemoUsers__0__Password: ${AEGIS_DEMO_ADMIN_PASSWORD:?set AEGIS_DEMO_ADMIN_PASSWORD before running the dev stack}
+      Auth__DemoUsers__1__Password: ${AEGIS_DEMO_DEV_PASSWORD:?set AEGIS_DEMO_DEV_PASSWORD before running the dev stack}
