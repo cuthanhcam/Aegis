@@ -174,6 +174,9 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+// Health checks
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
 await app.Services.InitializeAegisInfrastructureAsync(app.Configuration);
@@ -198,6 +201,25 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<TenantContextMiddleware>();
 app.UseAuthorization();
+
+// Liveness & readiness endpoints
+app.MapHealthChecks("/health/live");
+app.MapHealthChecks("/health/ready");
+
+// Minimal metrics endpoint (JSON) for easy self-hosting
+app.MapGet("/metrics", (IConfiguration _config) =>
+{
+    var process = System.Diagnostics.Process.GetCurrentProcess();
+    var metrics = new
+    {
+        uptimeSeconds = (DateTime.UtcNow - process.StartTime.ToUniversalTime()).TotalSeconds,
+        workingSetBytes = process.WorkingSet64,
+        threadCount = process.Threads.Count,
+        gcTotalMemory = GC.GetTotalMemory(false),
+    };
+
+    return Results.Json(metrics);
+});
 
 app.MapControllers();
 
