@@ -10,10 +10,13 @@ namespace Aegis.Infrastructure.Authorization
     public sealed class PostgresRbacStore : IRbacProvider, IRbacAdminStore
     {
         private readonly NpgsqlDataSource _dataSource;
+        private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentBag<string>> _tenantGrantKeys = new();
 
-        public PostgresRbacStore(NpgsqlDataSource dataSource)
+        public PostgresRbacStore(NpgsqlDataSource dataSource, Microsoft.Extensions.Caching.Memory.IMemoryCache cache)
         {
             _dataSource = dataSource;
+            _cache = cache;
         }
 
         public async Task<bool> HasPermissionAsync(CheckRequest request, CancellationToken cancellationToken = default)
@@ -27,6 +30,12 @@ namespace Aegis.Infrastructure.Authorization
             Subject subject,
             CancellationToken cancellationToken)
         {
+            var cacheKey = $"rbac_grants:{tenantId}:{subject.Value}";
+            if (_cache.TryGetValue(cacheKey, out var cachedObj) && cachedObj is IReadOnlyList<RbacPermissionGrant> cached)
+            {
+                return cached;
+            }
+
             const string sql = @"SELECT ur.role_name, rp.relation, rp.object_ref, rp.condition_name
                                  FROM rbac_user_roles ur
                                  JOIN rbac_role_permissions rp ON rp.tenant_id = ur.tenant_id AND rp.role_name = ur.role_name
@@ -49,7 +58,34 @@ namespace Aegis.Infrastructure.Authorization
                     ConditionName: reader.IsDBNull(3) ? null : reader.GetString(3)));
             }
 
+            var options = new Microsoft.Extensions.Caching.Memory.MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60),
+                Priority = Microsoft.Extensions.Caching.Memory.CacheItemPriority.Normal
+            };
+
+            using (var entry = _cache.CreateEntry(cacheKey))
+            {
+                entry.AbsoluteExpirationRelativeToNow = options.AbsoluteExpirationRelativeToNow;
+                entry.Priority = options.Priority;
+                entry.Value = grants.AsReadOnly();
+            }
+
+            var bag = _tenantGrantKeys.GetOrAdd(tenantId, _ => new System.Collections.Concurrent.ConcurrentBag<string>());
+            bag.Add(cacheKey);
+
             return grants;
+        }
+
+        private void EvictTenantGrantCache(string tenantId)
+        {
+            if (_tenantGrantKeys.TryRemove(tenantId, out var bag))
+            {
+                while (bag.TryTake(out var key))
+                {
+                    _cache.Remove(key);
+                }
+            }
         }
 
         public Task UpsertRoleAsync(string tenantId, string roleName, string? description, CancellationToken cancellationToken = default)
@@ -66,7 +102,7 @@ namespace Aegis.Infrastructure.Authorization
                 command.Parameters.AddWithValue("created_at", DateTimeOffset.UtcNow);
                 command.Parameters.AddWithValue("updated_at", DateTimeOffset.UtcNow);
                 await command.ExecuteNonQueryAsync(cancellationToken);
-            }, cancellationToken);
+            }, cancellationToken).ContinueWith(t => EvictTenantGrantCache(tenantId), cancellationToken);
         }
 
         public async Task<IReadOnlyList<RoleDto>> GetRolesAsync(string tenantId, CancellationToken cancellationToken = default)
@@ -104,7 +140,7 @@ namespace Aegis.Infrastructure.Authorization
                 command.Parameters.AddWithValue("condition_name", (object?)conditionName ?? DBNull.Value);
                 command.Parameters.AddWithValue("created_at", DateTimeOffset.UtcNow);
                 await command.ExecuteNonQueryAsync(cancellationToken);
-            }, cancellationToken);
+            }, cancellationToken).ContinueWith(t => EvictTenantGrantCache(tenantId), cancellationToken);
         }
 
         public async Task<IReadOnlyList<PermissionDto>> GetPermissionsAsync(string tenantId, CancellationToken cancellationToken = default)
@@ -160,7 +196,7 @@ namespace Aegis.Infrastructure.Authorization
                 command.Parameters.AddWithValue("condition_name", (object?)conditionName ?? DBNull.Value);
                 command.Parameters.AddWithValue("created_at", DateTimeOffset.UtcNow);
                 await command.ExecuteNonQueryAsync(cancellationToken);
-            }, cancellationToken);
+            }, cancellationToken).ContinueWith(t => EvictTenantGrantCache(tenantId), cancellationToken);
         }
 
         public Task AssignRoleToUserAsync(string tenantId, string userId, string roleName, CancellationToken cancellationToken = default)

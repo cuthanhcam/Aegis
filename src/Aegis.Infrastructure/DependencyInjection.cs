@@ -40,6 +40,9 @@ namespace Aegis.Infrastructure
                 });
             }
 
+            // In-memory cache for local decision caching (simple MemoryCache instance)
+            services.AddSingleton<Microsoft.Extensions.Caching.Memory.IMemoryCache>(_ => new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()));
+
             services.AddSingleton<IDomainEventOutboxStore, InMemoryDomainEventOutboxStore>();
             services.AddScoped<IDomainEventDispatcher, InProcessDomainEventDispatcher>();
             services.AddScoped(typeof(IDomainEventHandler<>), typeof(LoggingDomainEventHandler<>));
