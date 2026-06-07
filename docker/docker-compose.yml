@@ -1,6 +1,9 @@
+name: aegis
+
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: aegis-postgres
     environment:
       POSTGRES_DB: aegis
       POSTGRES_USER: postgres
@@ -17,6 +20,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    container_name: aegis-redis
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
@@ -29,6 +33,8 @@ services:
       retries: 10
 
   migrate:
+    image: aegis-api:local
+    container_name: aegis-migrate
     build:
       context: ..
       dockerfile: docker/backend.Dockerfile
@@ -54,6 +60,8 @@ services:
       Auth__DemoUsers__1__TenantId: tenant-dev
 
   api:
+    image: aegis-api:local
+    container_name: aegis-api
     build:
       context: ..
       dockerfile: docker/backend.Dockerfile
