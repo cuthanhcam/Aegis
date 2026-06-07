@@ -41,6 +41,26 @@ public class AuthorizationEngineCacheTests
         Assert.Equal(2, rbacProvider.CallCount);
     }
 
+    [Fact]
+    public async Task CheckAsync_ReevaluatesAfterTenantCacheInvalidation()
+    {
+        var relationshipStore = new EmptyRelationshipStore();
+        var rbacProvider = new MutableRbacProvider(allowed: false);
+        var cache = new AuthorizationCache(TimeSpan.FromMinutes(1));
+        var engine = new AuthorizationEngine(relationshipStore, rbacProvider, authorizationCache: cache);
+
+        var request = new CheckRequest("tenant-a", new Subject("user:charlie"), "viewer", new ObjectRef("document:spec"));
+
+        var first = await engine.CheckAsync(request);
+        rbacProvider.Allowed = true;
+        cache.InvalidateTenant("tenant-a");
+        var second = await engine.CheckAsync(request);
+
+        Assert.False(first.Allowed);
+        Assert.True(second.Allowed);
+        Assert.Equal(2, rbacProvider.CallCount);
+    }
+
     private sealed class CountingRbacProvider : IRbacProvider
     {
         private readonly bool _allowed;
@@ -56,6 +76,24 @@ public class AuthorizationEngineCacheTests
         {
             CallCount++;
             return Task.FromResult(_allowed);
+        }
+    }
+
+    private sealed class MutableRbacProvider : IRbacProvider
+    {
+        public MutableRbacProvider(bool allowed)
+        {
+            Allowed = allowed;
+        }
+
+        public bool Allowed { get; set; }
+
+        public int CallCount { get; private set; }
+
+        public Task<bool> HasPermissionAsync(CheckRequest request, CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            return Task.FromResult(Allowed);
         }
     }
 

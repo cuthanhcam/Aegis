@@ -1,3 +1,4 @@
+using Aegis.Authorization.Caching;
 using Aegis.Application.Interfaces;
 using Aegis.Authorization.RBAC;
 using Aegis.Authorization.Core.Interfaces;
@@ -11,12 +12,14 @@ namespace Aegis.Infrastructure.Authorization
     {
         private readonly NpgsqlDataSource _dataSource;
         private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
+        private readonly AuthorizationCache? _authorizationCache;
         private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentBag<string>> _tenantGrantKeys = new();
 
-        public PostgresRbacStore(NpgsqlDataSource dataSource, Microsoft.Extensions.Caching.Memory.IMemoryCache cache)
+        public PostgresRbacStore(NpgsqlDataSource dataSource, Microsoft.Extensions.Caching.Memory.IMemoryCache cache, AuthorizationCache? authorizationCache = null)
         {
             _dataSource = dataSource;
             _cache = cache;
+            _authorizationCache = authorizationCache;
         }
 
         public async Task<bool> HasPermissionAsync(CheckRequest request, CancellationToken cancellationToken = default)
@@ -86,11 +89,13 @@ namespace Aegis.Infrastructure.Authorization
                     _cache.Remove(key);
                 }
             }
+
+            _authorizationCache?.InvalidateTenant(tenantId);
         }
 
-        public Task UpsertRoleAsync(string tenantId, string roleName, string? description, CancellationToken cancellationToken = default)
+        public async Task UpsertRoleAsync(string tenantId, string roleName, string? description, CancellationToken cancellationToken = default)
         {
-            return ExecuteAsync(async connection =>
+            await ExecuteAsync(async connection =>
             {
                 const string sql = @"INSERT INTO rbac_roles (tenant_id, role_name, description, created_at, updated_at)
                                      VALUES (@tenant_id, @role_name, @description, @created_at, @updated_at)
@@ -102,7 +107,9 @@ namespace Aegis.Infrastructure.Authorization
                 command.Parameters.AddWithValue("created_at", DateTimeOffset.UtcNow);
                 command.Parameters.AddWithValue("updated_at", DateTimeOffset.UtcNow);
                 await command.ExecuteNonQueryAsync(cancellationToken);
-            }, cancellationToken).ContinueWith(t => EvictTenantGrantCache(tenantId), cancellationToken);
+            }, cancellationToken);
+
+            EvictTenantGrantCache(tenantId);
         }
 
         public async Task<IReadOnlyList<RoleDto>> GetRolesAsync(string tenantId, CancellationToken cancellationToken = default)
@@ -126,9 +133,9 @@ namespace Aegis.Infrastructure.Authorization
             return UpsertPermissionAsync(tenantId, relation, obj, null, cancellationToken);
         }
 
-        public Task UpsertPermissionAsync(string tenantId, string relation, string obj, string? conditionName = null, CancellationToken cancellationToken = default)
+        public async Task UpsertPermissionAsync(string tenantId, string relation, string obj, string? conditionName = null, CancellationToken cancellationToken = default)
         {
-            return ExecuteAsync(async connection =>
+            await ExecuteAsync(async connection =>
             {
                 const string sql = @"INSERT INTO rbac_permissions (tenant_id, relation, object_ref, condition_name, created_at)
                                      VALUES (@tenant_id, @relation, @object_ref, @condition_name, @created_at)
@@ -140,7 +147,9 @@ namespace Aegis.Infrastructure.Authorization
                 command.Parameters.AddWithValue("condition_name", (object?)conditionName ?? DBNull.Value);
                 command.Parameters.AddWithValue("created_at", DateTimeOffset.UtcNow);
                 await command.ExecuteNonQueryAsync(cancellationToken);
-            }, cancellationToken).ContinueWith(t => EvictTenantGrantCache(tenantId), cancellationToken);
+            }, cancellationToken);
+
+            EvictTenantGrantCache(tenantId);
         }
 
         public async Task<IReadOnlyList<PermissionDto>> GetPermissionsAsync(string tenantId, CancellationToken cancellationToken = default)
@@ -181,9 +190,9 @@ namespace Aegis.Infrastructure.Authorization
             return AssignPermissionToRoleAsync(tenantId, roleName, relation, obj, null, cancellationToken);
         }
 
-        public Task AssignPermissionToRoleAsync(string tenantId, string roleName, string relation, string obj, string? conditionName = null, CancellationToken cancellationToken = default)
+        public async Task AssignPermissionToRoleAsync(string tenantId, string roleName, string relation, string obj, string? conditionName = null, CancellationToken cancellationToken = default)
         {
-            return ExecuteAsync(async connection =>
+            await ExecuteAsync(async connection =>
             {
                 const string sql = @"INSERT INTO rbac_role_permissions (tenant_id, role_name, relation, object_ref, condition_name, created_at)
                                      VALUES (@tenant_id, @role_name, @relation, @object_ref, @condition_name, @created_at)
@@ -196,12 +205,14 @@ namespace Aegis.Infrastructure.Authorization
                 command.Parameters.AddWithValue("condition_name", (object?)conditionName ?? DBNull.Value);
                 command.Parameters.AddWithValue("created_at", DateTimeOffset.UtcNow);
                 await command.ExecuteNonQueryAsync(cancellationToken);
-            }, cancellationToken).ContinueWith(t => EvictTenantGrantCache(tenantId), cancellationToken);
+            }, cancellationToken);
+
+            EvictTenantGrantCache(tenantId);
         }
 
-        public Task AssignRoleToUserAsync(string tenantId, string userId, string roleName, CancellationToken cancellationToken = default)
+        public async Task AssignRoleToUserAsync(string tenantId, string userId, string roleName, CancellationToken cancellationToken = default)
         {
-            return ExecuteAsync(async connection =>
+            await ExecuteAsync(async connection =>
             {
                 const string sql = @"INSERT INTO rbac_user_roles (tenant_id, user_id, role_name, created_at)
                                      VALUES (@tenant_id, @user_id, @role_name, @created_at)
@@ -213,6 +224,8 @@ namespace Aegis.Infrastructure.Authorization
                 command.Parameters.AddWithValue("created_at", DateTimeOffset.UtcNow);
                 await command.ExecuteNonQueryAsync(cancellationToken);
             }, cancellationToken);
+
+            EvictTenantGrantCache(tenantId);
         }
 
         public async Task<UserDto> CreateUserAsync(string tenantId, string userId, string? email, string? displayName, CancellationToken cancellationToken = default)
@@ -284,7 +297,13 @@ namespace Aegis.Infrastructure.Authorization
             command.Parameters.AddWithValue("email", (object?)email ?? DBNull.Value);
             command.Parameters.AddWithValue("display_name", (object?)displayName ?? DBNull.Value);
             command.Parameters.AddWithValue("updated_at", DateTimeOffset.UtcNow);
-            return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+            var updated = await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+            if (updated)
+            {
+                EvictTenantGrantCache(tenantId);
+            }
+
+            return updated;
         }
 
         public async Task<bool> DeleteUserAsync(string tenantId, string userId, CancellationToken cancellationToken = default)
@@ -293,7 +312,13 @@ namespace Aegis.Infrastructure.Authorization
             await using var command = new NpgsqlCommand("DELETE FROM rbac_user_roles WHERE tenant_id = @tenant_id AND user_id = @user_id; DELETE FROM rbac_users WHERE tenant_id = @tenant_id AND user_id = @user_id;", connection);
             command.Parameters.AddWithValue("tenant_id", tenantId);
             command.Parameters.AddWithValue("user_id", userId);
-            return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+            var deleted = await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+            if (deleted)
+            {
+                EvictTenantGrantCache(tenantId);
+            }
+
+            return deleted;
         }
 
         public async Task<UserRolesDto> GetUserRolesAsync(string tenantId, string userId, CancellationToken cancellationToken = default)
