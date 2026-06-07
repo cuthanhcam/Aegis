@@ -1,3 +1,4 @@
+using Aegis.Authorization.Caching;
 using Aegis.Application.Interfaces;
 using Aegis.Contracts.Administration;
 using Aegis.Domain.Entities;
@@ -9,10 +10,12 @@ namespace Aegis.Infrastructure.Persistence
     public sealed class PostgresStoreRegistry : IStoreRegistry, IAuthorizationModelRegistry, IStoreRepository, IAuthorizationModelRepository
     {
         private readonly NpgsqlDataSource _dataSource;
+        private readonly AuthorizationCache? _authorizationCache;
 
-        public PostgresStoreRegistry(NpgsqlDataSource dataSource)
+        public PostgresStoreRegistry(NpgsqlDataSource dataSource, AuthorizationCache? authorizationCache = null)
         {
             _dataSource = dataSource;
+            _authorizationCache = authorizationCache;
         }
 
         public async Task<StoreDto> CreateAsync(string name, CancellationToken cancellationToken = default)
@@ -208,6 +211,7 @@ namespace Aegis.Infrastructure.Persistence
                 command.Parameters.AddWithValue("model", authorizationModel.Model);
                 command.Parameters.AddWithValue("created_at", authorizationModel.CreatedAt);
                 await command.ExecuteNonQueryAsync(cancellationToken);
+                _authorizationCache?.InvalidateTenant(authorizationModel.StoreId);
             }, cancellationToken);
         }
 
@@ -232,12 +236,28 @@ namespace Aegis.Infrastructure.Persistence
         async Task<AuthorizationModel?> IAuthorizationModelRepository.UpdateAsync(AuthorizationModel authorizationModel, CancellationToken cancellationToken)
         {
             var dto = await UpdateAsync(authorizationModel.StoreId, authorizationModel.Id, authorizationModel.SchemaVersion, authorizationModel.Model, cancellationToken);
+            if (dto is not null)
+            {
+                _authorizationCache?.InvalidateTenant(authorizationModel.StoreId);
+            }
+
             return dto is null ? null : AuthorizationModel.Rehydrate(dto.Id, dto.StoreId, dto.SchemaVersion, dto.Model, dto.CreatedAt);
         }
 
         Task<bool> IAuthorizationModelRepository.DeleteAsync(AuthorizationModel authorizationModel, CancellationToken cancellationToken)
         {
-            return DeleteAsync(authorizationModel.StoreId, authorizationModel.Id, cancellationToken);
+            return DeleteAndInvalidateAsync(authorizationModel, cancellationToken);
+        }
+
+        private async Task<bool> DeleteAndInvalidateAsync(AuthorizationModel authorizationModel, CancellationToken cancellationToken)
+        {
+            var deleted = await DeleteAsync(authorizationModel.StoreId, authorizationModel.Id, cancellationToken);
+            if (deleted)
+            {
+                _authorizationCache?.InvalidateTenant(authorizationModel.StoreId);
+            }
+
+            return deleted;
         }
 
         private Task ExecuteAsync(Func<NpgsqlConnection, Task> action, CancellationToken cancellationToken)

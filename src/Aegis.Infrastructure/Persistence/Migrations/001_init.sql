@@ -21,13 +21,20 @@ CREATE TABLE IF NOT EXISTS relationships (
     subject TEXT NOT NULL,
     relation TEXT NOT NULL,
     object_ref TEXT NOT NULL,
-    effect SMALLINT NOT NULL,
+    effect TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     UNIQUE (tenant_id, subject, relation, object_ref)
 );
 
+ALTER TABLE relationships
+    ADD CONSTRAINT ck_relationships_effect
+    CHECK (effect IN ('Allow', 'Deny'));
+
 CREATE INDEX IF NOT EXISTS ix_relationships_tenant_created_at ON relationships(tenant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS ix_relationships_direct_lookup ON relationships(tenant_id, subject, relation, object_ref, effect);
+CREATE INDEX IF NOT EXISTS ix_relationships_object_relation ON relationships(tenant_id, object_ref, relation, effect);
+CREATE INDEX IF NOT EXISTS ix_relationships_subject_relation ON relationships(tenant_id, subject, relation, effect);
 
 CREATE TABLE IF NOT EXISTS relationship_changes (
     id UUID PRIMARY KEY,
