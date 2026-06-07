@@ -6,14 +6,25 @@ This stack runs the Aegis API with Postgres for storage and Redis for authorizat
 
 From the repository root:
 
+PowerShell:
+
 ```bash
+$env:POSTGRES_PASSWORD = "postgres"
+$env:POSTGRES_PORT = "55432"
+$env:REDIS_PORT = "6379"
 $env:JWT_SECRET = "your-local-dev-secret"
+$env:AEGIS_DEMO_ADMIN_PASSWORD = "admin-dev-password"
+$env:AEGIS_DEMO_DEV_PASSWORD = "dev-password"
 docker compose -f docker/docker-compose.yml -f docker/docker-compose.development.yml up --build
 ```
+
+You can use [docker/env.example](env.example) as the source for local values.
 
 The stack includes a one-shot `migrate` service that applies schema migrations before the API starts serving traffic.
 
 The Postgres container creates the `aegis` database automatically on first boot through `POSTGRES_DB=aegis`.
+
+Redis is also started and used as the distributed authorization decision cache when `Cache__Provider=Redis`.
 
 If you need a clean reset, use [docker/reset.ps1](docker/reset.ps1).
 
@@ -36,7 +47,7 @@ If you prefer PowerShell, use [docker/psql.ps1](docker/psql.ps1).
 If you want to connect from another client, use these values:
 
 - Host: `localhost`
-- Port: `5432`
+- Port: `55432` if you set `POSTGRES_PORT=55432`, otherwise `5432`
 - Database: `aegis`
 - Username: `postgres`
 - Password: `postgres`
@@ -44,8 +55,19 @@ If you want to connect from another client, use these values:
 Example connection string:
 
 ```text
-Host=localhost;Port=5432;Database=aegis;Username=postgres;Password=postgres
+Host=localhost;Port=55432;Database=aegis;Username=postgres;Password=postgres
 ```
+
+In DBeaver:
+
+- Driver: PostgreSQL
+- Host: `localhost`
+- Port: `55432` if you set `POSTGRES_PORT=55432`, otherwise `5432`
+- Database: `aegis`
+- Username: `postgres`
+- Password: the value of `POSTGRES_PASSWORD`
+
+If the `aegis` database is not visible yet, start the stack first. PostgreSQL creates it during first container boot, and the `migrate` service creates the schema.
 
 Common admin queries:
 
