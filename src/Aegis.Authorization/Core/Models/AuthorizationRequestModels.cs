@@ -22,7 +22,11 @@ namespace Aegis.Authorization.Core.Models
         IReadOnlyList<RelationshipTuple>? ContextualTuples = null,
         ConsistencyPreference Consistency = ConsistencyPreference.MinimizeLatency,
         string? AuthorizationModelId = null,
-        IReadOnlyDictionary<string, JsonElement>? Context = null);
+        IReadOnlyDictionary<string, JsonElement>? Context = null,
+        string? StoreId = null)
+    {
+        public string EffectiveStoreId => string.IsNullOrWhiteSpace(StoreId) ? TenantId : StoreId;
+    }
 
     /// <summary>
     /// One trace step produced during a check evaluation.

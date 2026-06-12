@@ -20,11 +20,13 @@ namespace Aegis.Infrastructure.Authorization
             _authorizationCache = authorizationCache;
         }
 
-        public async Task<IReadOnlyList<RelationshipTuple>> QueryAsync(string tenantId, Subject? subject, string? relation, ObjectRef? obj, RelationshipEffect? effect, CancellationToken cancellationToken = default)
+        public async Task<IReadOnlyList<RelationshipTuple>> QueryAsync(string tenantId, Subject? subject, string? relation, ObjectRef? obj, RelationshipEffect? effect, CancellationToken cancellationToken = default, string? storeId = null)
         {
+            var effectiveStoreId = ResolveStoreId(tenantId, storeId);
             const string sql = @"SELECT subject, relation, object_ref, effect, created_at
                                  FROM relationships
                                  WHERE tenant_id = @tenant_id
+                                   AND store_id = @store_id
                                    AND (@subject IS NULL OR subject = @subject)
                                    AND (@relation IS NULL OR relation = @relation)
                                    AND (@object_ref IS NULL OR object_ref = @object_ref)
@@ -34,6 +36,7 @@ namespace Aegis.Infrastructure.Authorization
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
             await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue("tenant_id", tenantId);
+            command.Parameters.AddWithValue("store_id", effectiveStoreId);
             command.Parameters.AddWithValue("subject", (object?)subject?.Value ?? DBNull.Value);
             command.Parameters.AddWithValue("relation", (object?)relation ?? DBNull.Value);
             command.Parameters.AddWithValue("object_ref", (object?)obj?.Value ?? DBNull.Value);
@@ -57,17 +60,19 @@ namespace Aegis.Infrastructure.Authorization
         public async Task<IReadOnlyList<IReadOnlyList<RelationshipTuple>>> QueryMultipleAsync(
             string tenantId,
             IReadOnlyList<(Subject? subject, string? relation, ObjectRef? obj, RelationshipEffect? effect)> queries,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            string? storeId = null)
         {
             if (queries.Count == 0)
             {
                 return Array.Empty<IReadOnlyList<RelationshipTuple>>();
             }
 
+            var effectiveStoreId = ResolveStoreId(tenantId, storeId);
             var sqlBuilder = new System.Text.StringBuilder();
             sqlBuilder.Append(@"SELECT subject, relation, object_ref, effect, created_at
                                FROM relationships
-                               WHERE tenant_id = @tenant_id AND (");
+                               WHERE tenant_id = @tenant_id AND store_id = @store_id AND (");
 
             for (int i = 0; i < queries.Count; i++)
             {
@@ -101,6 +106,7 @@ namespace Aegis.Infrastructure.Authorization
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
             await using var command = new NpgsqlCommand(sqlBuilder.ToString(), connection);
             command.Parameters.AddWithValue("tenant_id", tenantId);
+            command.Parameters.AddWithValue("store_id", effectiveStoreId);
 
             for (int i = 0; i < queries.Count; i++)
             {
@@ -145,11 +151,12 @@ namespace Aegis.Infrastructure.Authorization
             return results;
         }
 
-        public async Task UpsertAsync(string tenantId, RelationshipTuple tuple, CancellationToken cancellationToken = default)
+        public async Task UpsertAsync(string tenantId, RelationshipTuple tuple, CancellationToken cancellationToken = default, string? storeId = null)
         {
-            const string sql = @"INSERT INTO relationships (id, tenant_id, subject, relation, object_ref, effect, created_at, updated_at)
-                                 VALUES (@id, @tenant_id, @subject, @relation, @object_ref, @effect, @created_at, @updated_at)
-                                 ON CONFLICT (tenant_id, subject, relation, object_ref)
+            var effectiveStoreId = ResolveStoreId(tenantId, storeId);
+            const string sql = @"INSERT INTO relationships (id, tenant_id, store_id, subject, relation, object_ref, effect, created_at, updated_at)
+                                 VALUES (@id, @tenant_id, @store_id, @subject, @relation, @object_ref, @effect, @created_at, @updated_at)
+                                 ON CONFLICT (tenant_id, store_id, subject, relation, object_ref)
                                  DO UPDATE SET effect = EXCLUDED.effect, updated_at = EXCLUDED.updated_at;";
 
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
@@ -158,6 +165,7 @@ namespace Aegis.Infrastructure.Authorization
             command.Transaction = transaction;
             command.Parameters.AddWithValue("id", Guid.NewGuid());
             command.Parameters.AddWithValue("tenant_id", tenantId);
+            command.Parameters.AddWithValue("store_id", effectiveStoreId);
             command.Parameters.AddWithValue("subject", tuple.Subject.Value);
             command.Parameters.AddWithValue("relation", tuple.Relation);
             command.Parameters.AddWithValue("object_ref", tuple.Object.Value);
@@ -166,20 +174,22 @@ namespace Aegis.Infrastructure.Authorization
             command.Parameters.AddWithValue("updated_at", tuple.CreatedAt);
             await command.ExecuteNonQueryAsync(cancellationToken);
 
-            await WriteChangeAsync(connection, transaction, tenantId, tuple.Subject.Value, tuple.Relation, tuple.Object.Value, "upsert", tuple.CreatedAt, cancellationToken);
+            await WriteChangeAsync(connection, transaction, tenantId, effectiveStoreId, tuple.Subject.Value, tuple.Relation, tuple.Object.Value, "upsert", tuple.CreatedAt, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             _authorizationCache?.InvalidateTenant(tenantId);
         }
 
-        public async Task<bool> DeleteAsync(string tenantId, Subject subject, string relation, ObjectRef obj, CancellationToken cancellationToken = default)
+        public async Task<bool> DeleteAsync(string tenantId, Subject subject, string relation, ObjectRef obj, CancellationToken cancellationToken = default, string? storeId = null)
         {
-            const string sql = "DELETE FROM relationships WHERE tenant_id = @tenant_id AND subject = @subject AND relation = @relation AND object_ref = @object_ref RETURNING 1;";
+            var effectiveStoreId = ResolveStoreId(tenantId, storeId);
+            const string sql = "DELETE FROM relationships WHERE tenant_id = @tenant_id AND store_id = @store_id AND subject = @subject AND relation = @relation AND object_ref = @object_ref RETURNING 1;";
 
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
             await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
             await using var command = new NpgsqlCommand(sql, connection);
             command.Transaction = transaction;
             command.Parameters.AddWithValue("tenant_id", tenantId);
+            command.Parameters.AddWithValue("store_id", effectiveStoreId);
             command.Parameters.AddWithValue("subject", subject.Value);
             command.Parameters.AddWithValue("relation", relation);
             command.Parameters.AddWithValue("object_ref", obj.Value);
@@ -191,23 +201,26 @@ namespace Aegis.Infrastructure.Authorization
                 return false;
             }
 
-            await WriteChangeAsync(connection, transaction, tenantId, subject.Value, relation, obj.Value, "delete", DateTimeOffset.UtcNow, cancellationToken);
+            await WriteChangeAsync(connection, transaction, tenantId, effectiveStoreId, subject.Value, relation, obj.Value, "delete", DateTimeOffset.UtcNow, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             _authorizationCache?.InvalidateTenant(tenantId);
             return true;
         }
 
-        public async Task<IReadOnlyList<RelationshipChange>> ReadChangesAsync(string tenantId, int offset, int limit, CancellationToken cancellationToken = default)
+        public async Task<IReadOnlyList<RelationshipChange>> ReadChangesAsync(string tenantId, int offset, int limit, CancellationToken cancellationToken = default, string? storeId = null)
         {
+            var effectiveStoreId = ResolveStoreId(tenantId, storeId);
             const string sql = @"SELECT subject, relation, object_ref, operation, created_at
                                  FROM relationship_changes
                                  WHERE tenant_id = @tenant_id
+                                   AND store_id = @store_id
                                  ORDER BY created_at ASC
                                  OFFSET @offset LIMIT @limit;";
 
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
             await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue("tenant_id", tenantId);
+            command.Parameters.AddWithValue("store_id", effectiveStoreId);
             command.Parameters.AddWithValue("offset", offset);
             command.Parameters.AddWithValue("limit", limit);
 
@@ -221,7 +234,8 @@ namespace Aegis.Infrastructure.Authorization
                     reader.GetString(1),
                     new ObjectRef(reader.GetString(2)),
                     reader.GetString(3),
-                    reader.GetFieldValue<DateTimeOffset>(4)));
+                    reader.GetFieldValue<DateTimeOffset>(4),
+                    effectiveStoreId));
             }
 
             return results;
@@ -264,20 +278,26 @@ namespace Aegis.Infrastructure.Authorization
             return PurgeTenantAsync(tenantId, cancellationToken);
         }
 
-        private async Task WriteChangeAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string tenantId, string subject, string relation, string objectRef, string operation, DateTimeOffset createdAt, CancellationToken cancellationToken)
+        private async Task WriteChangeAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string tenantId, string storeId, string subject, string relation, string objectRef, string operation, DateTimeOffset createdAt, CancellationToken cancellationToken)
         {
-            const string sql = @"INSERT INTO relationship_changes (id, tenant_id, subject, relation, object_ref, operation, created_at)
-                                 VALUES (@id, @tenant_id, @subject, @relation, @object_ref, @operation, @created_at);";
+            const string sql = @"INSERT INTO relationship_changes (id, tenant_id, store_id, subject, relation, object_ref, operation, created_at)
+                                 VALUES (@id, @tenant_id, @store_id, @subject, @relation, @object_ref, @operation, @created_at);";
             await using var command = new NpgsqlCommand(sql, connection);
             command.Transaction = transaction;
             command.Parameters.AddWithValue("id", Guid.NewGuid());
             command.Parameters.AddWithValue("tenant_id", tenantId);
+            command.Parameters.AddWithValue("store_id", storeId);
             command.Parameters.AddWithValue("subject", subject);
             command.Parameters.AddWithValue("relation", relation);
             command.Parameters.AddWithValue("object_ref", objectRef);
             command.Parameters.AddWithValue("operation", operation);
             command.Parameters.AddWithValue("created_at", createdAt);
             await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        private static string ResolveStoreId(string tenantId, string? storeId)
+        {
+            return string.IsNullOrWhiteSpace(storeId) ? tenantId : storeId;
         }
 
         private async Task<IReadOnlyList<DomainRelationship>> QueryDomainAsync(string tenantId, string? subject, string? relation, string? obj, DomainRelationshipPermissionEffect? effect, CancellationToken cancellationToken)

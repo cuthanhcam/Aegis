@@ -38,5 +38,9 @@ namespace Aegis.Authorization.Core.Models
         string Relation,
         ObjectRef Object,
         string Operation,
-        DateTimeOffset CreatedAt);
+        DateTimeOffset CreatedAt,
+        string? StoreId = null)
+    {
+        public string EffectiveStoreId => string.IsNullOrWhiteSpace(StoreId) ? TenantId : StoreId;
+    }
 }
