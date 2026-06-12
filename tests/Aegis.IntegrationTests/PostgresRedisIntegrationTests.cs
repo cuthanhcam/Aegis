@@ -119,11 +119,17 @@ public sealed class PostgresRedisIntegrationTests
     {
         private readonly string _postgresConnectionString;
         private readonly string _redisConnectionString;
+        private readonly Dictionary<string, string?> _previousEnvironment = new(StringComparer.Ordinal);
 
         public ContainerApiFactory(string postgresConnectionString, string redisConnectionString)
         {
             _postgresConnectionString = postgresConnectionString;
             _redisConnectionString = redisConnectionString;
+            SetEnvironment("Storage__Provider", "Postgres");
+            SetEnvironment("Cache__Provider", "Redis");
+            SetEnvironment("Cache__DecisionTtlSeconds", "60");
+            SetEnvironment("Cache__Redis__Configuration", _redisConnectionString);
+            SetEnvironment("ConnectionStrings__Aegis", _postgresConnectionString);
         }
 
         public IServiceProvider AppServices => Server.Services;
@@ -135,11 +141,6 @@ public sealed class PostgresRedisIntegrationTests
             {
                 configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["Storage:Provider"] = "Postgres",
-                    ["Cache:Provider"] = "Redis",
-                    ["Cache:DecisionTtlSeconds"] = "60",
-                    ["Cache:Redis:Configuration"] = _redisConnectionString,
-                    ["ConnectionStrings:Aegis"] = _postgresConnectionString,
                     ["RateLimiting:Auth:PermitLimit"] = "10",
                     ["RateLimiting:Auth:WindowSeconds"] = "60",
                 });
@@ -153,6 +154,25 @@ public sealed class PostgresRedisIntegrationTests
                     options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
                 }).AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
             });
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            foreach (var pair in _previousEnvironment)
+            {
+                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
+            }
+        }
+
+        private void SetEnvironment(string key, string value)
+        {
+            if (!_previousEnvironment.ContainsKey(key))
+            {
+                _previousEnvironment[key] = Environment.GetEnvironmentVariable(key);
+            }
+
+            Environment.SetEnvironmentVariable(key, value);
         }
     }
 }
