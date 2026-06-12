@@ -64,7 +64,7 @@ namespace Aegis.Authorization.RBAC
                 return true;
             }
 
-            return ContextConditionEvaluator.Evaluate(grant.ConditionName, request.Context);
+            return ContextConditionEvaluator.Evaluate(grant.ConditionName, request);
         }
 
         private static bool MatchesSubject(string subjectPattern, string subjectRef)
