@@ -27,7 +27,14 @@ namespace Aegis.Api.Controllers
             [FromBody] CheckRequestDto request,
             CancellationToken cancellationToken)
         {
+            var tenantId = TenantAccessGuard.ResolveTenantId(User);
+            if (string.IsNullOrWhiteSpace(tenantId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<CheckResponseDto>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+            }
+
             var result = await _permissionAppService.CheckInStoreAsync(
+                tenantId,
                 storeId,
                 new StoreCheckRequestDto(
                     request.Subject,
@@ -48,7 +55,14 @@ namespace Aegis.Api.Controllers
             [FromBody] CheckRequestDto request,
             CancellationToken cancellationToken)
         {
+            var tenantId = TenantAccessGuard.ResolveTenantId(User);
+            if (string.IsNullOrWhiteSpace(tenantId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<CheckResponseDto>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+            }
+
             var result = await _permissionAppService.ExplainInStoreAsync(
+                tenantId,
                 storeId,
                 new StoreCheckRequestDto(
                     request.Subject,
@@ -69,7 +83,13 @@ namespace Aegis.Api.Controllers
             [FromBody] BatchCheckRequestDto request,
             CancellationToken cancellationToken)
         {
-            var result = await _permissionAppService.BatchCheckInStoreAsync(storeId, request, cancellationToken);
+            var tenantId = TenantAccessGuard.ResolveTenantId(User);
+            if (string.IsNullOrWhiteSpace(tenantId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<BatchCheckResponseDto>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+            }
+
+            var result = await _permissionAppService.BatchCheckInStoreAsync(tenantId, storeId, request, cancellationToken);
             return this.OkResponse(result);
         }
     }
