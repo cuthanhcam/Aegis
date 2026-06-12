@@ -349,37 +349,5 @@ namespace Aegis.Infrastructure.Authorization
             await action(connection);
         }
 
-        private static bool MatchesRelationPattern(string relationPattern, string relation)
-        {
-            if (string.IsNullOrWhiteSpace(relationPattern) || relationPattern == "*")
-            {
-                return true;
-            }
-
-            return relationPattern.Equals(relation, StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static bool MatchesObjectPattern(string objectPattern, string objectRef)
-        {
-            if (string.IsNullOrWhiteSpace(objectPattern) || objectPattern == "*")
-            {
-                return true;
-            }
-
-            if (objectPattern.Equals(objectRef, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            var objectType = GetTypeName(objectRef);
-            return objectPattern.Equals($"{objectType}:*", StringComparison.OrdinalIgnoreCase)
-                || objectPattern.Equals(objectType, StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static string GetTypeName(string value)
-        {
-            var split = value.IndexOf(':');
-            return split > 0 ? value[..split] : value;
-        }
     }
 }
