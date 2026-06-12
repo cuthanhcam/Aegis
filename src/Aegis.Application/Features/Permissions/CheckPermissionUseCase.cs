@@ -23,7 +23,8 @@ public sealed class CheckPermissionUseCase
         string tenantId,
         CheckRequestDto request,
         bool includeTrace,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? storeId = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(request);
@@ -39,7 +40,8 @@ public sealed class CheckPermissionUseCase
                 AuthorizationQueryHelper.ParseContextualTuples(request.ContextualTuples),
                 AuthorizationQueryHelper.ParseConsistency(request.Consistency),
                 request.AuthorizationModelId,
-                request.Context),
+                request.Context,
+                storeId),
             includeTrace,
             cancellationToken);
 

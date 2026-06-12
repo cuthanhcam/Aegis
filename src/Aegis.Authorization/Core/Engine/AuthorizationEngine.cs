@@ -155,8 +155,8 @@ namespace Aegis.Authorization.Core.Engine
                 if (_authorizationModelProvider is not null)
                 {
                     latestModel = string.IsNullOrWhiteSpace(request.AuthorizationModelId)
-                        ? await _authorizationModelProvider.GetLatestModelAsync(request.TenantId, cancellationToken)
-                        : await _authorizationModelProvider.GetModelAsync(request.TenantId, request.AuthorizationModelId, cancellationToken);
+                        ? await _authorizationModelProvider.GetLatestModelAsync(request.EffectiveStoreId, cancellationToken)
+                        : await _authorizationModelProvider.GetModelAsync(request.EffectiveStoreId, request.AuthorizationModelId, cancellationToken);
                 }
 
                 if (string.IsNullOrWhiteSpace(latestModel))
@@ -223,6 +223,7 @@ namespace Aegis.Authorization.Core.Engine
         {
             var builder = new System.Text.StringBuilder(256);
             builder.Append(request.TenantId).Append('|')
+                .Append(request.EffectiveStoreId).Append('|')
                 .Append(request.Subject.Value).Append('|')
                 .Append(request.Relation).Append('|')
                 .Append(request.Object.Value).Append('|')

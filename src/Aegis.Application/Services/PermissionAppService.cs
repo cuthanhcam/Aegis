@@ -63,19 +63,10 @@ namespace Aegis.Application.Services
 
         public async Task<CheckResponseDto> CheckInStoreAsync(string storeId, StoreCheckRequestDto request, CancellationToken cancellationToken = default)
         {
-            var validatedAuthorizationModelId = await _resolveAuthorizationModelUseCase.EnsureStoreAndValidateRequestedAsync(
-                storeId,
-                request.AuthorizationModelId,
-                cancellationToken);
-
-            return await _checkPermissionUseCase.ExecuteAsync(
-                storeId,
-                new CheckRequestDto(request.User, request.Relation, request.Object, request.ContextualTuples, request.Consistency, validatedAuthorizationModelId, request.Context),
-                includeTrace: false,
-                cancellationToken);
+            return await CheckInStoreAsync(storeId, storeId, request, cancellationToken);
         }
 
-        public async Task<CheckResponseDto> ExplainInStoreAsync(string storeId, StoreCheckRequestDto request, CancellationToken cancellationToken = default)
+        public async Task<CheckResponseDto> CheckInStoreAsync(string tenantId, string storeId, StoreCheckRequestDto request, CancellationToken cancellationToken = default)
         {
             var validatedAuthorizationModelId = await _resolveAuthorizationModelUseCase.EnsureStoreAndValidateRequestedAsync(
                 storeId,
@@ -83,10 +74,31 @@ namespace Aegis.Application.Services
                 cancellationToken);
 
             return await _checkPermissionUseCase.ExecuteAsync(
+                tenantId,
+                new CheckRequestDto(request.User, request.Relation, request.Object, request.ContextualTuples, request.Consistency, validatedAuthorizationModelId, request.Context),
+                includeTrace: false,
+                cancellationToken,
+                storeId);
+        }
+
+        public async Task<CheckResponseDto> ExplainInStoreAsync(string storeId, StoreCheckRequestDto request, CancellationToken cancellationToken = default)
+        {
+            return await ExplainInStoreAsync(storeId, storeId, request, cancellationToken);
+        }
+
+        public async Task<CheckResponseDto> ExplainInStoreAsync(string tenantId, string storeId, StoreCheckRequestDto request, CancellationToken cancellationToken = default)
+        {
+            var validatedAuthorizationModelId = await _resolveAuthorizationModelUseCase.EnsureStoreAndValidateRequestedAsync(
                 storeId,
+                request.AuthorizationModelId,
+                cancellationToken);
+
+            return await _checkPermissionUseCase.ExecuteAsync(
+                tenantId,
                 new CheckRequestDto(request.User, request.Relation, request.Object, request.ContextualTuples, request.Consistency, validatedAuthorizationModelId, request.Context),
                 includeTrace: true,
-                cancellationToken);
+                cancellationToken,
+                storeId);
         }
 
         public async Task<BatchCheckResponseDto> BatchCheckInStoreAsync(
@@ -95,6 +107,15 @@ namespace Aegis.Application.Services
             CancellationToken cancellationToken = default)
         {
             return await _batchCheckInStoreUseCase.ExecuteAsync(storeId, request, cancellationToken);
+        }
+
+        public async Task<BatchCheckResponseDto> BatchCheckInStoreAsync(
+            string tenantId,
+            string storeId,
+            BatchCheckRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
+            return await _batchCheckInStoreUseCase.ExecuteAsync(tenantId, storeId, request, cancellationToken);
         }
 
         public async Task<AegisCompatCheckResponseDto> CheckAegisCompatInStoreAsync(

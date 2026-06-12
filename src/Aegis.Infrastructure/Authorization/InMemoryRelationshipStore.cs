@@ -10,7 +10,7 @@ namespace Aegis.Infrastructure.Authorization
 {
     public sealed class InMemoryRelationshipStore : IRelationshipStore, IRelationshipRepository
     {
-        private readonly ConcurrentDictionary<string, (string TenantId, RelationshipTuple Tuple)> _tuples = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, (string TenantId, string StoreId, RelationshipTuple Tuple)> _tuples = new(StringComparer.OrdinalIgnoreCase);
         private readonly ConcurrentQueue<RelationshipChange> _changes = new();
 
         public Task<IReadOnlyList<RelationshipTuple>> QueryAsync(
@@ -19,10 +19,13 @@ namespace Aegis.Infrastructure.Authorization
             string? relation,
             ObjectRef? obj,
             RelationshipEffect? effect,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            string? storeId = null)
         {
+            var effectiveStoreId = ResolveStoreId(tenantId, storeId);
             var result = _tuples.Values
                 .Where(x => string.Equals(x.TenantId, tenantId, StringComparison.OrdinalIgnoreCase))
+                .Where(x => string.Equals(x.StoreId, effectiveStoreId, StringComparison.OrdinalIgnoreCase))
                 .Select(x => x.Tuple)
                 .Where(x => x.Subject == (subject ?? x.Subject))
                 .Where(x => relation is null || x.Relation.Equals(relation, StringComparison.OrdinalIgnoreCase))
@@ -36,13 +39,16 @@ namespace Aegis.Infrastructure.Authorization
         public Task<IReadOnlyList<IReadOnlyList<RelationshipTuple>>> QueryMultipleAsync(
             string tenantId,
             IReadOnlyList<(Subject? subject, string? relation, ObjectRef? obj, RelationshipEffect? effect)> queries,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            string? storeId = null)
         {
+            var effectiveStoreId = ResolveStoreId(tenantId, storeId);
             var results = new List<IReadOnlyList<RelationshipTuple>>(queries.Count);
             foreach (var (subject, relation, obj, effect) in queries)
             {
                 var tuples = _tuples.Values
                     .Where(x => string.Equals(x.TenantId, tenantId, StringComparison.OrdinalIgnoreCase))
+                    .Where(x => string.Equals(x.StoreId, effectiveStoreId, StringComparison.OrdinalIgnoreCase))
                     .Select(x => x.Tuple)
                     .Where(x => x.Subject == (subject ?? x.Subject))
                     .Where(x => relation is null || x.Relation.Equals(relation, StringComparison.OrdinalIgnoreCase))
@@ -58,10 +64,12 @@ namespace Aegis.Infrastructure.Authorization
         public Task UpsertAsync(
             string tenantId,
             RelationshipTuple tuple,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            string? storeId = null)
         {
-            _tuples[Key(tenantId, tuple.Subject.Value, tuple.Relation, tuple.Object.Value)] = (tenantId, tuple);
-            _changes.Enqueue(new RelationshipChange(tenantId, tuple.Subject, tuple.Relation, tuple.Object, "upsert", tuple.CreatedAt));
+            var effectiveStoreId = ResolveStoreId(tenantId, storeId);
+            _tuples[Key(tenantId, effectiveStoreId, tuple.Subject.Value, tuple.Relation, tuple.Object.Value)] = (tenantId, effectiveStoreId, tuple);
+            _changes.Enqueue(new RelationshipChange(tenantId, tuple.Subject, tuple.Relation, tuple.Object, "upsert", tuple.CreatedAt, effectiveStoreId));
             return Task.CompletedTask;
         }
 
@@ -70,12 +78,14 @@ namespace Aegis.Infrastructure.Authorization
             Subject subject,
             string relation,
             ObjectRef obj,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            string? storeId = null)
         {
-            var removed = _tuples.TryRemove(Key(tenantId, subject.Value, relation, obj.Value), out _);
+            var effectiveStoreId = ResolveStoreId(tenantId, storeId);
+            var removed = _tuples.TryRemove(Key(tenantId, effectiveStoreId, subject.Value, relation, obj.Value), out _);
             if (removed)
             {
-                _changes.Enqueue(new RelationshipChange(tenantId, subject, relation, obj, "delete", DateTimeOffset.UtcNow));
+                _changes.Enqueue(new RelationshipChange(tenantId, subject, relation, obj, "delete", DateTimeOffset.UtcNow, effectiveStoreId));
             }
 
             return Task.FromResult(removed);
@@ -85,10 +95,13 @@ namespace Aegis.Infrastructure.Authorization
             string tenantId,
             int offset,
             int limit,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            string? storeId = null)
         {
+            var effectiveStoreId = ResolveStoreId(tenantId, storeId);
             var data = _changes
                 .Where(x => string.Equals(x.TenantId, tenantId, StringComparison.OrdinalIgnoreCase))
+                .Where(x => string.Equals(x.EffectiveStoreId, effectiveStoreId, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(x => x.CreatedAt)
                 .Skip(offset)
                 .Take(limit)
@@ -192,11 +205,17 @@ namespace Aegis.Infrastructure.Authorization
 
         private static string Key(
             string tenantId,
+            string storeId,
             string subject,
             string relation,
             string obj)
         {
-            return $"{tenantId}:{subject}:{relation}:{obj}";
+            return $"{tenantId}:{storeId}:{subject}:{relation}:{obj}";
+        }
+
+        private static string ResolveStoreId(string tenantId, string? storeId)
+        {
+            return string.IsNullOrWhiteSpace(storeId) ? tenantId : storeId;
         }
     }
 }

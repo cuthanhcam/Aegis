@@ -21,6 +21,15 @@ namespace Aegis.Application.Features.Permissions
             BatchCheckRequestDto request,
             CancellationToken cancellationToken = default)
         {
+            return await ExecuteAsync(storeId, storeId, request, cancellationToken);
+        }
+
+        public async Task<BatchCheckResponseDto> ExecuteAsync(
+            string tenantId,
+            string storeId,
+            BatchCheckRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
             ArgumentNullException.ThrowIfNull(request);
 
             if (request.Items is null || request.Items.Count == 0)
@@ -52,7 +61,7 @@ namespace Aegis.Application.Features.Permissions
                     cancellationToken);
 
                 var result = await _checkPermissionUseCase.ExecuteAsync(
-                    storeId,
+                    tenantId,
                     new CheckRequestDto(
                         item.User,
                         item.Relation,
@@ -62,7 +71,8 @@ namespace Aegis.Application.Features.Permissions
                         validatedAuthorizationModelId,
                         item.Context),
                     includeTrace: false,
-                    cancellationToken);
+                    cancellationToken,
+                    storeId);
 
                 results.Add(new BatchCheckItemResultDto(correlationId, result));
             }

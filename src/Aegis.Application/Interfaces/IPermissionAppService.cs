@@ -21,12 +21,30 @@ public interface IPermissionAppService
         StoreCheckRequestDto request,
         CancellationToken cancellationToken = default);
 
+    Task<CheckResponseDto> CheckInStoreAsync(
+        string tenantId,
+        string storeId,
+        StoreCheckRequestDto request,
+        CancellationToken cancellationToken = default);
+
     Task<CheckResponseDto> ExplainInStoreAsync(
         string storeId,
         StoreCheckRequestDto request,
         CancellationToken cancellationToken = default);
 
+    Task<CheckResponseDto> ExplainInStoreAsync(
+        string tenantId,
+        string storeId,
+        StoreCheckRequestDto request,
+        CancellationToken cancellationToken = default);
+
     Task<BatchCheckResponseDto> BatchCheckInStoreAsync(
+        string storeId,
+        BatchCheckRequestDto request,
+        CancellationToken cancellationToken = default);
+
+    Task<BatchCheckResponseDto> BatchCheckInStoreAsync(
+        string tenantId,
         string storeId,
         BatchCheckRequestDto request,
         CancellationToken cancellationToken = default);

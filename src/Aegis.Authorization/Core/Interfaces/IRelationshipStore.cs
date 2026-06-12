@@ -16,7 +16,22 @@ namespace Aegis.Authorization.Core.Interfaces
             string? relation,
             ObjectRef? obj,
             RelationshipEffect? effect,
-            CancellationToken cancellationToken = default);
+            CancellationToken cancellationToken = default)
+        {
+            return QueryAsync(tenantId, subject, relation, obj, effect, cancellationToken, storeId: null);
+        }
+
+        Task<IReadOnlyList<RelationshipTuple>> QueryAsync(
+            string tenantId,
+            Subject? subject,
+            string? relation,
+            ObjectRef? obj,
+            RelationshipEffect? effect,
+            CancellationToken cancellationToken,
+            string? storeId)
+        {
+            return QueryAsync(tenantId, subject, relation, obj, effect, cancellationToken);
+        }
 
         /// <summary>
         /// Batch query for multiple relationship tuple sets in a single call to reduce round-trips.
@@ -28,7 +43,19 @@ namespace Aegis.Authorization.Core.Interfaces
         Task<IReadOnlyList<IReadOnlyList<RelationshipTuple>>> QueryMultipleAsync(
             string tenantId,
             IReadOnlyList<(Subject? subject, string? relation, ObjectRef? obj, RelationshipEffect? effect)> queries,
-            CancellationToken cancellationToken = default);
+            CancellationToken cancellationToken = default)
+        {
+            return QueryMultipleAsync(tenantId, queries, cancellationToken, storeId: null);
+        }
+
+        Task<IReadOnlyList<IReadOnlyList<RelationshipTuple>>> QueryMultipleAsync(
+            string tenantId,
+            IReadOnlyList<(Subject? subject, string? relation, ObjectRef? obj, RelationshipEffect? effect)> queries,
+            CancellationToken cancellationToken,
+            string? storeId)
+        {
+            return QueryMultipleAsync(tenantId, queries, cancellationToken);
+        }
 
         /// <summary>
         /// Inserts or updates a relationship tuple.
@@ -36,7 +63,19 @@ namespace Aegis.Authorization.Core.Interfaces
         Task UpsertAsync(
             string tenantId,
             RelationshipTuple tuple,
-            CancellationToken cancellationToken = default);
+            CancellationToken cancellationToken = default)
+        {
+            return UpsertAsync(tenantId, tuple, cancellationToken, storeId: null);
+        }
+
+        Task UpsertAsync(
+            string tenantId,
+            RelationshipTuple tuple,
+            CancellationToken cancellationToken,
+            string? storeId)
+        {
+            return UpsertAsync(tenantId, tuple, cancellationToken);
+        }
 
         /// <summary>
         /// Deletes one relationship tuple if it exists.
@@ -46,7 +85,21 @@ namespace Aegis.Authorization.Core.Interfaces
             Subject subject,
             string relation,
             ObjectRef obj,
-            CancellationToken cancellationToken = default);
+            CancellationToken cancellationToken = default)
+        {
+            return DeleteAsync(tenantId, subject, relation, obj, cancellationToken, storeId: null);
+        }
+
+        Task<bool> DeleteAsync(
+            string tenantId,
+            Subject subject,
+            string relation,
+            ObjectRef obj,
+            CancellationToken cancellationToken,
+            string? storeId)
+        {
+            return DeleteAsync(tenantId, subject, relation, obj, cancellationToken);
+        }
 
         /// <summary>
         /// Reads relationship mutation history using offset/limit pagination.
@@ -55,7 +108,20 @@ namespace Aegis.Authorization.Core.Interfaces
             string tenantId,
             int offset,
             int limit,
-            CancellationToken cancellationToken = default);
+            CancellationToken cancellationToken = default)
+        {
+            return ReadChangesAsync(tenantId, offset, limit, cancellationToken, storeId: null);
+        }
+
+        Task<IReadOnlyList<RelationshipChange>> ReadChangesAsync(
+            string tenantId,
+            int offset,
+            int limit,
+            CancellationToken cancellationToken,
+            string? storeId)
+        {
+            return ReadChangesAsync(tenantId, offset, limit, cancellationToken);
+        }
 
         /// <summary>
         /// Removes all relationship data for a tenant.

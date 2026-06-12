@@ -275,7 +275,8 @@ namespace Aegis.Authorization.Core.Engine.Rewrite
                 batchResults = await _relationshipStore.QueryMultipleAsync(
                     request.TenantId,
                     queryList,
-                    cancellationToken);
+                    cancellationToken,
+                    request.EffectiveStoreId);
                 _metrics?.IncrementDbQuery();
                 if (batchResults is not null)
                 {
@@ -385,7 +386,8 @@ namespace Aegis.Authorization.Core.Engine.Rewrite
                 request.ContextualTuples,
                 request.Consistency,
                 request.AuthorizationModelId,
-                request.Context);
+                request.Context,
+                request.StoreId);
         }
     }
 }

@@ -40,7 +40,14 @@ namespace Aegis.Authorization.Core.Engine
             CancellationToken cancellationToken,
             Aegis.Authorization.Core.Metrics.IAuthorizationMetrics? metrics = null)
         {
-            var persisted = await relationshipStore.QueryAsync(request.TenantId, subject, relation, obj, effect, cancellationToken);
+            var persisted = await relationshipStore.QueryAsync(
+                request.TenantId,
+                subject,
+                relation,
+                obj,
+                effect,
+                cancellationToken,
+                request.EffectiveStoreId);
             metrics?.IncrementDbQuery();
             metrics?.AddDbResultCount(persisted.Count);
             if (request.ContextualTuples is null || request.ContextualTuples.Count == 0)

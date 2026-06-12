@@ -18,27 +18,29 @@ CREATE INDEX IF NOT EXISTS ix_authorization_models_store_created_at ON authoriza
 CREATE TABLE IF NOT EXISTS relationships (
     id UUID PRIMARY KEY,
     tenant_id TEXT NOT NULL,
+    store_id TEXT NOT NULL,
     subject TEXT NOT NULL,
     relation TEXT NOT NULL,
     object_ref TEXT NOT NULL,
     effect TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
-    UNIQUE (tenant_id, subject, relation, object_ref)
+    UNIQUE (tenant_id, store_id, subject, relation, object_ref)
 );
 
 ALTER TABLE relationships
     ADD CONSTRAINT ck_relationships_effect
     CHECK (effect IN ('Allow', 'Deny'));
 
-CREATE INDEX IF NOT EXISTS ix_relationships_tenant_created_at ON relationships(tenant_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS ix_relationships_direct_lookup ON relationships(tenant_id, subject, relation, object_ref, effect);
-CREATE INDEX IF NOT EXISTS ix_relationships_object_relation ON relationships(tenant_id, object_ref, relation, effect);
-CREATE INDEX IF NOT EXISTS ix_relationships_subject_relation ON relationships(tenant_id, subject, relation, effect);
+CREATE INDEX IF NOT EXISTS ix_relationships_tenant_store_created_at ON relationships(tenant_id, store_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS ix_relationships_direct_lookup ON relationships(tenant_id, store_id, subject, relation, object_ref, effect);
+CREATE INDEX IF NOT EXISTS ix_relationships_object_relation ON relationships(tenant_id, store_id, object_ref, relation, effect);
+CREATE INDEX IF NOT EXISTS ix_relationships_subject_relation ON relationships(tenant_id, store_id, subject, relation, effect);
 
 CREATE TABLE IF NOT EXISTS relationship_changes (
     id UUID PRIMARY KEY,
     tenant_id TEXT NOT NULL,
+    store_id TEXT NOT NULL,
     subject TEXT NOT NULL,
     relation TEXT NOT NULL,
     object_ref TEXT NOT NULL,
@@ -46,7 +48,7 @@ CREATE TABLE IF NOT EXISTS relationship_changes (
     created_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS ix_relationship_changes_tenant_created_at ON relationship_changes(tenant_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS ix_relationship_changes_tenant_store_created_at ON relationship_changes(tenant_id, store_id, created_at ASC);
 
 CREATE TABLE IF NOT EXISTS rbac_roles (
     tenant_id TEXT NOT NULL,

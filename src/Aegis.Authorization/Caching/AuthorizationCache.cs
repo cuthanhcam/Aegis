@@ -221,6 +221,7 @@ namespace Aegis.Authorization.Caching
         {
             var builder = new StringBuilder(512);
             builder.Append(request.TenantId).Append('|')
+                .Append(request.EffectiveStoreId).Append('|')
                 .Append(request.Subject.Value).Append('|')
                 .Append(request.Relation).Append('|')
                 .Append(request.Object.Value).Append('|')
