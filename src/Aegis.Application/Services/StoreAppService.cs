@@ -38,6 +38,21 @@ namespace Aegis.Application.Services
 
         public Task<StoreDto> CreateAsync(CreateStoreRequestDto request, CancellationToken cancellationToken = default)
         {
+            return CreateAsync(string.Empty, request, cancellationToken);
+        }
+
+        public Task<StoreDto> CreateAsync(string tenantId, CreateStoreRequestDto request, CancellationToken cancellationToken = default)
+        {
+            if (!string.IsNullOrWhiteSpace(tenantId))
+            {
+                if (string.IsNullOrWhiteSpace(request.Name))
+                {
+                    throw new ArgumentException("Store name is required.");
+                }
+
+                return _storeRegistry.CreateForTenantAsync(tenantId, request.Name, cancellationToken);
+            }
+
             if (_storeRepository is null)
             {
                 if (string.IsNullOrWhiteSpace(request.Name))
@@ -54,9 +69,14 @@ namespace Aegis.Application.Services
 
         public Task<IReadOnlyList<StoreDto>> ListAsync(CancellationToken cancellationToken = default)
         {
-            if (_storeRepository is not null)
+            return _storeRegistry.ListAsync(cancellationToken);
+        }
+
+        public Task<IReadOnlyList<StoreDto>> ListAsync(string tenantId, CancellationToken cancellationToken = default)
+        {
+            if (!string.IsNullOrWhiteSpace(tenantId))
             {
-                return ListWithDomainAsync(cancellationToken);
+                return _storeRegistry.ListForTenantAsync(tenantId, cancellationToken);
             }
 
             return _storeRegistry.ListAsync(cancellationToken);
@@ -64,9 +84,19 @@ namespace Aegis.Application.Services
 
         public async Task<StoreDto?> GetByIdAsync(string storeId, CancellationToken cancellationToken = default)
         {
+            return await GetByIdAsync(string.Empty, storeId, cancellationToken);
+        }
+
+        public async Task<StoreDto?> GetByIdAsync(string tenantId, string storeId, CancellationToken cancellationToken = default)
+        {
             if (string.IsNullOrWhiteSpace(storeId))
             {
                 throw new ArgumentException("storeId is required.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(tenantId))
+            {
+                return await _storeRegistry.GetForTenantAsync(tenantId, storeId, cancellationToken);
             }
 
             if (_storeRepository is not null)
@@ -80,17 +110,30 @@ namespace Aegis.Application.Services
 
         public async Task<bool> DeleteAsync(string storeId, CancellationToken cancellationToken = default)
         {
+            return await DeleteAsync(string.Empty, storeId, cancellationToken);
+        }
+
+        public async Task<bool> DeleteAsync(string tenantId, string storeId, CancellationToken cancellationToken = default)
+        {
             if (string.IsNullOrWhiteSpace(storeId))
             {
                 throw new ArgumentException("storeId is required.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(tenantId))
+            {
+                if (_assertionAppService is not null)
+                {
+                    await _assertionAppService.PurgeStoreAsync(storeId, cancellationToken);
+                }
+
+                return await _storeRegistry.DeleteForTenantAsync(tenantId, storeId, cancellationToken);
             }
 
             if (_assertionAppService is not null)
             {
                 await _assertionAppService.PurgeStoreAsync(storeId, cancellationToken);
             }
-
-            await _relationshipStore.PurgeTenantAsync(storeId, cancellationToken);
 
             if (_storeRepository is not null)
             {

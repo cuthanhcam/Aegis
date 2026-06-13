@@ -14,5 +14,6 @@ namespace Aegis.Contracts.Administration
         DateTimeOffset CreatedAt,
         DateTimeOffset UpdatedAt,
         int? ModelCount = null,
-        int? RelationshipCount = null);
+        int? RelationshipCount = null,
+        string? TenantId = null);
 }

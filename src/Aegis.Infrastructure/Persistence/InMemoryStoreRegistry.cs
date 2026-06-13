@@ -14,9 +14,14 @@ namespace Aegis.Infrastructure.Persistence
 
         public Task<StoreDto> CreateAsync(string name, CancellationToken cancellationToken = default)
         {
+            return CreateForTenantAsync(name, name, cancellationToken);
+        }
+
+        public Task<StoreDto> CreateForTenantAsync(string tenantId, string name, CancellationToken cancellationToken = default)
+        {
             var now = DateTimeOffset.UtcNow;
             var id = NewUlidLikeId();
-            var store = new StoreDto(id, name, now, now, null, null);
+            var store = new StoreDto(id, name, now, now, null, null, tenantId);
             _stores[id] = store;
             return Task.FromResult(store);
         }
@@ -26,9 +31,29 @@ namespace Aegis.Infrastructure.Persistence
             return Task.FromResult<IReadOnlyList<StoreDto>>(_stores.Values.OrderByDescending(x => x.CreatedAt).ToList());
         }
 
+        public Task<IReadOnlyList<StoreDto>> ListForTenantAsync(string tenantId, CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<StoreDto> stores = _stores.Values
+                .Where(x => string.Equals(x.TenantId, tenantId, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x.CreatedAt)
+                .ToList();
+            return Task.FromResult(stores);
+        }
+
         public Task<StoreDto?> GetAsync(string storeId, CancellationToken cancellationToken = default)
         {
             _stores.TryGetValue(storeId, out var store);
+            return Task.FromResult(store);
+        }
+
+        public Task<StoreDto?> GetForTenantAsync(string tenantId, string storeId, CancellationToken cancellationToken = default)
+        {
+            _stores.TryGetValue(storeId, out var store);
+            if (store is not null && !string.Equals(store.TenantId, tenantId, StringComparison.OrdinalIgnoreCase))
+            {
+                store = null;
+            }
+
             return Task.FromResult(store);
         }
 
@@ -48,9 +73,15 @@ namespace Aegis.Infrastructure.Persistence
             return Task.FromResult(true);
         }
 
+        public async Task<bool> DeleteForTenantAsync(string tenantId, string storeId, CancellationToken cancellationToken = default)
+        {
+            var store = await GetForTenantAsync(tenantId, storeId, cancellationToken);
+            return store is not null && await DeleteAsync(storeId, cancellationToken);
+        }
+
         Task IStoreRepository.AddAsync(Store store, CancellationToken cancellationToken)
         {
-            _stores[store.Id] = new StoreDto(store.Id, store.Name, store.CreatedAt, store.UpdatedAt, null, null);
+            _stores[store.Id] = new StoreDto(store.Id, store.Name, store.CreatedAt, store.UpdatedAt, null, null, store.Id);
             return Task.CompletedTask;
         }
 
