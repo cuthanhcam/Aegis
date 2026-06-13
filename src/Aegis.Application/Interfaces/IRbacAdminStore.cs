@@ -17,12 +17,30 @@ namespace Aegis.Application.Interfaces
             string? description,
             CancellationToken cancellationToken = default);
 
+        Task UpsertRoleInStoreAsync(
+            string tenantId,
+            string storeId,
+            string roleName,
+            string? description,
+            CancellationToken cancellationToken = default)
+        {
+            return UpsertRoleAsync(tenantId, roleName, description, cancellationToken);
+        }
+
         /// <summary>
         /// Retrieves all roles for a tenant.
         /// </summary>
         Task<IReadOnlyList<RoleDto>> GetRolesAsync(
             string tenantId,
             CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<RoleDto>> GetRolesInStoreAsync(
+            string tenantId,
+            string storeId,
+            CancellationToken cancellationToken = default)
+        {
+            return GetRolesAsync(tenantId, cancellationToken);
+        }
 
         // Permissions
         /// <summary>
@@ -35,12 +53,31 @@ namespace Aegis.Application.Interfaces
             string? conditionName = null,
             CancellationToken cancellationToken = default);
 
+        Task UpsertPermissionInStoreAsync(
+            string tenantId,
+            string storeId,
+            string relation,
+            string obj,
+            string? conditionName = null,
+            CancellationToken cancellationToken = default)
+        {
+            return UpsertPermissionAsync(tenantId, relation, obj, conditionName, cancellationToken);
+        }
+
         /// <summary>
         /// Retrieves all permissions for a tenant.
         /// </summary>
         Task<IReadOnlyList<PermissionDto>> GetPermissionsAsync(
             string tenantId,
             CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<PermissionDto>> GetPermissionsInStoreAsync(
+            string tenantId,
+            string storeId,
+            CancellationToken cancellationToken = default)
+        {
+            return GetPermissionsAsync(tenantId, cancellationToken);
+        }
 
         /// <summary>
         /// Retrieves one permission by relation/object for a tenant.
@@ -50,6 +87,16 @@ namespace Aegis.Application.Interfaces
             string relation,
             string obj,
             CancellationToken cancellationToken = default);
+
+        Task<PermissionDto?> GetPermissionInStoreAsync(
+            string tenantId,
+            string storeId,
+            string relation,
+            string obj,
+            CancellationToken cancellationToken = default)
+        {
+            return GetPermissionAsync(tenantId, relation, obj, cancellationToken);
+        }
 
         // Role-Permission Assignments
         /// <summary>
@@ -63,6 +110,18 @@ namespace Aegis.Application.Interfaces
             string? conditionName = null,
             CancellationToken cancellationToken = default);
 
+        Task AssignPermissionToRoleInStoreAsync(
+            string tenantId,
+            string storeId,
+            string roleName,
+            string relation,
+            string obj,
+            string? conditionName = null,
+            CancellationToken cancellationToken = default)
+        {
+            return AssignPermissionToRoleAsync(tenantId, roleName, relation, obj, conditionName, cancellationToken);
+        }
+
         // User-Role Assignments
         /// <summary>
         /// Assigns a role to a user.
@@ -72,6 +131,16 @@ namespace Aegis.Application.Interfaces
             string userId,
             string roleName,
             CancellationToken cancellationToken = default);
+
+        Task AssignRoleToUserInStoreAsync(
+            string tenantId,
+            string storeId,
+            string userId,
+            string roleName,
+            CancellationToken cancellationToken = default)
+        {
+            return AssignRoleToUserAsync(tenantId, userId, roleName, cancellationToken);
+        }
 
         // User
         /// <summary>

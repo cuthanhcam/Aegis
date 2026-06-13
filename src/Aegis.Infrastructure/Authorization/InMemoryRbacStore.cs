@@ -32,7 +32,17 @@ namespace Aegis.Infrastructure.Authorization
             string? description,
             CancellationToken cancellationToken = default)
         {
-            _roles[RoleKey(tenantId, tenantId, roleName)] = description;
+            return UpsertRoleInStoreAsync(tenantId, tenantId, roleName, description, cancellationToken);
+        }
+
+        public Task UpsertRoleInStoreAsync(
+            string tenantId,
+            string storeId,
+            string roleName,
+            string? description,
+            CancellationToken cancellationToken = default)
+        {
+            _roles[RoleKey(tenantId, storeId, roleName)] = description;
             return Task.CompletedTask;
         }
 
@@ -40,7 +50,15 @@ namespace Aegis.Infrastructure.Authorization
             string tenantId,
             CancellationToken cancellationToken = default)
         {
-            var prefix = $"{tenantId}|{tenantId}|";
+            return GetRolesInStoreAsync(tenantId, tenantId, cancellationToken);
+        }
+
+        public Task<IReadOnlyList<RoleDto>> GetRolesInStoreAsync(
+            string tenantId,
+            string storeId,
+            CancellationToken cancellationToken = default)
+        {
+            var prefix = $"{tenantId}|{storeId}|";
             var data = _roles
                 .Where(x => x.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 .Select(x => new RoleDto(x.Key.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[2], x.Value))
@@ -57,7 +75,18 @@ namespace Aegis.Infrastructure.Authorization
             string? conditionName = null,
             CancellationToken cancellationToken = default)
         {
-            _permissions[PermissionKey(tenantId, tenantId, relation, obj)] = new PermissionEntry(relation, obj, conditionName);
+            return UpsertPermissionInStoreAsync(tenantId, tenantId, relation, obj, conditionName, cancellationToken);
+        }
+
+        public Task UpsertPermissionInStoreAsync(
+            string tenantId,
+            string storeId,
+            string relation,
+            string obj,
+            string? conditionName = null,
+            CancellationToken cancellationToken = default)
+        {
+            _permissions[PermissionKey(tenantId, storeId, relation, obj)] = new PermissionEntry(relation, obj, conditionName);
             return Task.CompletedTask;
         }
 
@@ -65,7 +94,15 @@ namespace Aegis.Infrastructure.Authorization
             string tenantId,
             CancellationToken cancellationToken = default)
         {
-            var prefix = $"{tenantId}|{tenantId}|";
+            return GetPermissionsInStoreAsync(tenantId, tenantId, cancellationToken);
+        }
+
+        public Task<IReadOnlyList<PermissionDto>> GetPermissionsInStoreAsync(
+            string tenantId,
+            string storeId,
+            CancellationToken cancellationToken = default)
+        {
+            var prefix = $"{tenantId}|{storeId}|";
             var data = _permissions.Keys
                 .Where(x => x.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 .Select(x => _permissions[x])
@@ -83,7 +120,17 @@ namespace Aegis.Infrastructure.Authorization
             string obj,
             CancellationToken cancellationToken = default)
         {
-            if (!_permissions.TryGetValue(PermissionKey(tenantId, tenantId, relation, obj), out var permission))
+            return GetPermissionInStoreAsync(tenantId, tenantId, relation, obj, cancellationToken);
+        }
+
+        public Task<PermissionDto?> GetPermissionInStoreAsync(
+            string tenantId,
+            string storeId,
+            string relation,
+            string obj,
+            CancellationToken cancellationToken = default)
+        {
+            if (!_permissions.TryGetValue(PermissionKey(tenantId, storeId, relation, obj), out var permission))
             {
                 return Task.FromResult<PermissionDto?>(null);
             }
@@ -99,13 +146,25 @@ namespace Aegis.Infrastructure.Authorization
             string? conditionName = null,
             CancellationToken cancellationToken = default)
         {
+            return AssignPermissionToRoleInStoreAsync(tenantId, tenantId, roleName, relation, obj, conditionName, cancellationToken);
+        }
+
+        public Task AssignPermissionToRoleInStoreAsync(
+            string tenantId,
+            string storeId,
+            string roleName,
+            string relation,
+            string obj,
+            string? conditionName = null,
+            CancellationToken cancellationToken = default)
+        {
             var resolvedCondition = conditionName;
-            if (string.IsNullOrWhiteSpace(resolvedCondition) && _permissions.TryGetValue(PermissionKey(tenantId, tenantId, relation, obj), out var permission))
+            if (string.IsNullOrWhiteSpace(resolvedCondition) && _permissions.TryGetValue(PermissionKey(tenantId, storeId, relation, obj), out var permission))
             {
                 resolvedCondition = permission.ConditionName;
             }
 
-            _rolePermissions[RolePermissionKey(tenantId, tenantId, roleName, relation, obj)] = new RolePermissionEntry(roleName, relation, obj, resolvedCondition);
+            _rolePermissions[RolePermissionKey(tenantId, storeId, roleName, relation, obj)] = new RolePermissionEntry(roleName, relation, obj, resolvedCondition);
             return Task.CompletedTask;
         }
 
@@ -115,7 +174,17 @@ namespace Aegis.Infrastructure.Authorization
             string roleName,
             CancellationToken cancellationToken = default)
         {
-            _userRoles[UserRoleKey(tenantId, tenantId, userId, roleName)] = 1;
+            return AssignRoleToUserInStoreAsync(tenantId, tenantId, userId, roleName, cancellationToken);
+        }
+
+        public Task AssignRoleToUserInStoreAsync(
+            string tenantId,
+            string storeId,
+            string userId,
+            string roleName,
+            CancellationToken cancellationToken = default)
+        {
+            _userRoles[UserRoleKey(tenantId, storeId, userId, roleName)] = 1;
             return Task.CompletedTask;
         }
 
