@@ -140,6 +140,41 @@ namespace Aegis.Infrastructure.Authorization
             return Task.CompletedTask;
         }
 
+        public Task PurgeStoreAsync(
+            string tenantId,
+            string storeId,
+            CancellationToken cancellationToken = default)
+        {
+            foreach (var entry in _tuples.ToArray())
+            {
+                if (string.Equals(entry.Value.TenantId, tenantId, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(entry.Value.StoreId, storeId, StringComparison.OrdinalIgnoreCase))
+                {
+                    _tuples.TryRemove(entry.Key, out _);
+                }
+            }
+
+            if (_changes.IsEmpty)
+            {
+                return Task.CompletedTask;
+            }
+
+            var retained = _changes
+                .Where(x => !string.Equals(x.TenantId, tenantId, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(x.EffectiveStoreId, storeId, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            while (_changes.TryDequeue(out _))
+            {
+            }
+
+            foreach (var change in retained)
+            {
+                _changes.Enqueue(change);
+            }
+
+            return Task.CompletedTask;
+        }
+
         Task<IReadOnlyList<DomainRelationship>> IRelationshipRepository.QueryAsync(
             string tenantId,
             string? subject,
