@@ -30,7 +30,13 @@ namespace Aegis.Api.Controllers
             [FromQuery] string? effect,
             CancellationToken cancellationToken)
         {
-            var result = await _relationshipAppService.QueryAsync(storeId, subject, relation, objectRef, effect, cancellationToken);
+            var tenantId = TenantAccessGuard.ResolveTenantId(User);
+            if (string.IsNullOrWhiteSpace(tenantId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<IReadOnlyList<RelationshipTupleDto>>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+            }
+
+            var result = await _relationshipAppService.QueryAsync(tenantId, storeId, subject, relation, objectRef, effect, cancellationToken);
             return this.OkResponse<IReadOnlyList<RelationshipTupleDto>>(result);
         }
 
@@ -43,7 +49,14 @@ namespace Aegis.Api.Controllers
             [FromQuery] string? type,
             CancellationToken cancellationToken)
         {
+            var tenantId = TenantAccessGuard.ResolveTenantId(User);
+            if (string.IsNullOrWhiteSpace(tenantId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<ReadChangesResponseDto>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+            }
+
             var result = await _relationshipAppService.ReadChangesAsync(
+                tenantId,
                 storeId,
                 new ReadChangesRequestDto(pageSize, continuationToken, type),
                 cancellationToken);
@@ -58,7 +71,13 @@ namespace Aegis.Api.Controllers
             [FromBody] RelationshipWriteRequestDto request,
             CancellationToken cancellationToken)
         {
-            await _relationshipAppService.UpsertAsync(storeId, request, cancellationToken);
+            var tenantId = TenantAccessGuard.ResolveTenantId(User);
+            if (string.IsNullOrWhiteSpace(tenantId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<string>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+            }
+
+            await _relationshipAppService.UpsertAsync(tenantId, storeId, request, cancellationToken);
             return this.OkResponse("upserted");
         }
 
@@ -69,7 +88,13 @@ namespace Aegis.Api.Controllers
             [FromBody] RelationshipDeleteRequestDto request,
             CancellationToken cancellationToken)
         {
-            var deleted = await _relationshipAppService.DeleteAsync(storeId, request, cancellationToken);
+            var tenantId = TenantAccessGuard.ResolveTenantId(User);
+            if (string.IsNullOrWhiteSpace(tenantId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<string>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+            }
+
+            var deleted = await _relationshipAppService.DeleteAsync(tenantId, storeId, request, cancellationToken);
             return this.DeletedResponse(deleted);
         }
     }

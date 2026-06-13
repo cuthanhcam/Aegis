@@ -18,11 +18,26 @@ namespace Aegis.Application.Interfaces
             string? effect,
             CancellationToken cancellationToken = default);
 
+        Task<IReadOnlyList<RelationshipTupleDto>> QueryAsync(
+            string tenantId,
+            string storeId,
+            string? subject,
+            string? relation,
+            string? objectRef,
+            string? effect,
+            CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Creates or updates a relationship tuple.
         /// </summary>
         Task UpsertAsync(
             string tenantId,
+            RelationshipWriteRequestDto request,
+            CancellationToken cancellationToken = default);
+
+        Task UpsertAsync(
+            string tenantId,
+            string storeId,
             RelationshipWriteRequestDto request,
             CancellationToken cancellationToken = default);
 
@@ -34,11 +49,23 @@ namespace Aegis.Application.Interfaces
             RelationshipDeleteRequestDto request,
             CancellationToken cancellationToken = default);
 
+        Task<bool> DeleteAsync(
+            string tenantId,
+            string storeId,
+            RelationshipDeleteRequestDto request,
+            CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Reads paged relationship change history.
         /// </summary>
         Task<ReadChangesResponseDto> ReadChangesAsync(
             string tenantId,
+            ReadChangesRequestDto request,
+            CancellationToken cancellationToken = default);
+
+        Task<ReadChangesResponseDto> ReadChangesAsync(
+            string tenantId,
+            string storeId,
             ReadChangesRequestDto request,
             CancellationToken cancellationToken = default);
     }
