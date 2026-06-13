@@ -193,5 +193,14 @@ namespace Aegis.Application.Interfaces
             string tenantId,
             string userId,
             CancellationToken cancellationToken = default);
+
+        Task<UserRolesDto> GetUserRolesInStoreAsync(
+            string tenantId,
+            string storeId,
+            string userId,
+            CancellationToken cancellationToken = default)
+        {
+            return GetUserRolesAsync(tenantId, userId, cancellationToken);
+        }
     }
 }

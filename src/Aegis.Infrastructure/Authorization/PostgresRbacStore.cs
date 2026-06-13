@@ -368,11 +368,16 @@ namespace Aegis.Infrastructure.Authorization
 
         public async Task<UserRolesDto> GetUserRolesAsync(string tenantId, string userId, CancellationToken cancellationToken = default)
         {
+            return await GetUserRolesInStoreAsync(tenantId, tenantId, userId, cancellationToken);
+        }
+
+        public async Task<UserRolesDto> GetUserRolesInStoreAsync(string tenantId, string storeId, string userId, CancellationToken cancellationToken = default)
+        {
             const string sql = "SELECT role_name FROM rbac_user_roles WHERE tenant_id = @tenant_id AND store_id = @store_id AND user_id = @user_id ORDER BY role_name;";
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
             await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue("tenant_id", tenantId);
-            command.Parameters.AddWithValue("store_id", tenantId);
+            command.Parameters.AddWithValue("store_id", storeId);
             command.Parameters.AddWithValue("user_id", userId);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             var roles = new List<string>();

@@ -279,7 +279,16 @@ namespace Aegis.Infrastructure.Authorization
             string userId,
             CancellationToken cancellationToken = default)
         {
-            var prefix = $"{tenantId}|{tenantId}|{userId}|";
+            return GetUserRolesInStoreAsync(tenantId, tenantId, userId, cancellationToken);
+        }
+
+        public Task<UserRolesDto> GetUserRolesInStoreAsync(
+            string tenantId,
+            string storeId,
+            string userId,
+            CancellationToken cancellationToken = default)
+        {
+            var prefix = $"{tenantId}|{storeId}|{userId}|";
             var roles = _userRoles.Keys
                 .Where(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 .Select(k => k.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[3])

@@ -183,6 +183,16 @@ namespace Aegis.Application.Services
             return await _rbacAdminStore.GetUserRolesAsync(tenantId, userId, cancellationToken);
         }
 
+        public async Task<UserRolesDto> GetUserRolesInStoreAsync(string tenantId, string storeId, string userId, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                throw new ArgumentException("User ID is required.");
+            }
+
+            return await _rbacAdminStore.GetUserRolesInStoreAsync(tenantId, storeId, userId, cancellationToken);
+        }
+
         private static void ValidatePermission(string relation, string objectRef)
         {
             if (!RelationName.TryCreate(relation, out _) || !ObjectId.TryCreate(objectRef, out _))
