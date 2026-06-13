@@ -55,30 +55,33 @@ CREATE INDEX IF NOT EXISTS ix_relationship_changes_tenant_store_created_at ON re
 
 CREATE TABLE IF NOT EXISTS rbac_roles (
     tenant_id TEXT NOT NULL,
+    store_id TEXT NOT NULL,
     role_name TEXT NOT NULL,
     description TEXT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
-    PRIMARY KEY (tenant_id, role_name)
+    PRIMARY KEY (tenant_id, store_id, role_name)
 );
 
 CREATE TABLE IF NOT EXISTS rbac_permissions (
     tenant_id TEXT NOT NULL,
+    store_id TEXT NOT NULL,
     relation TEXT NOT NULL,
     object_ref TEXT NOT NULL,
     condition_name TEXT NULL,
     created_at TIMESTAMPTZ NOT NULL,
-    PRIMARY KEY (tenant_id, relation, object_ref)
+    PRIMARY KEY (tenant_id, store_id, relation, object_ref)
 );
 
 CREATE TABLE IF NOT EXISTS rbac_role_permissions (
     tenant_id TEXT NOT NULL,
+    store_id TEXT NOT NULL,
     role_name TEXT NOT NULL,
     relation TEXT NOT NULL,
     object_ref TEXT NOT NULL,
     condition_name TEXT NULL,
     created_at TIMESTAMPTZ NOT NULL,
-    PRIMARY KEY (tenant_id, role_name, relation, object_ref)
+    PRIMARY KEY (tenant_id, store_id, role_name, relation, object_ref)
 );
 
 CREATE TABLE IF NOT EXISTS rbac_users (
@@ -93,10 +96,11 @@ CREATE TABLE IF NOT EXISTS rbac_users (
 
 CREATE TABLE IF NOT EXISTS rbac_user_roles (
     tenant_id TEXT NOT NULL,
+    store_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
     role_name TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
-    PRIMARY KEY (tenant_id, user_id, role_name)
+    PRIMARY KEY (tenant_id, store_id, user_id, role_name)
 );
 
 CREATE TABLE IF NOT EXISTS audit_events (
