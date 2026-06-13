@@ -24,16 +24,18 @@ namespace Aegis.Infrastructure.Authorization
 
         public async Task<bool> HasPermissionAsync(CheckRequest request, CancellationToken cancellationToken = default)
         {
-            var evaluator = new RbacPermissionEvaluator(GetGrantsAsync);
+            var evaluator = new RbacPermissionEvaluator((tenantId, subject, token) =>
+                GetGrantsAsync(tenantId, request.EffectiveStoreId, subject, token));
             return await evaluator.HasPermissionAsync(request, cancellationToken);
         }
 
         private async Task<IReadOnlyList<RbacPermissionGrant>> GetGrantsAsync(
             string tenantId,
+            string storeId,
             Subject subject,
             CancellationToken cancellationToken)
         {
-            var cacheKey = $"rbac_grants:{tenantId}:{subject.Value}";
+            var cacheKey = $"rbac_grants:{tenantId}:{storeId}:{subject.Value}";
             if (_cache.TryGetValue(cacheKey, out var cachedObj) && cachedObj is IReadOnlyList<RbacPermissionGrant> cached)
             {
                 return cached;
@@ -41,12 +43,13 @@ namespace Aegis.Infrastructure.Authorization
 
             const string sql = @"SELECT ur.role_name, rp.relation, rp.object_ref, rp.condition_name
                                  FROM rbac_user_roles ur
-                                 JOIN rbac_role_permissions rp ON rp.tenant_id = ur.tenant_id AND rp.role_name = ur.role_name
-                                 WHERE ur.tenant_id = @tenant_id AND ur.user_id = @user_id;";
+                                 JOIN rbac_role_permissions rp ON rp.tenant_id = ur.tenant_id AND rp.store_id = ur.store_id AND rp.role_name = ur.role_name
+                                 WHERE ur.tenant_id = @tenant_id AND ur.store_id = @store_id AND ur.user_id = @user_id;";
 
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
             await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue("tenant_id", tenantId);
+            command.Parameters.AddWithValue("store_id", storeId);
             command.Parameters.AddWithValue("user_id", subject.Value);
 
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -97,11 +100,12 @@ namespace Aegis.Infrastructure.Authorization
         {
             await ExecuteAsync(async connection =>
             {
-                const string sql = @"INSERT INTO rbac_roles (tenant_id, role_name, description, created_at, updated_at)
-                                     VALUES (@tenant_id, @role_name, @description, @created_at, @updated_at)
-                                     ON CONFLICT (tenant_id, role_name) DO UPDATE SET description = EXCLUDED.description, updated_at = EXCLUDED.updated_at;";
+                const string sql = @"INSERT INTO rbac_roles (tenant_id, store_id, role_name, description, created_at, updated_at)
+                                     VALUES (@tenant_id, @store_id, @role_name, @description, @created_at, @updated_at)
+                                     ON CONFLICT (tenant_id, store_id, role_name) DO UPDATE SET description = EXCLUDED.description, updated_at = EXCLUDED.updated_at;";
                 await using var command = new NpgsqlCommand(sql, connection);
                 command.Parameters.AddWithValue("tenant_id", tenantId);
+                command.Parameters.AddWithValue("store_id", tenantId);
                 command.Parameters.AddWithValue("role_name", roleName);
                 command.Parameters.AddWithValue("description", (object?)description ?? DBNull.Value);
                 command.Parameters.AddWithValue("created_at", DateTimeOffset.UtcNow);
@@ -114,10 +118,11 @@ namespace Aegis.Infrastructure.Authorization
 
         public async Task<IReadOnlyList<RoleDto>> GetRolesAsync(string tenantId, CancellationToken cancellationToken = default)
         {
-            const string sql = "SELECT role_name, description FROM rbac_roles WHERE tenant_id = @tenant_id ORDER BY role_name;";
+            const string sql = "SELECT role_name, description FROM rbac_roles WHERE tenant_id = @tenant_id AND store_id = @store_id ORDER BY role_name;";
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
             await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue("tenant_id", tenantId);
+            command.Parameters.AddWithValue("store_id", tenantId);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             var roles = new List<RoleDto>();
             while (await reader.ReadAsync(cancellationToken))
@@ -137,11 +142,12 @@ namespace Aegis.Infrastructure.Authorization
         {
             await ExecuteAsync(async connection =>
             {
-                const string sql = @"INSERT INTO rbac_permissions (tenant_id, relation, object_ref, condition_name, created_at)
-                                     VALUES (@tenant_id, @relation, @object_ref, @condition_name, @created_at)
-                                     ON CONFLICT (tenant_id, relation, object_ref) DO UPDATE SET condition_name = EXCLUDED.condition_name;";
+                const string sql = @"INSERT INTO rbac_permissions (tenant_id, store_id, relation, object_ref, condition_name, created_at)
+                                     VALUES (@tenant_id, @store_id, @relation, @object_ref, @condition_name, @created_at)
+                                     ON CONFLICT (tenant_id, store_id, relation, object_ref) DO UPDATE SET condition_name = EXCLUDED.condition_name;";
                 await using var command = new NpgsqlCommand(sql, connection);
                 command.Parameters.AddWithValue("tenant_id", tenantId);
+                command.Parameters.AddWithValue("store_id", tenantId);
                 command.Parameters.AddWithValue("relation", relation);
                 command.Parameters.AddWithValue("object_ref", obj);
                 command.Parameters.AddWithValue("condition_name", (object?)conditionName ?? DBNull.Value);
@@ -154,10 +160,11 @@ namespace Aegis.Infrastructure.Authorization
 
         public async Task<IReadOnlyList<PermissionDto>> GetPermissionsAsync(string tenantId, CancellationToken cancellationToken = default)
         {
-            const string sql = "SELECT relation, object_ref, condition_name FROM rbac_permissions WHERE tenant_id = @tenant_id ORDER BY relation, object_ref;";
+            const string sql = "SELECT relation, object_ref, condition_name FROM rbac_permissions WHERE tenant_id = @tenant_id AND store_id = @store_id ORDER BY relation, object_ref;";
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
             await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue("tenant_id", tenantId);
+            command.Parameters.AddWithValue("store_id", tenantId);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             var permissions = new List<PermissionDto>();
             while (await reader.ReadAsync(cancellationToken))
@@ -170,10 +177,11 @@ namespace Aegis.Infrastructure.Authorization
 
         public async Task<PermissionDto?> GetPermissionAsync(string tenantId, string relation, string obj, CancellationToken cancellationToken = default)
         {
-            const string sql = "SELECT relation, object_ref, condition_name FROM rbac_permissions WHERE tenant_id = @tenant_id AND relation = @relation AND object_ref = @object_ref LIMIT 1;";
+            const string sql = "SELECT relation, object_ref, condition_name FROM rbac_permissions WHERE tenant_id = @tenant_id AND store_id = @store_id AND relation = @relation AND object_ref = @object_ref LIMIT 1;";
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
             await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue("tenant_id", tenantId);
+            command.Parameters.AddWithValue("store_id", tenantId);
             command.Parameters.AddWithValue("relation", relation);
             command.Parameters.AddWithValue("object_ref", obj);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -194,11 +202,12 @@ namespace Aegis.Infrastructure.Authorization
         {
             await ExecuteAsync(async connection =>
             {
-                const string sql = @"INSERT INTO rbac_role_permissions (tenant_id, role_name, relation, object_ref, condition_name, created_at)
-                                     VALUES (@tenant_id, @role_name, @relation, @object_ref, @condition_name, @created_at)
-                                     ON CONFLICT (tenant_id, role_name, relation, object_ref) DO UPDATE SET condition_name = EXCLUDED.condition_name;";
+                const string sql = @"INSERT INTO rbac_role_permissions (tenant_id, store_id, role_name, relation, object_ref, condition_name, created_at)
+                                     VALUES (@tenant_id, @store_id, @role_name, @relation, @object_ref, @condition_name, @created_at)
+                                     ON CONFLICT (tenant_id, store_id, role_name, relation, object_ref) DO UPDATE SET condition_name = EXCLUDED.condition_name;";
                 await using var command = new NpgsqlCommand(sql, connection);
                 command.Parameters.AddWithValue("tenant_id", tenantId);
+                command.Parameters.AddWithValue("store_id", tenantId);
                 command.Parameters.AddWithValue("role_name", roleName);
                 command.Parameters.AddWithValue("relation", relation);
                 command.Parameters.AddWithValue("object_ref", obj);
@@ -214,11 +223,12 @@ namespace Aegis.Infrastructure.Authorization
         {
             await ExecuteAsync(async connection =>
             {
-                const string sql = @"INSERT INTO rbac_user_roles (tenant_id, user_id, role_name, created_at)
-                                     VALUES (@tenant_id, @user_id, @role_name, @created_at)
-                                     ON CONFLICT (tenant_id, user_id, role_name) DO NOTHING;";
+                const string sql = @"INSERT INTO rbac_user_roles (tenant_id, store_id, user_id, role_name, created_at)
+                                     VALUES (@tenant_id, @store_id, @user_id, @role_name, @created_at)
+                                     ON CONFLICT (tenant_id, store_id, user_id, role_name) DO NOTHING;";
                 await using var command = new NpgsqlCommand(sql, connection);
                 command.Parameters.AddWithValue("tenant_id", tenantId);
+                command.Parameters.AddWithValue("store_id", tenantId);
                 command.Parameters.AddWithValue("user_id", userId);
                 command.Parameters.AddWithValue("role_name", roleName);
                 command.Parameters.AddWithValue("created_at", DateTimeOffset.UtcNow);
@@ -323,10 +333,11 @@ namespace Aegis.Infrastructure.Authorization
 
         public async Task<UserRolesDto> GetUserRolesAsync(string tenantId, string userId, CancellationToken cancellationToken = default)
         {
-            const string sql = "SELECT role_name FROM rbac_user_roles WHERE tenant_id = @tenant_id AND user_id = @user_id ORDER BY role_name;";
+            const string sql = "SELECT role_name FROM rbac_user_roles WHERE tenant_id = @tenant_id AND store_id = @store_id AND user_id = @user_id ORDER BY role_name;";
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
             await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue("tenant_id", tenantId);
+            command.Parameters.AddWithValue("store_id", tenantId);
             command.Parameters.AddWithValue("user_id", userId);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             var roles = new List<string>();
