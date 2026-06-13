@@ -54,7 +54,8 @@ public sealed class CheckPermissionUseCase
                 request.Object,
                 decision.Decision,
                 decision.ReasonCode,
-                DateTimeOffset.UtcNow),
+                DateTimeOffset.UtcNow,
+                storeId),
             cancellationToken);
 
         return ToDto(decision, includeTrace);
