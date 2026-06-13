@@ -33,7 +33,8 @@ namespace Aegis.Application.Features.Permissions
                     x.Object,
                     x.Decision,
                     x.ReasonCode,
-                    x.CreatedAt))
+                    x.CreatedAt,
+                    x.StoreId))
                 .ToList();
         }
     }

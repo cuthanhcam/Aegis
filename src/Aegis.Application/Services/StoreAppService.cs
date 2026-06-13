@@ -122,10 +122,18 @@ namespace Aegis.Application.Services
 
             if (!string.IsNullOrWhiteSpace(tenantId))
             {
+                var store = await _storeRegistry.GetForTenantAsync(tenantId, storeId, cancellationToken);
+                if (store is null)
+                {
+                    return false;
+                }
+
                 if (_assertionAppService is not null)
                 {
                     await _assertionAppService.PurgeStoreAsync(storeId, cancellationToken);
                 }
+
+                await _relationshipStore.PurgeStoreAsync(tenantId, storeId, cancellationToken);
 
                 return await _storeRegistry.DeleteForTenantAsync(tenantId, storeId, cancellationToken);
             }

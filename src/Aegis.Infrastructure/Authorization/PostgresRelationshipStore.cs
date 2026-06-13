@@ -253,6 +253,19 @@ namespace Aegis.Infrastructure.Authorization
             _authorizationCache?.InvalidateTenant(tenantId);
         }
 
+        public async Task PurgeStoreAsync(string tenantId, string storeId, CancellationToken cancellationToken = default)
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            await using var command = new NpgsqlCommand("DELETE FROM relationships WHERE tenant_id = @tenant_id AND store_id = @store_id; DELETE FROM relationship_changes WHERE tenant_id = @tenant_id AND store_id = @store_id;", connection);
+            command.Transaction = transaction;
+            command.Parameters.AddWithValue("tenant_id", tenantId);
+            command.Parameters.AddWithValue("store_id", storeId);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            _authorizationCache?.InvalidateTenant(tenantId);
+        }
+
         Task<IReadOnlyList<DomainRelationship>> IRelationshipRepository.QueryAsync(string tenantId, string? subject, string? relation, string? obj, DomainRelationshipPermissionEffect? effect, CancellationToken cancellationToken)
         {
             return QueryDomainAsync(tenantId, subject, relation, obj, effect, cancellationToken);

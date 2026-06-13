@@ -15,13 +15,14 @@ namespace Aegis.Infrastructure.Authorization
 
         public async Task WriteAsync(AuditEvent auditEvent, CancellationToken cancellationToken = default)
         {
-            const string sql = @"INSERT INTO audit_events (id, tenant_id, action, subject, relation, object_ref, decision, reason_code, created_at)
-                                 VALUES (@id, @tenant_id, @action, @subject, @relation, @object_ref, @decision, @reason_code, @created_at);";
+            const string sql = @"INSERT INTO audit_events (id, tenant_id, store_id, action, subject, relation, object_ref, decision, reason_code, created_at)
+                                 VALUES (@id, @tenant_id, @store_id, @action, @subject, @relation, @object_ref, @decision, @reason_code, @created_at);";
 
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
             await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue("id", Guid.NewGuid());
             command.Parameters.AddWithValue("tenant_id", auditEvent.TenantId);
+            command.Parameters.AddWithValue("store_id", (object?)auditEvent.StoreId ?? DBNull.Value);
             command.Parameters.AddWithValue("action", auditEvent.Action);
             command.Parameters.AddWithValue("subject", auditEvent.Subject);
             command.Parameters.AddWithValue("relation", auditEvent.Relation);
@@ -34,7 +35,7 @@ namespace Aegis.Infrastructure.Authorization
 
         public async Task<IReadOnlyList<AuditEvent>> QueryAsync(string tenantId, string? action, string? decision, CancellationToken cancellationToken = default)
         {
-            const string sql = @"SELECT action, subject, relation, object_ref, decision, reason_code, created_at
+            const string sql = @"SELECT action, subject, relation, object_ref, decision, reason_code, created_at, store_id
                                  FROM audit_events
                                  WHERE tenant_id = @tenant_id
                                    AND (@action IS NULL OR action = @action)
@@ -59,7 +60,8 @@ namespace Aegis.Infrastructure.Authorization
                     reader.GetString(3),
                     reader.GetString(4),
                     reader.GetString(5),
-                    reader.GetFieldValue<DateTimeOffset>(6)));
+                    reader.GetFieldValue<DateTimeOffset>(6),
+                    reader.IsDBNull(7) ? null : reader.GetString(7)));
             }
 
             return results;

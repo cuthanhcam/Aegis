@@ -21,7 +21,8 @@ namespace Aegis.Infrastructure.Authorization
             CheckRequest request,
             CancellationToken cancellationToken = default)
         {
-            var evaluator = new Aegis.Authorization.RBAC.RbacPermissionEvaluator(GetGrantsAsync);
+            var evaluator = new Aegis.Authorization.RBAC.RbacPermissionEvaluator((tenantId, subject, token) =>
+                GetGrantsAsync(tenantId, request.EffectiveStoreId, subject, token));
             return evaluator.HasPermissionAsync(request, cancellationToken);
         }
 
@@ -31,7 +32,17 @@ namespace Aegis.Infrastructure.Authorization
             string? description,
             CancellationToken cancellationToken = default)
         {
-            _roles[RoleKey(tenantId, roleName)] = description;
+            return UpsertRoleInStoreAsync(tenantId, tenantId, roleName, description, cancellationToken);
+        }
+
+        public Task UpsertRoleInStoreAsync(
+            string tenantId,
+            string storeId,
+            string roleName,
+            string? description,
+            CancellationToken cancellationToken = default)
+        {
+            _roles[RoleKey(tenantId, storeId, roleName)] = description;
             return Task.CompletedTask;
         }
 
@@ -39,10 +50,18 @@ namespace Aegis.Infrastructure.Authorization
             string tenantId,
             CancellationToken cancellationToken = default)
         {
-            var prefix = $"{tenantId}|";
+            return GetRolesInStoreAsync(tenantId, tenantId, cancellationToken);
+        }
+
+        public Task<IReadOnlyList<RoleDto>> GetRolesInStoreAsync(
+            string tenantId,
+            string storeId,
+            CancellationToken cancellationToken = default)
+        {
+            var prefix = $"{tenantId}|{storeId}|";
             var data = _roles
                 .Where(x => x.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                .Select(x => new RoleDto(x.Key.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[1], x.Value))
+                .Select(x => new RoleDto(x.Key.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[2], x.Value))
                 .OrderBy(x => x.Name)
                 .ToList();
 
@@ -56,7 +75,18 @@ namespace Aegis.Infrastructure.Authorization
             string? conditionName = null,
             CancellationToken cancellationToken = default)
         {
-            _permissions[PermissionKey(tenantId, relation, obj)] = new PermissionEntry(relation, obj, conditionName);
+            return UpsertPermissionInStoreAsync(tenantId, tenantId, relation, obj, conditionName, cancellationToken);
+        }
+
+        public Task UpsertPermissionInStoreAsync(
+            string tenantId,
+            string storeId,
+            string relation,
+            string obj,
+            string? conditionName = null,
+            CancellationToken cancellationToken = default)
+        {
+            _permissions[PermissionKey(tenantId, storeId, relation, obj)] = new PermissionEntry(relation, obj, conditionName);
             return Task.CompletedTask;
         }
 
@@ -64,7 +94,15 @@ namespace Aegis.Infrastructure.Authorization
             string tenantId,
             CancellationToken cancellationToken = default)
         {
-            var prefix = $"{tenantId}|";
+            return GetPermissionsInStoreAsync(tenantId, tenantId, cancellationToken);
+        }
+
+        public Task<IReadOnlyList<PermissionDto>> GetPermissionsInStoreAsync(
+            string tenantId,
+            string storeId,
+            CancellationToken cancellationToken = default)
+        {
+            var prefix = $"{tenantId}|{storeId}|";
             var data = _permissions.Keys
                 .Where(x => x.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 .Select(x => _permissions[x])
@@ -82,7 +120,17 @@ namespace Aegis.Infrastructure.Authorization
             string obj,
             CancellationToken cancellationToken = default)
         {
-            if (!_permissions.TryGetValue(PermissionKey(tenantId, relation, obj), out var permission))
+            return GetPermissionInStoreAsync(tenantId, tenantId, relation, obj, cancellationToken);
+        }
+
+        public Task<PermissionDto?> GetPermissionInStoreAsync(
+            string tenantId,
+            string storeId,
+            string relation,
+            string obj,
+            CancellationToken cancellationToken = default)
+        {
+            if (!_permissions.TryGetValue(PermissionKey(tenantId, storeId, relation, obj), out var permission))
             {
                 return Task.FromResult<PermissionDto?>(null);
             }
@@ -98,13 +146,25 @@ namespace Aegis.Infrastructure.Authorization
             string? conditionName = null,
             CancellationToken cancellationToken = default)
         {
+            return AssignPermissionToRoleInStoreAsync(tenantId, tenantId, roleName, relation, obj, conditionName, cancellationToken);
+        }
+
+        public Task AssignPermissionToRoleInStoreAsync(
+            string tenantId,
+            string storeId,
+            string roleName,
+            string relation,
+            string obj,
+            string? conditionName = null,
+            CancellationToken cancellationToken = default)
+        {
             var resolvedCondition = conditionName;
-            if (string.IsNullOrWhiteSpace(resolvedCondition) && _permissions.TryGetValue(PermissionKey(tenantId, relation, obj), out var permission))
+            if (string.IsNullOrWhiteSpace(resolvedCondition) && _permissions.TryGetValue(PermissionKey(tenantId, storeId, relation, obj), out var permission))
             {
                 resolvedCondition = permission.ConditionName;
             }
 
-            _rolePermissions[RolePermissionKey(tenantId, roleName, relation, obj)] = new RolePermissionEntry(roleName, relation, obj, resolvedCondition);
+            _rolePermissions[RolePermissionKey(tenantId, storeId, roleName, relation, obj)] = new RolePermissionEntry(roleName, relation, obj, resolvedCondition);
             return Task.CompletedTask;
         }
 
@@ -114,7 +174,17 @@ namespace Aegis.Infrastructure.Authorization
             string roleName,
             CancellationToken cancellationToken = default)
         {
-            _userRoles[UserRoleKey(tenantId, userId, roleName)] = 1;
+            return AssignRoleToUserInStoreAsync(tenantId, tenantId, userId, roleName, cancellationToken);
+        }
+
+        public Task AssignRoleToUserInStoreAsync(
+            string tenantId,
+            string storeId,
+            string userId,
+            string roleName,
+            CancellationToken cancellationToken = default)
+        {
+            _userRoles[UserRoleKey(tenantId, storeId, userId, roleName)] = 1;
             return Task.CompletedTask;
         }
 
@@ -191,10 +261,14 @@ namespace Aegis.Infrastructure.Authorization
                 return Task.FromResult(false);
             }
 
-            var prefix = $"{tenantId}|{userId}|";
+            var prefix = $"{tenantId}|";
             foreach (var key in _userRoles.Keys.Where(x => x.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToList())
             {
-                _userRoles.TryRemove(key, out _);
+                var parts = key.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (parts.Length >= 4 && parts[2].Equals(userId, StringComparison.OrdinalIgnoreCase))
+                {
+                    _userRoles.TryRemove(key, out _);
+                }
             }
 
             return Task.FromResult(true);
@@ -205,10 +279,19 @@ namespace Aegis.Infrastructure.Authorization
             string userId,
             CancellationToken cancellationToken = default)
         {
-            var prefix = $"{tenantId}|{userId}|";
+            return GetUserRolesInStoreAsync(tenantId, tenantId, userId, cancellationToken);
+        }
+
+        public Task<UserRolesDto> GetUserRolesInStoreAsync(
+            string tenantId,
+            string storeId,
+            string userId,
+            CancellationToken cancellationToken = default)
+        {
+            var prefix = $"{tenantId}|{storeId}|{userId}|";
             var roles = _userRoles.Keys
                 .Where(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                .Select(k => k.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[2])
+                .Select(k => k.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[3])
                 .OrderBy(x => x)
                 .ToList();
 
@@ -217,33 +300,37 @@ namespace Aegis.Infrastructure.Authorization
 
         private static string RoleKey(
             string tenantId,
+            string storeId,
             string roleName)
         {
-            return $"{tenantId}|{roleName}";
+            return $"{tenantId}|{storeId}|{roleName}";
         }
         private static string PermissionKey(
             string tenantId,
+            string storeId,
             string relation,
             string obj)
         {
-            return $"{tenantId}|{relation}|{obj}";
+            return $"{tenantId}|{storeId}|{relation}|{obj}";
         }
 
         private static string RolePermissionKey(
             string tenantId,
+            string storeId,
             string roleName,
             string relation,
             string obj)
         {
-            return $"{tenantId}|{roleName}|{relation}|{obj}";
+            return $"{tenantId}|{storeId}|{roleName}|{relation}|{obj}";
         }
 
         private static string UserRoleKey(
             string tenantId,
+            string storeId,
             string userId,
             string roleName)
         {
-            return $"{tenantId}|{userId}|{roleName}";
+            return $"{tenantId}|{storeId}|{userId}|{roleName}";
         }
 
         private static string UserKey(
@@ -286,15 +373,15 @@ namespace Aegis.Infrastructure.Authorization
             return split > 0 ? value[..split] : value;
         }
 
-        private Task<IReadOnlyList<RbacPermissionGrant>> GetGrantsAsync(string tenantId, Subject subject, CancellationToken cancellationToken)
+        private Task<IReadOnlyList<RbacPermissionGrant>> GetGrantsAsync(string tenantId, string storeId, Subject subject, CancellationToken cancellationToken)
         {
-            var userKeyPrefix = $"{tenantId}|{subject.Value}|";
+            var userKeyPrefix = $"{tenantId}|{storeId}|{subject.Value}|";
             var grants = new List<RbacPermissionGrant>();
 
             foreach (var userRoleKey in _userRoles.Keys.Where(k => k.StartsWith(userKeyPrefix, StringComparison.OrdinalIgnoreCase)))
             {
-                var roleName = userRoleKey.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[2];
-                var rolePermissionPrefix = $"{tenantId}|{roleName}|";
+                var roleName = userRoleKey.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[3];
+                var rolePermissionPrefix = $"{tenantId}|{storeId}|{roleName}|";
 
                 foreach (var rolePermissionKey in _rolePermissions.Keys.Where(k => k.StartsWith(rolePermissionPrefix, StringComparison.OrdinalIgnoreCase)))
                 {

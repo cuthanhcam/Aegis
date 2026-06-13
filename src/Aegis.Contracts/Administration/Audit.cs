@@ -10,5 +10,6 @@ namespace Aegis.Contracts.Administration
         string Object,
         string Decision,
         string ReasonCode,
-        DateTimeOffset CreatedAt);
+        DateTimeOffset CreatedAt,
+        string? StoreId = null);
 }

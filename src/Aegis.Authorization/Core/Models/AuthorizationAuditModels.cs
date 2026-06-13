@@ -11,5 +11,6 @@ namespace Aegis.Authorization.Core.Models
         string Object,
         string Decision,
         string ReasonCode,
-        DateTimeOffset CreatedAt);
+        DateTimeOffset CreatedAt,
+        string? StoreId = null);
 }

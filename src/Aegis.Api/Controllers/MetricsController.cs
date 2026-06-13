@@ -1,4 +1,5 @@
 using Aegis.Authorization.Core.Metrics;
+using Aegis.Api.Metrics;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Aegis.Api.Controllers
@@ -15,10 +16,9 @@ namespace Aegis.Api.Controllers
         }
 
         [HttpGet("authorization")]
-        public ActionResult<MetricsSnapshot> GetAuthorizationMetrics()
+        public ContentResult GetAuthorizationMetrics()
         {
-            var snapshot = _metrics.Snapshot();
-            return Ok(snapshot);
+            return Content(PrometheusMetricsFormatter.Format(_metrics), PrometheusMetricsFormatter.ContentType);
         }
     }
 }

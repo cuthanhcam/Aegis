@@ -129,5 +129,13 @@ namespace Aegis.Authorization.Core.Interfaces
         Task PurgeTenantAsync(
             string tenantId,
             CancellationToken cancellationToken = default);
+
+        Task PurgeStoreAsync(
+            string tenantId,
+            string storeId,
+            CancellationToken cancellationToken = default)
+        {
+            return PurgeTenantAsync(tenantId, cancellationToken);
+        }
     }
 }

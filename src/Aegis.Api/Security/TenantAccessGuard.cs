@@ -1,5 +1,6 @@
 using Aegis.Contracts.Common;
 using Aegis.Contracts.Compatibility;
+using Aegis.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -77,6 +78,27 @@ namespace Aegis.Api.Security
                 && !claimTenantId.Equals(contextualTenantId, StringComparison.OrdinalIgnoreCase))
             {
                 return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail("TENANT_FORBIDDEN", "Tenant claim does not match the authenticated tenant context."));
+            }
+
+            return null;
+        }
+
+        public static async Task<ActionResult<ApiResponse<T>>?> ValidateStoreTenantAsync<T>(
+            ControllerBase controller,
+            IStoreRegistry storeRegistry,
+            string storeId,
+            CancellationToken cancellationToken = default)
+        {
+            var tenantId = ResolveTenantId(controller.User);
+            if (string.IsNullOrWhiteSpace(tenantId))
+            {
+                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+            }
+
+            var store = await storeRegistry.GetForTenantAsync(tenantId, storeId, cancellationToken);
+            if (store is null)
+            {
+                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail("STORE_FORBIDDEN", "Store does not belong to the authenticated tenant."));
             }
 
             return null;
