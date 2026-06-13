@@ -1,7 +1,9 @@
 using Aegis.Api.Middlewares;
 using Aegis.Api.Security;
 using Aegis.Api.Health;
+using Aegis.Api.Metrics;
 using Aegis.Application;
+using Aegis.Authorization.Core.Metrics;
 using Aegis.Contracts.Common;
 using Aegis.Contracts.Compatibility;
 using Aegis.Infrastructure;
@@ -224,20 +226,8 @@ app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.Health
     Predicate = check => check.Tags.Contains("ready"),
 });
 
-// Minimal metrics endpoint (JSON) for easy self-hosting
-app.MapGet("/metrics", (IConfiguration _config) =>
-{
-    var process = System.Diagnostics.Process.GetCurrentProcess();
-    var metrics = new
-    {
-        uptimeSeconds = (DateTime.UtcNow - process.StartTime.ToUniversalTime()).TotalSeconds,
-        workingSetBytes = process.WorkingSet64,
-        threadCount = process.Threads.Count,
-        gcTotalMemory = GC.GetTotalMemory(false),
-    };
-
-    return Results.Json(metrics);
-});
+app.MapGet("/metrics", (IAuthorizationMetrics metrics) =>
+    Results.Text(PrometheusMetricsFormatter.Format(metrics), PrometheusMetricsFormatter.ContentType));
 
 app.MapControllers();
 
