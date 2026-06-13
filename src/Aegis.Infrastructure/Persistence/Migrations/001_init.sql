@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS rbac_user_roles (
 CREATE TABLE IF NOT EXISTS audit_events (
     id UUID PRIMARY KEY,
     tenant_id TEXT NOT NULL,
+    store_id TEXT NULL,
     action TEXT NOT NULL,
     subject TEXT NOT NULL,
     relation TEXT NOT NULL,
@@ -116,3 +117,4 @@ CREATE TABLE IF NOT EXISTS audit_events (
 );
 
 CREATE INDEX IF NOT EXISTS ix_audit_events_tenant_created_at ON audit_events(tenant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS ix_audit_events_tenant_store_created_at ON audit_events(tenant_id, store_id, created_at DESC);
