@@ -1,5 +1,6 @@
 using Aegis.Api.Middlewares;
 using Aegis.Api.Security;
+using Aegis.Api.Health;
 using Aegis.Application;
 using Aegis.Contracts.Common;
 using Aegis.Contracts.Compatibility;
@@ -175,7 +176,18 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // Health checks
-builder.Services.AddHealthChecks();
+var healthChecks = builder.Services.AddHealthChecks();
+var storageProvider = builder.Configuration.GetSection("Storage").GetValue<string>("Provider") ?? "InMemory";
+if (storageProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
+{
+    healthChecks.AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"]);
+}
+
+var cacheProvider = builder.Configuration.GetSection("Cache").GetValue<string>("Provider") ?? "Memory";
+if (cacheProvider.Equals("Redis", StringComparison.OrdinalIgnoreCase))
+{
+    healthChecks.AddCheck<RedisHealthCheck>("redis", tags: ["ready"]);
+}
 
 var app = builder.Build();
 
@@ -203,8 +215,14 @@ app.UseMiddleware<TenantContextMiddleware>();
 app.UseAuthorization();
 
 // Liveness & readiness endpoints
-app.MapHealthChecks("/health/live");
-app.MapHealthChecks("/health/ready");
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => false,
+});
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+});
 
 // Minimal metrics endpoint (JSON) for easy self-hosting
 app.MapGet("/metrics", (IConfiguration _config) =>
