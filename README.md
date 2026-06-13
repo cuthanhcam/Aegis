@@ -17,6 +17,9 @@
 
 It provides a dedicated authorization service that delivers **deterministic and explainable access decisions**, eliminating the need to embed permission logic across multiple services.
 
+![Aegis Architecture & Evaluation Flow](images/aegis-architecture-evaluation-flow.png)
+*Figure 1: Aegis High-Level Architecture and Evaluation Pipeline.*
+
 Aegis supports multiple authorization models:
 
 - Relationship-Based Access Control (**ReBAC**)
