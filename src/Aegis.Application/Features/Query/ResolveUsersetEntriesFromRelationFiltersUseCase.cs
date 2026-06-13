@@ -17,6 +17,15 @@ namespace Aegis.Application.Features.Query
             AegisCompatListUsersRequestDto request,
             CancellationToken cancellationToken = default)
         {
+            return await ExecuteAsync(storeId, storeId, request, cancellationToken);
+        }
+
+        public async Task<List<AegisCompatUserEntryDto>> ExecuteAsync(
+            string tenantId,
+            string storeId,
+            AegisCompatListUsersRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
             if (request.UserFilters is null || request.UserFilters.Count == 0)
             {
                 return [];
@@ -36,6 +45,7 @@ namespace Aegis.Application.Features.Query
                 AuthorizationQueryHelper.ToContextualTuples(request.ContextualTuples));
 
             var tuples = await _queryAllowTuplesUseCase.ExecuteAsync(
+                tenantId,
                 storeId,
                 null,
                 request.Relation,

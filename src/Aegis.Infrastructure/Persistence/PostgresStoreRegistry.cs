@@ -20,15 +20,32 @@ namespace Aegis.Infrastructure.Persistence
 
         public async Task<StoreDto> CreateAsync(string name, CancellationToken cancellationToken = default)
         {
+            return await CreateForTenantAsync(name, name, cancellationToken);
+        }
+
+        public async Task<StoreDto> CreateForTenantAsync(string tenantId, string name, CancellationToken cancellationToken = default)
+        {
             var store = Store.Create(name);
-            await ((IStoreRepository)this).AddAsync(store, cancellationToken);
-            return new StoreDto(store.Id, store.Name, store.CreatedAt, store.UpdatedAt);
+            await ExecuteAsync(async connection =>
+            {
+                const string sql = @"INSERT INTO stores (id, tenant_id, name, created_at, updated_at)
+                                     VALUES (@id, @tenant_id, @name, @created_at, @updated_at)
+                                     ON CONFLICT (id) DO UPDATE SET tenant_id = EXCLUDED.tenant_id, name = EXCLUDED.name, updated_at = EXCLUDED.updated_at;";
+                await using var command = new NpgsqlCommand(sql, connection);
+                command.Parameters.AddWithValue("id", store.Id);
+                command.Parameters.AddWithValue("tenant_id", tenantId);
+                command.Parameters.AddWithValue("name", store.Name);
+                command.Parameters.AddWithValue("created_at", store.CreatedAt);
+                command.Parameters.AddWithValue("updated_at", store.UpdatedAt);
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }, cancellationToken);
+            return new StoreDto(store.Id, store.Name, store.CreatedAt, store.UpdatedAt, null, null, tenantId);
         }
 
         public async Task<IReadOnlyList<StoreDto>> ListAsync(CancellationToken cancellationToken = default)
         {
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
-            const string sql = "SELECT id, name, created_at, updated_at FROM stores ORDER BY created_at DESC;";
+            const string sql = "SELECT id, name, created_at, updated_at, tenant_id FROM stores ORDER BY created_at DESC;";
 
             var items = new List<StoreDto>();
             await using var command = new NpgsqlCommand(sql, connection);
@@ -39,7 +56,34 @@ namespace Aegis.Infrastructure.Persistence
                     reader.GetString(0),
                     reader.GetString(1),
                     reader.GetFieldValue<DateTimeOffset>(2),
-                    reader.GetFieldValue<DateTimeOffset>(3)));
+                    reader.GetFieldValue<DateTimeOffset>(3),
+                    null,
+                    null,
+                    reader.GetString(4)));
+            }
+
+            return items;
+        }
+
+        public async Task<IReadOnlyList<StoreDto>> ListForTenantAsync(string tenantId, CancellationToken cancellationToken = default)
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            const string sql = "SELECT id, name, created_at, updated_at, tenant_id FROM stores WHERE tenant_id = @tenant_id ORDER BY created_at DESC;";
+
+            var items = new List<StoreDto>();
+            await using var command = new NpgsqlCommand(sql, connection);
+            command.Parameters.AddWithValue("tenant_id", tenantId);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                items.Add(new StoreDto(
+                    reader.GetString(0),
+                    reader.GetString(1),
+                    reader.GetFieldValue<DateTimeOffset>(2),
+                    reader.GetFieldValue<DateTimeOffset>(3),
+                    null,
+                    null,
+                    reader.GetString(4)));
             }
 
             return items;
@@ -48,7 +92,7 @@ namespace Aegis.Infrastructure.Persistence
         public async Task<StoreDto?> GetAsync(string storeId, CancellationToken cancellationToken = default)
         {
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
-            const string sql = "SELECT id, name, created_at, updated_at FROM stores WHERE id = @id;";
+            const string sql = "SELECT id, name, created_at, updated_at, tenant_id FROM stores WHERE id = @id;";
             await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue("id", storeId);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -61,7 +105,33 @@ namespace Aegis.Infrastructure.Persistence
                 reader.GetString(0),
                 reader.GetString(1),
                 reader.GetFieldValue<DateTimeOffset>(2),
-                reader.GetFieldValue<DateTimeOffset>(3));
+                reader.GetFieldValue<DateTimeOffset>(3),
+                null,
+                null,
+                reader.GetString(4));
+        }
+
+        public async Task<StoreDto?> GetForTenantAsync(string tenantId, string storeId, CancellationToken cancellationToken = default)
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            const string sql = "SELECT id, name, created_at, updated_at, tenant_id FROM stores WHERE tenant_id = @tenant_id AND id = @id;";
+            await using var command = new NpgsqlCommand(sql, connection);
+            command.Parameters.AddWithValue("tenant_id", tenantId);
+            command.Parameters.AddWithValue("id", storeId);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+            {
+                return null;
+            }
+
+            return new StoreDto(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetFieldValue<DateTimeOffset>(2),
+                reader.GetFieldValue<DateTimeOffset>(3),
+                null,
+                null,
+                reader.GetString(4));
         }
 
         public async Task<bool> DeleteAsync(string storeId, CancellationToken cancellationToken = default)
@@ -73,15 +143,26 @@ namespace Aegis.Infrastructure.Persistence
             return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
         }
 
+        public async Task<bool> DeleteForTenantAsync(string tenantId, string storeId, CancellationToken cancellationToken = default)
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            const string sql = "DELETE FROM stores WHERE tenant_id = @tenant_id AND id = @id;";
+            await using var command = new NpgsqlCommand(sql, connection);
+            command.Parameters.AddWithValue("tenant_id", tenantId);
+            command.Parameters.AddWithValue("id", storeId);
+            return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+        }
+
         Task IStoreRepository.AddAsync(Store store, CancellationToken cancellationToken)
         {
             return ExecuteAsync(async connection =>
             {
-                const string sql = @"INSERT INTO stores (id, name, created_at, updated_at)
-                                     VALUES (@id, @name, @created_at, @updated_at)
+                const string sql = @"INSERT INTO stores (id, tenant_id, name, created_at, updated_at)
+                                     VALUES (@id, @tenant_id, @name, @created_at, @updated_at)
                                      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, updated_at = EXCLUDED.updated_at;";
                 await using var command = new NpgsqlCommand(sql, connection);
                 command.Parameters.AddWithValue("id", store.Id);
+                command.Parameters.AddWithValue("tenant_id", store.Id);
                 command.Parameters.AddWithValue("name", store.Name);
                 command.Parameters.AddWithValue("created_at", store.CreatedAt);
                 command.Parameters.AddWithValue("updated_at", store.UpdatedAt);

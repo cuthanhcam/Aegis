@@ -22,6 +22,15 @@ namespace Aegis.Application.Features.Query
             ListUsersRequestDto request,
             CancellationToken cancellationToken = default)
         {
+            return await ExecuteAsync(storeId, storeId, request, cancellationToken);
+        }
+
+        public async Task<ListUsersResponseDto> ExecuteAsync(
+            string tenantId,
+            string storeId,
+            ListUsersRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
             AuthorizationQueryHelper.ValidateObjectAndRelation(request.Object, request.Relation);
             _ = AuthorizationQueryHelper.ParseConsistency(request.Consistency);
 
@@ -33,6 +42,7 @@ namespace Aegis.Application.Features.Query
 
             var contextualTuples = AuthorizationQueryHelper.ParseContextualTuples(request.ContextualTuples);
             var users = await ResolveUsersAsync(
+                tenantId,
                 storeId,
                 request.Object,
                 request.Relation,
@@ -46,6 +56,7 @@ namespace Aegis.Application.Features.Query
         }
 
         private async Task<HashSet<string>> ResolveUsersAsync(
+            string tenantId,
             string storeId,
             string objectRef,
             string relation,
@@ -66,6 +77,7 @@ namespace Aegis.Application.Features.Query
                 var users = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 var tuples = await _queryAllowTuplesUseCase.ExecuteAsync(
+                    tenantId,
                     storeId,
                     null,
                     relation,
@@ -90,6 +102,7 @@ namespace Aegis.Application.Features.Query
                     if (AuthorizationQueryHelper.TryParseUserset(subject, out var usersetObject, out var usersetRelation))
                     {
                         var nested = await ResolveUsersAsync(
+                            tenantId,
                             storeId,
                             usersetObject,
                             usersetRelation,
@@ -111,6 +124,7 @@ namespace Aegis.Application.Features.Query
                         foreach (var include in term.Includes)
                         {
                             includeSets.Add(await ResolveUsersForTokenAsync(
+                                tenantId,
                                 storeId,
                                 objectRef,
                                 include,
@@ -140,6 +154,7 @@ namespace Aegis.Application.Features.Query
                             foreach (var excludeToken in excludeClause)
                             {
                                 var resolved = await ResolveUsersForTokenAsync(
+                                    tenantId,
                                     storeId,
                                     objectRef,
                                     excludeToken,
@@ -181,6 +196,7 @@ namespace Aegis.Application.Features.Query
         }
 
         private async Task<HashSet<string>> ResolveUsersForTokenAsync(
+            string tenantId,
             string storeId,
             string objectRef,
             string token,
@@ -211,6 +227,7 @@ namespace Aegis.Application.Features.Query
             {
                 var users = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 var tuples = await _queryAllowTuplesUseCase.ExecuteAsync(
+                    tenantId,
                     storeId,
                     null,
                     tuplesetRelation,
@@ -221,6 +238,7 @@ namespace Aegis.Application.Features.Query
                 foreach (var tuple in tuples)
                 {
                     var nested = await ResolveUsersAsync(
+                        tenantId,
                         storeId,
                         tuple.Subject.Value,
                         computedRelation,
@@ -262,6 +280,7 @@ namespace Aegis.Application.Features.Query
                     }
 
                     var nested = await ResolveUsersAsync(
+                        tenantId,
                         storeId,
                         usersetObject,
                         usersetRelation,
@@ -277,6 +296,7 @@ namespace Aegis.Application.Features.Query
             }
 
             return await ResolveUsersAsync(
+                tenantId,
                 storeId,
                 objectRef,
                 token,

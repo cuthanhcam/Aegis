@@ -60,7 +60,7 @@ public sealed class PermissionEndpointAuthorizationTests
     }
 
     [Fact]
-    public async Task Store_graph_endpoint_with_mismatched_claim_still_succeeds()
+    public async Task Store_graph_endpoint_with_mismatched_claim_does_not_leak_tuples()
     {
         await using var factory = new TestApiFactory();
         var seed = await SeedStoreGraphAsync(factory.AppServices);
@@ -78,7 +78,7 @@ public sealed class PermissionEndpointAuthorizationTests
         var payload = await response.Content.ReadFromJsonAsync<ApiResponse<ListUsersResponseDto>>(JsonOptions);
         Assert.NotNull(payload);
         Assert.True(payload!.Success);
-        Assert.Contains("user:anne", payload.Data!.Users);
+        Assert.DoesNotContain("user:anne", payload.Data!.Users);
     }
 
     [Fact]

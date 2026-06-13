@@ -11,7 +11,19 @@ public interface IAuthorizationQueryAppService
         ListUsersRequestDto request,
         CancellationToken cancellationToken = default);
 
+    Task<ListUsersResponseDto> ListUsersAsync(
+        string tenantId,
+        string storeId,
+        ListUsersRequestDto request,
+        CancellationToken cancellationToken = default);
+
     Task<AegisCompatListUsersResponseDto> ListUsersAegisCompatAsync(
+        string storeId,
+        AegisCompatListUsersRequestDto request,
+        CancellationToken cancellationToken = default);
+
+    Task<AegisCompatListUsersResponseDto> ListUsersAegisCompatAsync(
+        string tenantId,
         string storeId,
         AegisCompatListUsersRequestDto request,
         CancellationToken cancellationToken = default);
@@ -21,7 +33,19 @@ public interface IAuthorizationQueryAppService
         ListObjectsRequestDto request,
         CancellationToken cancellationToken = default);
 
+    Task<ListObjectsResponseDto> ListObjectsAsync(
+        string tenantId,
+        string storeId,
+        ListObjectsRequestDto request,
+        CancellationToken cancellationToken = default);
+
     Task<AegisCompatListObjectsResponseDto> ListObjectsAegisCompatAsync(
+        string storeId,
+        AegisCompatListObjectsRequestDto request,
+        CancellationToken cancellationToken = default);
+
+    Task<AegisCompatListObjectsResponseDto> ListObjectsAegisCompatAsync(
+        string tenantId,
         string storeId,
         AegisCompatListObjectsRequestDto request,
         CancellationToken cancellationToken = default);
@@ -36,7 +60,19 @@ public interface IAuthorizationQueryAppService
         ExpandRequestDto request,
         CancellationToken cancellationToken = default);
 
+    Task<ExpandNodeDto> ExpandAsync(
+        string tenantId,
+        string storeId,
+        ExpandRequestDto request,
+        CancellationToken cancellationToken = default);
+
     Task<AegisCompatExpandResponseDto> ExpandAegisCompatAsync(
+        string storeId,
+        AegisCompatExpandRequestDto request,
+        CancellationToken cancellationToken = default);
+
+    Task<AegisCompatExpandResponseDto> ExpandAegisCompatAsync(
+        string tenantId,
         string storeId,
         AegisCompatExpandRequestDto request,
         CancellationToken cancellationToken = default);

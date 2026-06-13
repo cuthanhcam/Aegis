@@ -46,6 +46,18 @@ namespace Aegis.Application.Services
             string? effect,
             CancellationToken cancellationToken = default)
         {
+            return await QueryAsync(tenantId, tenantId, subject, relation, objectRef, effect, cancellationToken);
+        }
+
+        public async Task<IReadOnlyList<RelationshipTupleDto>> QueryAsync(
+            string tenantId,
+            string storeId,
+            string? subject,
+            string? relation,
+            string? objectRef,
+            string? effect,
+            CancellationToken cancellationToken = default)
+        {
             if (subject is not null && !SubjectId.TryCreate(subject, out _))
             {
                 throw new ArgumentException("Invalid subject format.");
@@ -56,7 +68,7 @@ namespace Aegis.Application.Services
                 throw new ArgumentException("Invalid object format.");
             }
 
-            if (_relationshipRepository is not null)
+            if (_relationshipRepository is not null && string.Equals(tenantId, storeId, StringComparison.OrdinalIgnoreCase))
             {
                 var relationships = await _relationshipRepository.QueryAsync(
                     tenantId,
@@ -78,7 +90,8 @@ namespace Aegis.Application.Services
                 relation,
                 objectRef is null ? null : new ObjectRef(objectRef),
                 ParseEffectNullable(effect),
-                cancellationToken);
+                cancellationToken,
+                storeId);
 
             return tuples
                 .OrderByDescending(x => x.CreatedAt)
@@ -93,9 +106,14 @@ namespace Aegis.Application.Services
 
         public async Task UpsertAsync(string tenantId, RelationshipWriteRequestDto request, CancellationToken cancellationToken = default)
         {
+            await UpsertAsync(tenantId, tenantId, request, cancellationToken);
+        }
+
+        public async Task UpsertAsync(string tenantId, string storeId, RelationshipWriteRequestDto request, CancellationToken cancellationToken = default)
+        {
             ValidateTuple(request.Subject, request.Relation, request.Object);
 
-            if (_relationshipRepository is not null)
+            if (_relationshipRepository is not null && string.Equals(tenantId, storeId, StringComparison.OrdinalIgnoreCase))
             {
                 var relationship = Relationship.Create(
                     tenantId,
@@ -118,14 +136,20 @@ namespace Aegis.Application.Services
                     new ObjectRef(request.Object),
                     ParseEffect(request.Effect),
                     DateTimeOffset.UtcNow),
-                cancellationToken);
+                cancellationToken,
+                storeId);
         }
 
         public async Task<bool> DeleteAsync(string tenantId, RelationshipDeleteRequestDto request, CancellationToken cancellationToken = default)
         {
+            return await DeleteAsync(tenantId, tenantId, request, cancellationToken);
+        }
+
+        public async Task<bool> DeleteAsync(string tenantId, string storeId, RelationshipDeleteRequestDto request, CancellationToken cancellationToken = default)
+        {
             ValidateTuple(request.Subject, request.Relation, request.Object);
 
-            if (_relationshipRepository is not null)
+            if (_relationshipRepository is not null && string.Equals(tenantId, storeId, StringComparison.OrdinalIgnoreCase))
             {
                 var existing = await _relationshipRepository.QueryAsync(
                     tenantId,
@@ -162,10 +186,16 @@ namespace Aegis.Application.Services
                 new Subject(request.Subject),
                 request.Relation,
                 new ObjectRef(request.Object),
-                cancellationToken);
+                cancellationToken,
+                storeId);
         }
 
         public async Task<ReadChangesResponseDto> ReadChangesAsync(string tenantId, ReadChangesRequestDto request, CancellationToken cancellationToken = default)
+        {
+            return await ReadChangesAsync(tenantId, tenantId, request, cancellationToken);
+        }
+
+        public async Task<ReadChangesResponseDto> ReadChangesAsync(string tenantId, string storeId, ReadChangesRequestDto request, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(tenantId))
             {
@@ -192,7 +222,7 @@ namespace Aegis.Application.Services
                 throw new CompatibilityApiException(400, "invalid_continuation_token", "Invalid continuation token");
             }
 
-            if (_relationshipRepository is not null)
+            if (_relationshipRepository is not null && string.Equals(tenantId, storeId, StringComparison.OrdinalIgnoreCase))
             {
                 var changes = await _relationshipRepository.ReadChangesAsync(tenantId, offset, pageSize, cancellationToken);
                 if (!string.IsNullOrWhiteSpace(request.Type))
@@ -215,7 +245,7 @@ namespace Aegis.Application.Services
                 return new ReadChangesResponseDto(items, continuationToken);
             }
 
-            var changesFromStore = await _relationshipStore.ReadChangesAsync(tenantId, offset, pageSize, cancellationToken);
+            var changesFromStore = await _relationshipStore.ReadChangesAsync(tenantId, offset, pageSize, cancellationToken, storeId);
             if (!string.IsNullOrWhiteSpace(request.Type))
             {
                 changesFromStore = changesFromStore

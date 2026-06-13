@@ -22,6 +22,15 @@ namespace Aegis.Application.Features.Query
             ExpandRequestDto request,
             CancellationToken cancellationToken = default)
         {
+            return await ExecuteAsync(storeId, storeId, request, cancellationToken);
+        }
+
+        public async Task<ExpandNodeDto> ExecuteAsync(
+            string tenantId,
+            string storeId,
+            ExpandRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
             AuthorizationQueryHelper.ValidateObjectAndRelation(request.Object, request.Relation);
             _ = AuthorizationQueryHelper.ParseConsistency(request.Consistency);
 
@@ -37,6 +46,7 @@ namespace Aegis.Application.Features.Query
 
             var contextualTuples = AuthorizationQueryHelper.ParseContextualTuples(request.ContextualTuples);
             return await BuildExpandNodeAsync(
+                tenantId,
                 storeId,
                 request.Object,
                 request.Relation,
@@ -47,6 +57,7 @@ namespace Aegis.Application.Features.Query
         }
 
         private async Task<ExpandNodeDto> BuildExpandNodeAsync(
+            string tenantId,
             string storeId,
             string objectRef,
             string relation,
@@ -64,6 +75,7 @@ namespace Aegis.Application.Features.Query
             try
             {
                 var tuples = await _queryAllowTuplesUseCase.ExecuteAsync(
+                    tenantId,
                     storeId,
                     null,
                     relation,
@@ -86,6 +98,7 @@ namespace Aegis.Application.Features.Query
                     if (AuthorizationQueryHelper.TryParseUserset(subject, out var usersetObject, out var usersetRelation))
                     {
                         var nested = await BuildExpandNodeAsync(
+                            tenantId,
                             storeId,
                             usersetObject,
                             usersetRelation,
@@ -116,6 +129,7 @@ namespace Aegis.Application.Features.Query
                             }
 
                             var nested = await BuildExpandNodeAsync(
+                                tenantId,
                                 storeId,
                                 objectRef,
                                 token,
@@ -138,6 +152,7 @@ namespace Aegis.Application.Features.Query
                                 }
 
                                 var nested = await BuildExpandNodeAsync(
+                                    tenantId,
                                     storeId,
                                     objectRef,
                                     token,

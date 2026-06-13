@@ -1,9 +1,12 @@
 CREATE TABLE IF NOT EXISTS stores (
     id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
     name TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS ix_stores_tenant_created_at ON stores(tenant_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS authorization_models (
     id TEXT PRIMARY KEY,
