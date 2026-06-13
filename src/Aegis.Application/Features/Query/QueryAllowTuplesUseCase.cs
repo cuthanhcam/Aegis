@@ -20,7 +20,21 @@ namespace Aegis.Application.Features.Query
             IReadOnlyList<RelationshipTuple>? contextualTuples,
             CancellationToken cancellationToken)
         {
-            var persisted = await _relationshipStore.QueryAsync(storeId, subject, relation, @object, RelationshipEffect.Allow, cancellationToken);
+            return await ExecuteAsync(storeId, storeId, subject, relation, @object, contextualTuples, cancellationToken);
+        }
+
+        public async Task<IReadOnlyList<RelationshipTuple>> ExecuteAsync(
+            string tenantId,
+            string storeId,
+            Subject? subject,
+            string? relation,
+            ObjectRef? @object,
+            IReadOnlyList<RelationshipTuple>? contextualTuples,
+            CancellationToken cancellationToken)
+        {
+            var persisted = string.Equals(tenantId, storeId, StringComparison.OrdinalIgnoreCase)
+                ? await _relationshipStore.QueryAsync(tenantId, subject, relation, @object, RelationshipEffect.Allow, cancellationToken)
+                : await _relationshipStore.QueryAsync(tenantId, subject, relation, @object, RelationshipEffect.Allow, cancellationToken, storeId);
             if (contextualTuples is null || contextualTuples.Count == 0)
             {
                 return persisted;

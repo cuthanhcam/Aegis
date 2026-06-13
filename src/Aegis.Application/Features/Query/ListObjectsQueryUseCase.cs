@@ -26,8 +26,17 @@ namespace Aegis.Application.Features.Query
             ListObjectsRequestDto request,
             CancellationToken cancellationToken = default)
         {
+            return await ExecuteAsync(storeId, storeId, request, cancellationToken);
+        }
+
+        public async Task<ListObjectsResponseDto> ExecuteAsync(
+            string tenantId,
+            string storeId,
+            ListObjectsRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
             var allowed = new List<string>();
-            await foreach (var obj in StreamObjectsAsync(storeId, request, cancellationToken))
+            await foreach (var obj in StreamObjectsAsync(tenantId, storeId, request, cancellationToken))
             {
                 allowed.Add(obj);
             }
@@ -40,6 +49,18 @@ namespace Aegis.Application.Features.Query
             ListObjectsRequestDto request,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
+            await foreach (var obj in StreamObjectsAsync(storeId, storeId, request, cancellationToken))
+            {
+                yield return obj;
+            }
+        }
+
+        public async IAsyncEnumerable<string> StreamObjectsAsync(
+            string tenantId,
+            string storeId,
+            ListObjectsRequestDto request,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
             AuthorizationQueryHelper.ValidateListObjectsInput(request.User, request.Relation, request.Type);
 
             var consistency = AuthorizationQueryHelper.ParseConsistency(request.Consistency);
@@ -47,6 +68,7 @@ namespace Aegis.Application.Features.Query
             _resolveQueryModelContextUseCase.ValidateTypeAndRelationExists(request.Type, request.Relation, modelContext.RelationIndex);
             var contextualTuples = AuthorizationQueryHelper.ParseContextualTuples(request.ContextualTuples);
             var candidateObjects = await CollectObjectCandidatesAsync(
+                tenantId,
                 storeId,
                 request.User,
                 request.Relation,
@@ -59,7 +81,7 @@ namespace Aegis.Application.Features.Query
             foreach (var obj in candidateObjects.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
             {
                 var decision = await _authorizationEngine.CheckAsync(
-                    new CheckRequest(storeId, new Subject(request.User), request.Relation, new ObjectRef(obj), contextualTuples, consistency, request.AuthorizationModelId, request.Context),
+                    new CheckRequest(tenantId, new Subject(request.User), request.Relation, new ObjectRef(obj), contextualTuples, consistency, request.AuthorizationModelId, request.Context, storeId),
                     includeTrace: false,
                     cancellationToken);
 
@@ -71,6 +93,7 @@ namespace Aegis.Application.Features.Query
         }
 
         private async Task<HashSet<string>> CollectObjectCandidatesAsync(
+            string tenantId,
             string storeId,
             string user,
             string relation,
@@ -81,7 +104,7 @@ namespace Aegis.Application.Features.Query
         {
             var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            var directForUser = await _queryAllowTuplesUseCase.ExecuteAsync(storeId, new Subject(user), relation, null, contextualTuples, cancellationToken);
+            var directForUser = await _queryAllowTuplesUseCase.ExecuteAsync(tenantId, storeId, new Subject(user), relation, null, contextualTuples, cancellationToken);
             foreach (var tuple in directForUser)
             {
                 if (AuthorizationQueryHelper.GetTypeName(tuple.Object.Value).Equals(objectType, StringComparison.OrdinalIgnoreCase))
@@ -90,7 +113,7 @@ namespace Aegis.Application.Features.Query
                 }
             }
 
-            var directWithUserset = await _queryAllowTuplesUseCase.ExecuteAsync(storeId, null, relation, null, contextualTuples, cancellationToken);
+            var directWithUserset = await _queryAllowTuplesUseCase.ExecuteAsync(tenantId, storeId, null, relation, null, contextualTuples, cancellationToken);
             foreach (var tuple in directWithUserset.Where(x => AuthorizationQueryHelper.GetTypeName(x.Object.Value).Equals(objectType, StringComparison.OrdinalIgnoreCase)))
             {
                 if (AuthorizationQueryHelper.IsValidUsersetRef(tuple.Subject.Value))
@@ -107,7 +130,7 @@ namespace Aegis.Application.Features.Query
                     {
                         if (AuthorizationQueryHelper.TryParseTupleToUsersetToken(token, out _, out var tuplesetRelation))
                         {
-                            var tuples = await _queryAllowTuplesUseCase.ExecuteAsync(storeId, null, tuplesetRelation, null, contextualTuples, cancellationToken);
+                            var tuples = await _queryAllowTuplesUseCase.ExecuteAsync(tenantId, storeId, null, tuplesetRelation, null, contextualTuples, cancellationToken);
                             foreach (var tuple in tuples)
                             {
                                 if (AuthorizationQueryHelper.GetTypeName(tuple.Object.Value).Equals(objectType, StringComparison.OrdinalIgnoreCase))
@@ -124,7 +147,7 @@ namespace Aegis.Application.Features.Query
                             continue;
                         }
 
-                        var computedTuples = await _queryAllowTuplesUseCase.ExecuteAsync(storeId, new Subject(user), token, null, contextualTuples, cancellationToken);
+                        var computedTuples = await _queryAllowTuplesUseCase.ExecuteAsync(tenantId, storeId, new Subject(user), token, null, contextualTuples, cancellationToken);
                         foreach (var tuple in computedTuples)
                         {
                             if (AuthorizationQueryHelper.GetTypeName(tuple.Object.Value).Equals(objectType, StringComparison.OrdinalIgnoreCase))

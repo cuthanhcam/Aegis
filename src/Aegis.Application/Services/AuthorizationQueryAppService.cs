@@ -56,7 +56,12 @@ namespace Aegis.Application.Services
 
         public async Task<ListUsersResponseDto> ListUsersAsync(string storeId, ListUsersRequestDto request, CancellationToken cancellationToken = default)
         {
-            return await _listUsersQueryUseCase.ExecuteAsync(storeId, request, cancellationToken);
+            return await ListUsersAsync(storeId, storeId, request, cancellationToken);
+        }
+
+        public async Task<ListUsersResponseDto> ListUsersAsync(string tenantId, string storeId, ListUsersRequestDto request, CancellationToken cancellationToken = default)
+        {
+            return await _listUsersQueryUseCase.ExecuteAsync(tenantId, storeId, request, cancellationToken);
         }
 
         public async Task<AegisCompatListUsersResponseDto> ListUsersAegisCompatAsync(
@@ -64,7 +69,17 @@ namespace Aegis.Application.Services
             AegisCompatListUsersRequestDto request,
             CancellationToken cancellationToken = default)
         {
+            return await ListUsersAegisCompatAsync(storeId, storeId, request, cancellationToken);
+        }
+
+        public async Task<AegisCompatListUsersResponseDto> ListUsersAegisCompatAsync(
+            string tenantId,
+            string storeId,
+            AegisCompatListUsersRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
             var result = await ListUsersAsync(
+                tenantId,
                 storeId,
                 new ListUsersRequestDto(
                     request.Relation,
@@ -82,7 +97,7 @@ namespace Aegis.Application.Services
 
             users = AuthorizationQueryHelper.ApplyUserFilters(users, request.UserFilters);
 
-            var usersetEntries = await _resolveUsersetEntriesFromRelationFiltersUseCase.ExecuteAsync(storeId, request, cancellationToken);
+            var usersetEntries = await _resolveUsersetEntriesFromRelationFiltersUseCase.ExecuteAsync(tenantId, storeId, request, cancellationToken);
             if (usersetEntries.Count > 0)
             {
                 users.AddRange(usersetEntries);
@@ -97,7 +112,12 @@ namespace Aegis.Application.Services
 
         public async Task<ListObjectsResponseDto> ListObjectsAsync(string storeId, ListObjectsRequestDto request, CancellationToken cancellationToken = default)
         {
-            return await _listObjectsQueryUseCase.ExecuteAsync(storeId, request, cancellationToken);
+            return await ListObjectsAsync(storeId, storeId, request, cancellationToken);
+        }
+
+        public async Task<ListObjectsResponseDto> ListObjectsAsync(string tenantId, string storeId, ListObjectsRequestDto request, CancellationToken cancellationToken = default)
+        {
+            return await _listObjectsQueryUseCase.ExecuteAsync(tenantId, storeId, request, cancellationToken);
         }
 
         public async Task<AegisCompatListObjectsResponseDto> ListObjectsAegisCompatAsync(
@@ -105,7 +125,17 @@ namespace Aegis.Application.Services
             AegisCompatListObjectsRequestDto request,
             CancellationToken cancellationToken = default)
         {
+            return await ListObjectsAegisCompatAsync(storeId, storeId, request, cancellationToken);
+        }
+
+        public async Task<AegisCompatListObjectsResponseDto> ListObjectsAegisCompatAsync(
+            string tenantId,
+            string storeId,
+            AegisCompatListObjectsRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
             var result = await ListObjectsAsync(
+                tenantId,
                 storeId,
                 new ListObjectsRequestDto(
                     request.User,
@@ -142,7 +172,12 @@ namespace Aegis.Application.Services
 
         public async Task<ExpandNodeDto> ExpandAsync(string storeId, ExpandRequestDto request, CancellationToken cancellationToken = default)
         {
-            return await _expandQueryUseCase.ExecuteAsync(storeId, request, cancellationToken);
+            return await ExpandAsync(storeId, storeId, request, cancellationToken);
+        }
+
+        public async Task<ExpandNodeDto> ExpandAsync(string tenantId, string storeId, ExpandRequestDto request, CancellationToken cancellationToken = default)
+        {
+            return await _expandQueryUseCase.ExecuteAsync(tenantId, storeId, request, cancellationToken);
         }
 
         public async Task<AegisCompatExpandResponseDto> ExpandAegisCompatAsync(
@@ -150,7 +185,17 @@ namespace Aegis.Application.Services
             AegisCompatExpandRequestDto request,
             CancellationToken cancellationToken = default)
         {
+            return await ExpandAegisCompatAsync(storeId, storeId, request, cancellationToken);
+        }
+
+        public async Task<AegisCompatExpandResponseDto> ExpandAegisCompatAsync(
+            string tenantId,
+            string storeId,
+            AegisCompatExpandRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
             var tree = await ExpandAsync(
+                tenantId,
                 storeId,
                 new ExpandRequestDto(
                     request.TupleKey.Relation,
