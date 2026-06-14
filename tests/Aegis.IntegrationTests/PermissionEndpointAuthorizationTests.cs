@@ -60,7 +60,7 @@ public sealed class PermissionEndpointAuthorizationTests
     }
 
     [Fact]
-    public async Task Store_graph_endpoint_with_mismatched_claim_does_not_leak_tuples()
+    public async Task Store_graph_endpoint_with_mismatched_claim_returns_403()
     {
         await using var factory = new TestApiFactory();
         var seed = await SeedStoreGraphAsync(factory.AppServices);
@@ -74,15 +74,15 @@ public sealed class PermissionEndpointAuthorizationTests
             $"/api/v1/stores/{seed.StoreId}/graph/list-users",
             new ListUsersRequestDto("viewer", "document:roadmap", AuthorizationModelId: seed.AuthorizationModelId));
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         var payload = await response.Content.ReadFromJsonAsync<ApiResponse<ListUsersResponseDto>>(JsonOptions);
         Assert.NotNull(payload);
-        Assert.True(payload!.Success);
-        Assert.DoesNotContain("user:anne", payload.Data!.Users);
+        Assert.False(payload!.Success);
+        Assert.Equal("STORE_FORBIDDEN", payload.Error!.Code);
     }
 
     [Fact]
-    public async Task Store_graph_compat_endpoint_with_mismatched_claim_still_succeeds()
+    public async Task Store_graph_compat_endpoint_with_mismatched_claim_returns_403()
     {
         await using var factory = new TestApiFactory();
         var seed = await SeedStoreGraphAsync(factory.AppServices);
@@ -102,9 +102,9 @@ public sealed class PermissionEndpointAuthorizationTests
                 authorization_model_id = seed.AuthorizationModelId,
             });
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         var content = await response.Content.ReadAsStringAsync();
-        Assert.False(string.IsNullOrWhiteSpace(content));
+        Assert.Contains("store_forbidden", content, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -304,6 +304,7 @@ public sealed class PermissionEndpointAuthorizationTests
 
     private static async Task<(string StoreId, string AuthorizationModelId)> SeedStoreGraphAsync(IServiceProvider services)
     {
+        const string tenantId = "tenant-a";
         const string model = """
             type user
             type document
@@ -315,12 +316,14 @@ public sealed class PermissionEndpointAuthorizationTests
         var modelRegistry = scope.ServiceProvider.GetRequiredService<IAuthorizationModelRegistry>();
         var relationshipStore = scope.ServiceProvider.GetRequiredService<IRelationshipStore>();
 
-        var store = await storeRegistry.CreateAsync("graph-auth-store");
+        var store = await storeRegistry.CreateForTenantAsync(tenantId, "graph-auth-store");
         var authorizationModel = await modelRegistry.CreateAsync(store.Id, "1.1", model);
 
         await relationshipStore.UpsertAsync(
-            store.Id,
-            new RelationshipTuple(new Subject("user:anne"), "viewer", new ObjectRef("document:roadmap"), RelationshipEffect.Allow, DateTimeOffset.UtcNow));
+            tenantId,
+            new RelationshipTuple(new Subject("user:anne"), "viewer", new ObjectRef("document:roadmap"), RelationshipEffect.Allow, DateTimeOffset.UtcNow),
+            CancellationToken.None,
+            storeId: store.Id);
 
         return (store.Id, authorizationModel.Id);
     }

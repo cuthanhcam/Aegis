@@ -25,7 +25,7 @@ public sealed class StoreGraphSuccessPathTests
 
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
-        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, seed.StoreId);
+        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, seed.TenantId);
         client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
 
         var response = await client.PostAsJsonAsync(
@@ -48,7 +48,7 @@ public sealed class StoreGraphSuccessPathTests
 
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
-        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, seed.StoreId);
+        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, seed.TenantId);
         client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
 
         var response = await client.PostAsJsonAsync(
@@ -71,7 +71,7 @@ public sealed class StoreGraphSuccessPathTests
 
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
-        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, seed.StoreId);
+        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, seed.TenantId);
         client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
 
         var response = await client.PostAsJsonAsync(
@@ -87,8 +87,9 @@ public sealed class StoreGraphSuccessPathTests
         Assert.False(string.IsNullOrWhiteSpace(payload.Data.Kind));
     }
 
-        private static async Task<(string StoreId, string AuthorizationModelId)> SeedGraphDataAsync(IServiceProvider services)
+    private static async Task<(string TenantId, string StoreId, string AuthorizationModelId)> SeedGraphDataAsync(IServiceProvider services)
     {
+        const string tenantId = "tenant-a";
         const string model = """
                         type user
             type document
@@ -100,13 +101,15 @@ public sealed class StoreGraphSuccessPathTests
         var modelRegistry = scope.ServiceProvider.GetRequiredService<IAuthorizationModelRegistry>();
         var relationshipStore = scope.ServiceProvider.GetRequiredService<IRelationshipStore>();
 
-        var store = await storeRegistry.CreateAsync("graph-success-store");
+        var store = await storeRegistry.CreateForTenantAsync(tenantId, "graph-success-store");
         var authorizationModel = await modelRegistry.CreateAsync(store.Id, "1.1", model);
 
         await relationshipStore.UpsertAsync(
-            store.Id,
-            new RelationshipTuple(new Subject("user:anne"), "viewer", new ObjectRef("document:roadmap"), RelationshipEffect.Allow, DateTimeOffset.UtcNow));
+            tenantId,
+            new RelationshipTuple(new Subject("user:anne"), "viewer", new ObjectRef("document:roadmap"), RelationshipEffect.Allow, DateTimeOffset.UtcNow),
+            CancellationToken.None,
+            storeId: store.Id);
 
-        return (store.Id, authorizationModel.Id);
+        return (tenantId, store.Id, authorizationModel.Id);
     }
 }
