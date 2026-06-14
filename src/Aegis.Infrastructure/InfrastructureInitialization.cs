@@ -20,7 +20,23 @@ namespace Aegis.Infrastructure
 
             using var scope = services.CreateScope();
             var dataSource = scope.ServiceProvider.GetRequiredService<NpgsqlDataSource>();
-            return PostgresMigrationRunner.MigrateAsync(dataSource, cancellationToken);
+            return InitializePostgresAsync(dataSource, configuration, cancellationToken);
+        }
+
+        private static async Task InitializePostgresAsync(
+            NpgsqlDataSource dataSource,
+            IConfiguration configuration,
+            CancellationToken cancellationToken)
+        {
+            await PostgresMigrationRunner.MigrateAsync(dataSource, cancellationToken);
+
+            var seedEnabled = configuration.GetSection("Seed:Development").GetValue<bool>("Enabled");
+            if (!seedEnabled)
+            {
+                return;
+            }
+
+            await PostgresDevelopmentSeeder.SeedAsync(dataSource, cancellationToken);
         }
     }
 }

@@ -2,6 +2,7 @@ using Aegis.Application.Interfaces;
 using Aegis.Authorization.Core.Interfaces;
 using Aegis.Authorization.Core.Models;
 using Aegis.Contracts.Common;
+using Aegis.Contracts.Relationships;
 using Aegis.Contracts.Permissions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
@@ -80,6 +81,43 @@ public sealed class PostgresRedisIntegrationTests
         Assert.Equal(HttpStatusCode.OK, secondCheck.StatusCode);
         var secondPayload = await secondCheck.Content.ReadFromJsonAsync<ApiResponse<CheckResponseDto>>(JsonOptions);
         Assert.False(secondPayload!.Data!.Allowed);
+    }
+
+    [Fact]
+    public async Task Store_relationships_list_supports_empty_filters()
+    {
+        if (!ShouldRunContainerTests())
+        {
+            return;
+        }
+
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("aegis")
+            .WithUsername("postgres")
+            .WithPassword("postgres")
+            .Build();
+
+        await using var redis = new RedisBuilder("redis:7-alpine").Build();
+
+        await postgres.StartAsync();
+        await redis.StartAsync();
+
+        await using var factory = new ContainerApiFactory(
+            postgres.GetConnectionString(),
+            redis.GetConnectionString());
+
+        var seed = await SeedAsync(factory.AppServices);
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, seed.TenantId);
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
+
+        var response = await client.GetAsync($"/api/v1/stores/{seed.StoreId}/relationships");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<IReadOnlyList<RelationshipTupleDto>>>(JsonOptions);
+        Assert.Single(payload!.Data!);
+        Assert.Equal("user:anne", payload.Data![0].Subject);
     }
 
     private static bool ShouldRunContainerTests()

@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.OpenApi.Models;
 using System.Text.Json;
 using System.Text;
@@ -50,6 +51,13 @@ builder.Services
     });
 builder.Services.AddAegisApplication();
 builder.Services.AddAegisInfrastructure(builder.Configuration);
+builder.Services.AddHttpLogging(options =>
+{
+    options.LoggingFields = HttpLoggingFields.RequestMethod
+        | HttpLoggingFields.RequestPath
+        | HttpLoggingFields.ResponseStatusCode
+        | HttpLoggingFields.Duration;
+});
 builder.Services.AddOptions<AuthOptions>()
     .BindConfiguration("Auth")
     .Validate(options => options.DemoUsers is { Count: > 0 }, "Auth:DemoUsers configuration is missing.")
@@ -202,6 +210,7 @@ if (args.Any(arg => string.Equals(arg, "--migrate-only", StringComparison.Ordina
 
 if (app.Environment.IsDevelopment())
 {
+    app.UseHttpLogging();
     app.UseSwagger();
     app.UseSwaggerUI();
 }

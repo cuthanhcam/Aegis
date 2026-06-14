@@ -79,7 +79,7 @@ artifacts/
 # NuGet & Package Management
 # ---------------------------------------------------------------------------
 
-packages/
+/packages/
 !packages/repositories.config
 *.nupkg
 .nuget/

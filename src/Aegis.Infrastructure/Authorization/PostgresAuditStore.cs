@@ -1,6 +1,7 @@
 using Aegis.Authorization.Core.Interfaces;
 using Aegis.Authorization.Core.Models;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace Aegis.Infrastructure.Authorization
 {
@@ -45,10 +46,10 @@ namespace Aegis.Infrastructure.Authorization
 
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
             await using var command = new NpgsqlCommand(sql, connection);
-            command.Parameters.AddWithValue("tenant_id", tenantId);
-            command.Parameters.AddWithValue("action", (object?)action ?? DBNull.Value);
-            command.Parameters.AddWithValue("decision", (object?)decision ?? DBNull.Value);
-            command.Parameters.AddWithValue("store_id", (object?)storeId ?? DBNull.Value);
+            command.Parameters.AddWithValue("tenant_id", NpgsqlDbType.Text, tenantId);
+            command.Parameters.AddWithValue("action", NpgsqlDbType.Text, (object?)action ?? DBNull.Value);
+            command.Parameters.AddWithValue("decision", NpgsqlDbType.Text, (object?)decision ?? DBNull.Value);
+            command.Parameters.AddWithValue("store_id", NpgsqlDbType.Text, (object?)storeId ?? DBNull.Value);
 
             var results = new List<AuditEvent>();
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);

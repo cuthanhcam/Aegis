@@ -6,6 +6,7 @@ using Npgsql;
 using DomainRelationship = Aegis.Domain.Entities.Relationship;
 using DomainRelationshipChange = Aegis.Domain.Entities.RelationshipChangeEntry;
 using DomainRelationshipPermissionEffect = Aegis.Domain.Enums.RelationshipPermissionEffect;
+using NpgsqlTypes;
 
 namespace Aegis.Infrastructure.Authorization
 {
@@ -23,24 +24,55 @@ namespace Aegis.Infrastructure.Authorization
         public async Task<IReadOnlyList<RelationshipTuple>> QueryAsync(string tenantId, Subject? subject, string? relation, ObjectRef? obj, RelationshipEffect? effect, CancellationToken cancellationToken = default, string? storeId = null)
         {
             var effectiveStoreId = ResolveStoreId(tenantId, storeId);
-            const string sql = @"SELECT subject, relation, object_ref, effect, created_at
-                                 FROM relationships
-                                 WHERE tenant_id = @tenant_id
-                                   AND store_id = @store_id
-                                   AND (@subject IS NULL OR subject = @subject)
-                                   AND (@relation IS NULL OR relation = @relation)
-                                   AND (@object_ref IS NULL OR object_ref = @object_ref)
-                                   AND (@effect IS NULL OR effect = @effect)
-                                 ORDER BY created_at DESC;";
+            var sqlBuilder = new System.Text.StringBuilder();
+            sqlBuilder.Append("SELECT subject, relation, object_ref, effect, created_at\nFROM relationships\nWHERE tenant_id = @tenant_id\n  AND store_id = @store_id");
+
+            if (subject is not null)
+            {
+                sqlBuilder.Append("\n  AND subject = @subject");
+            }
+
+            if (relation is not null)
+            {
+                sqlBuilder.Append("\n  AND relation = @relation");
+            }
+
+            if (obj is not null)
+            {
+                sqlBuilder.Append("\n  AND object_ref = @object_ref");
+            }
+
+            if (effect is not null)
+            {
+                sqlBuilder.Append("\n  AND effect = @effect");
+            }
+
+            sqlBuilder.Append("\nORDER BY created_at DESC;");
 
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
-            await using var command = new NpgsqlCommand(sql, connection);
-            command.Parameters.AddWithValue("tenant_id", tenantId);
-            command.Parameters.AddWithValue("store_id", effectiveStoreId);
-            command.Parameters.AddWithValue("subject", (object?)subject?.Value ?? DBNull.Value);
-            command.Parameters.AddWithValue("relation", (object?)relation ?? DBNull.Value);
-            command.Parameters.AddWithValue("object_ref", (object?)obj?.Value ?? DBNull.Value);
-            command.Parameters.AddWithValue("effect", (object?)effect?.ToString() ?? DBNull.Value);
+            await using var command = new NpgsqlCommand(sqlBuilder.ToString(), connection);
+            command.Parameters.AddWithValue("tenant_id", NpgsqlDbType.Text, tenantId);
+            command.Parameters.AddWithValue("store_id", NpgsqlDbType.Text, effectiveStoreId);
+
+            if (subject is not null)
+            {
+                command.Parameters.AddWithValue("subject", NpgsqlDbType.Text, subject.Value);
+            }
+
+            if (relation is not null)
+            {
+                command.Parameters.AddWithValue("relation", NpgsqlDbType.Text, relation);
+            }
+
+            if (obj is not null)
+            {
+                command.Parameters.AddWithValue("object_ref", NpgsqlDbType.Text, obj.Value);
+            }
+
+            if (effect is not null)
+            {
+                command.Parameters.AddWithValue("effect", NpgsqlDbType.Text, effect.Value.ToString());
+            }
 
             var results = new List<RelationshipTuple>();
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
