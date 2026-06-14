@@ -64,7 +64,7 @@ namespace Aegis.Application.Features.Query
             AuthorizationQueryHelper.ValidateListObjectsInput(request.User, request.Relation, request.Type);
 
             var consistency = AuthorizationQueryHelper.ParseConsistency(request.Consistency);
-            var modelContext = await _resolveQueryModelContextUseCase.ExecuteAsync(storeId, request.AuthorizationModelId, cancellationToken);
+            var modelContext = await _resolveQueryModelContextUseCase.ExecuteAsync(tenantId, storeId, request.AuthorizationModelId, cancellationToken);
             _resolveQueryModelContextUseCase.ValidateTypeAndRelationExists(request.Type, request.Relation, modelContext.RelationIndex);
             var contextualTuples = AuthorizationQueryHelper.ParseContextualTuples(request.ContextualTuples);
             var candidateObjects = await CollectObjectCandidatesAsync(
