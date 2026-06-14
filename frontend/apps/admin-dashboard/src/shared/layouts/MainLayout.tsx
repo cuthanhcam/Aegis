@@ -1,9 +1,8 @@
 import { LogoutOutlined } from '@ant-design/icons';
-import { PageContainer } from '@ant-design/pro-components';
-import { Button, Layout, Menu, Select, Space, Tag } from 'antd';
+import { Button, Layout, Menu, Select, Space, Tag, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate, Outlet } from 'react-router-dom';
-import { getNavigationItems } from '@/app/routes/route-config';
+import { getNavigationItems, protectedRoutes } from '@/app/routes/route-config';
 import { useActiveStore } from '@/app/providers/useActiveStore';
 import { useAuth } from '@/app/providers/useAuth';
 import { apiClient } from '@/shared/api';
@@ -29,6 +28,7 @@ export function MainLayout() {
   const navItems = getNavigationItems(profileQuery.data?.roles ?? []);
 
   const roleText = (profileQuery.data?.roles ?? []).slice(0, 2).join(', ');
+  const currentRoute = protectedRoutes.find((route) => location.pathname.startsWith(route.path));
 
   const handleLogout = () => {
     logout();
@@ -39,8 +39,11 @@ export function MainLayout() {
     <Layout className="pro-shell">
       <Layout.Sider width={232} theme="light" className="pro-sider">
         <div className="pro-brand">
-          <div className="pro-brand-title">Aegis</div>
-          <div className="pro-brand-subtitle">Authorization Platform</div>
+          <div className="pro-brand-mark">A</div>
+          <div>
+            <div className="pro-brand-title">Aegis</div>
+            <div className="pro-brand-subtitle">Authorization</div>
+          </div>
         </div>
         <Menu
           mode="inline"
@@ -52,11 +55,16 @@ export function MainLayout() {
       </Layout.Sider>
       <Layout>
         <Layout.Header className="pro-header">
-          <Space size={12}>
-            {roleText ? <Tag color="processing">Role: {roleText}</Tag> : null}
+          <div className="pro-header-title">
+            <Typography.Text className="pro-kicker">Project</Typography.Text>
+            <Typography.Title level={4}>{currentRoute?.label ?? 'Aegis'}</Typography.Title>
+          </div>
+          <Space size={10} wrap className="pro-header-actions">
+            {profileQuery.data?.tenantId ? <Tag>Tenant: {profileQuery.data.tenantId}</Tag> : null}
+            {roleText ? <Tag color="blue">Role: {roleText}</Tag> : null}
             <Select
               showSearch
-              style={{ width: 300 }}
+              className="pro-store-select"
               placeholder="Select active store"
               loading={storesQuery.isLoading}
               value={activeStoreId || undefined}
@@ -69,21 +77,13 @@ export function MainLayout() {
           </Space>
         </Layout.Header>
         <Layout.Content className="pro-content">
-          <PageContainer
-            header={{
-              title: 'Aegis Dashboard',
-              subTitle: 'Feature groups for design, testing, review, and administration',
-            }}
-          >
-            <div className="pro-inner-card">
-              <Outlet />
-            </div>
-          </PageContainer>
+          <div className="pro-content-frame">
+            <Outlet />
+          </div>
         </Layout.Content>
       </Layout>
     </Layout>
   );
 }
-
 
 

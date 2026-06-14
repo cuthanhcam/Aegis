@@ -1,6 +1,7 @@
-﻿import { Navigate, Route, Routes } from 'react-router-dom';
+import { Suspense } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { MainLayout } from '@/shared/layouts';
-import { ProtectedRoute } from '@/shared/ui';
+import { ProtectedRoute, TableSkeleton } from '@/shared/ui';
 import { LoginPage } from '@/features/auth';
 import { protectedRoutes } from './route-config';
 
@@ -16,14 +17,19 @@ export function AppRoutes() {
         }
       >
         <Route index element={<Navigate to="/stores" replace />} />
-        {protectedRoutes.map((route) => (
-          <Route key={route.path} path={route.path} element={route.element} />
+        {protectedRoutes.map(({ Component, path }) => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              <Suspense fallback={<TableSkeleton rows={6} columns={5} />}>
+                <Component />
+              </Suspense>
+            }
+          />
         ))}
       </Route>
       <Route path="*" element={<Navigate to="/stores" replace />} />
     </Routes>
   );
 }
-
-
-

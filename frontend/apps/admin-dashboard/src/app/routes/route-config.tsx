@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { lazy, type ComponentType, type LazyExoticComponent, type ReactNode } from 'react';
 import {
   AuditOutlined,
   CheckCircleOutlined,
@@ -11,46 +11,97 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
-import { AccessManagementPage } from '@/features/access';
-import { AssertionsPage } from '@/features/assertions';
-import { AuditPage } from '@/features/audit';
-import { GraphExplorerPage } from '@/features/graph';
-import { ModelsPage } from '@/features/models';
-import { PresetCatalogPage } from '@/features/presets';
-import { ProfilePage } from '@/features/profile';
-import { RelationshipsPage } from '@/features/relationships';
-import { StoresPage } from '@/features/stores';
-import { TestConsolePage } from '@/features/test-console';
+
+type RouteComponent = LazyExoticComponent<ComponentType>;
 
 export type ProtectedRouteConfig = {
   path: string;
-  element: ReactNode;
+  Component: RouteComponent;
   label: string;
   icon: ReactNode;
   requiredRole?: string;
 };
 
 export const protectedRoutes: ProtectedRouteConfig[] = [
-  { path: '/stores', element: <StoresPage />, label: 'Stores', icon: <DatabaseOutlined />, requiredRole: 'authorization_admin' },
-  { path: '/models', element: <ModelsPage />, label: 'Models', icon: <FileTextOutlined />, requiredRole: 'authorization_admin' },
-  { path: '/relationships', element: <RelationshipsPage />, label: 'Relationships', icon: <NodeIndexOutlined />, requiredRole: 'authorization_admin' },
-  { path: '/assertions', element: <AssertionsPage />, label: 'Assertions', icon: <CheckCircleOutlined />, requiredRole: 'authorization_admin' },
-  { path: '/audit', element: <AuditPage />, label: 'Store Changes', icon: <AuditOutlined />, requiredRole: 'authorization_admin' },
-  { path: '/test-console', element: <TestConsolePage />, label: 'Test Console', icon: <DeploymentUnitOutlined />, requiredRole: 'authorization_admin' },
-  { path: '/graph', element: <GraphExplorerPage />, label: 'Graph Explorer', icon: <NodeIndexOutlined />, requiredRole: 'authorization_admin' },
-  { path: '/access', element: <AccessManagementPage />, label: 'Access Management', icon: <SafetyCertificateOutlined />, requiredRole: 'authorization_admin' },
-  { path: '/profile', element: <ProfilePage />, label: 'Profile', icon: <UserOutlined /> },
-  { path: '/presets', element: <PresetCatalogPage />, label: 'Preset Catalog', icon: <SaveOutlined />, requiredRole: 'authorization_admin' },
+  {
+    path: '/stores',
+    Component: lazy(() => import('@/features/stores').then((module) => ({ default: module.StoresPage }))),
+    label: 'Stores',
+    icon: <DatabaseOutlined />,
+    requiredRole: 'authorization_admin',
+  },
+  {
+    path: '/models',
+    Component: lazy(() => import('@/features/models').then((module) => ({ default: module.ModelsPage }))),
+    label: 'Models',
+    icon: <FileTextOutlined />,
+    requiredRole: 'authorization_admin',
+  },
+  {
+    path: '/relationships',
+    Component: lazy(() => import('@/features/relationships').then((module) => ({ default: module.RelationshipsPage }))),
+    label: 'Relationships',
+    icon: <NodeIndexOutlined />,
+    requiredRole: 'authorization_admin',
+  },
+  {
+    path: '/assertions',
+    Component: lazy(() => import('@/features/assertions').then((module) => ({ default: module.AssertionsPage }))),
+    label: 'Assertions',
+    icon: <CheckCircleOutlined />,
+    requiredRole: 'authorization_admin',
+  },
+  {
+    path: '/audit',
+    Component: lazy(() => import('@/features/audit').then((module) => ({ default: module.AuditPage }))),
+    label: 'Audit',
+    icon: <AuditOutlined />,
+    requiredRole: 'authorization_admin',
+  },
+  {
+    path: '/test-console',
+    Component: lazy(() => import('@/features/test-console').then((module) => ({ default: module.TestConsolePage }))),
+    label: 'Test Console',
+    icon: <DeploymentUnitOutlined />,
+    requiredRole: 'authorization_admin',
+  },
+  {
+    path: '/graph',
+    Component: lazy(() => import('@/features/graph').then((module) => ({ default: module.GraphExplorerPage }))),
+    label: 'Graph Explorer',
+    icon: <NodeIndexOutlined />,
+    requiredRole: 'authorization_admin',
+  },
+  {
+    path: '/presets',
+    Component: lazy(() => import('@/features/presets').then((module) => ({ default: module.PresetCatalogPage }))),
+    label: 'Presets',
+    icon: <SaveOutlined />,
+    requiredRole: 'authorization_admin',
+  },
+  {
+    path: '/access',
+    Component: lazy(() => import('@/features/access').then((module) => ({ default: module.AccessManagementPage }))),
+    label: 'Access',
+    icon: <SafetyCertificateOutlined />,
+    requiredRole: 'authorization_admin',
+  },
+  {
+    path: '/profile',
+    Component: lazy(() => import('@/features/profile').then((module) => ({ default: module.ProfilePage }))),
+    label: 'Profile',
+    icon: <UserOutlined />,
+  },
 ];
 
 const navigationGroups: Array<{ label: string; routes: string[] }> = [
   {
-    label: 'Design',
+    label: 'Authorization',
     routes: ['/stores', '/models', '/relationships', '/assertions'],
   },
   {
-    label: 'Testing & Review',
-    routes: ['/audit', '/test-console', '/graph', '/presets'],
+    label: 'Evaluation',
+    routes: ['/test-console', '/graph', '/audit', '/presets'],
   },
   {
     label: 'Administration',
