@@ -23,7 +23,9 @@ namespace Aegis.Application.Features.Query
             string? authorizationModelId,
             CancellationToken cancellationToken = default)
         {
-            return await ExecuteAsync(storeId, storeId, authorizationModelId, cancellationToken);
+            await EnsureStoreExistsAsync(storeId, cancellationToken);
+
+            return await ResolveModelAsync(storeId, authorizationModelId, cancellationToken);
         }
 
         public async Task<QueryModelContext> ExecuteAsync(
@@ -34,6 +36,14 @@ namespace Aegis.Application.Features.Query
         {
             await EnsureStoreExistsAsync(tenantId, storeId, cancellationToken);
 
+            return await ResolveModelAsync(storeId, authorizationModelId, cancellationToken);
+        }
+
+        private async Task<QueryModelContext> ResolveModelAsync(
+            string storeId,
+            string? authorizationModelId,
+            CancellationToken cancellationToken)
+        {
             AuthorizationModelDto? model;
             if (string.IsNullOrWhiteSpace(authorizationModelId))
             {
@@ -86,6 +96,20 @@ namespace Aegis.Application.Features.Query
             }
 
             var store = await _storeRegistry.GetForTenantAsync(tenantId, storeId, cancellationToken);
+            if (store is null)
+            {
+                throw new CompatibilityApiException(404, "store_id_not_found", "Store ID not found.");
+            }
+        }
+
+        private async Task EnsureStoreExistsAsync(string storeId, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(storeId))
+            {
+                throw new ArgumentException("storeId is required.");
+            }
+
+            var store = await _storeRegistry.GetAsync(storeId, cancellationToken);
             if (store is null)
             {
                 throw new CompatibilityApiException(404, "store_id_not_found", "Store ID not found.");
