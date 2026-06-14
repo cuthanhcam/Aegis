@@ -14,10 +14,12 @@ namespace Aegis.Api.Controllers
     public sealed class StoreCheckController : ControllerBase
     {
         private readonly IPermissionAppService _permissionAppService;
+        private readonly IStoreRegistry _storeRegistry;
 
-        public StoreCheckController(IPermissionAppService permissionAppService)
+        public StoreCheckController(IPermissionAppService permissionAppService, IStoreRegistry storeRegistry)
         {
             _permissionAppService = permissionAppService;
+            _storeRegistry = storeRegistry;
         }
 
         [HttpPost("check")]
@@ -27,12 +29,13 @@ namespace Aegis.Api.Controllers
             [FromBody] CheckRequestDto request,
             CancellationToken cancellationToken)
         {
-            var tenantId = TenantAccessGuard.ResolveTenantId(User);
-            if (string.IsNullOrWhiteSpace(tenantId))
+            var accessResult = await TenantAccessGuard.ValidateStoreTenantAsync<CheckResponseDto>(this, _storeRegistry, storeId, cancellationToken);
+            if (accessResult is not null)
             {
-                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<CheckResponseDto>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+                return accessResult;
             }
 
+            var tenantId = TenantAccessGuard.ResolveTenantId(User)!;
             var result = await _permissionAppService.CheckInStoreAsync(
                 tenantId,
                 storeId,
@@ -55,12 +58,13 @@ namespace Aegis.Api.Controllers
             [FromBody] CheckRequestDto request,
             CancellationToken cancellationToken)
         {
-            var tenantId = TenantAccessGuard.ResolveTenantId(User);
-            if (string.IsNullOrWhiteSpace(tenantId))
+            var accessResult = await TenantAccessGuard.ValidateStoreTenantAsync<CheckResponseDto>(this, _storeRegistry, storeId, cancellationToken);
+            if (accessResult is not null)
             {
-                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<CheckResponseDto>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+                return accessResult;
             }
 
+            var tenantId = TenantAccessGuard.ResolveTenantId(User)!;
             var result = await _permissionAppService.ExplainInStoreAsync(
                 tenantId,
                 storeId,
@@ -83,12 +87,13 @@ namespace Aegis.Api.Controllers
             [FromBody] BatchCheckRequestDto request,
             CancellationToken cancellationToken)
         {
-            var tenantId = TenantAccessGuard.ResolveTenantId(User);
-            if (string.IsNullOrWhiteSpace(tenantId))
+            var accessResult = await TenantAccessGuard.ValidateStoreTenantAsync<BatchCheckResponseDto>(this, _storeRegistry, storeId, cancellationToken);
+            if (accessResult is not null)
             {
-                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<BatchCheckResponseDto>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+                return accessResult;
             }
 
+            var tenantId = TenantAccessGuard.ResolveTenantId(User)!;
             var result = await _permissionAppService.BatchCheckInStoreAsync(tenantId, storeId, request, cancellationToken);
             return this.OkResponse(result);
         }
