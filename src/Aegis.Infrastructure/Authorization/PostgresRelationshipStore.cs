@@ -6,6 +6,7 @@ using Npgsql;
 using DomainRelationship = Aegis.Domain.Entities.Relationship;
 using DomainRelationshipChange = Aegis.Domain.Entities.RelationshipChangeEntry;
 using DomainRelationshipPermissionEffect = Aegis.Domain.Enums.RelationshipPermissionEffect;
+using NpgsqlTypes;
 
 namespace Aegis.Infrastructure.Authorization
 {
@@ -35,12 +36,12 @@ namespace Aegis.Infrastructure.Authorization
 
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
             await using var command = new NpgsqlCommand(sql, connection);
-            command.Parameters.AddWithValue("tenant_id", tenantId);
-            command.Parameters.AddWithValue("store_id", effectiveStoreId);
-            command.Parameters.AddWithValue("subject", (object?)subject?.Value ?? DBNull.Value);
-            command.Parameters.AddWithValue("relation", (object?)relation ?? DBNull.Value);
-            command.Parameters.AddWithValue("object_ref", (object?)obj?.Value ?? DBNull.Value);
-            command.Parameters.AddWithValue("effect", (object?)effect?.ToString() ?? DBNull.Value);
+            command.Parameters.AddWithValue("tenant_id", NpgsqlDbType.Text, tenantId);
+            command.Parameters.AddWithValue("store_id", NpgsqlDbType.Text, effectiveStoreId);
+            command.Parameters.AddWithValue("subject", NpgsqlDbType.Text, (object?)subject?.Value ?? DBNull.Value);
+            command.Parameters.AddWithValue("relation", NpgsqlDbType.Text, (object?)relation ?? DBNull.Value);
+            command.Parameters.AddWithValue("object_ref", NpgsqlDbType.Text, (object?)obj?.Value ?? DBNull.Value);
+            command.Parameters.AddWithValue("effect", NpgsqlDbType.Text, (object?)effect?.ToString() ?? DBNull.Value);
 
             var results = new List<RelationshipTuple>();
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
