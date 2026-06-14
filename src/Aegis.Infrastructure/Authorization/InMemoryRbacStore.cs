@@ -298,6 +298,26 @@ namespace Aegis.Infrastructure.Authorization
             return Task.FromResult(new UserRolesDto(userId, roles));
         }
 
+        public Task PurgeStoreAsync(
+            string tenantId,
+            string storeId,
+            CancellationToken cancellationToken = default)
+        {
+            RemoveByPrefix(_userRoles, $"{tenantId}|{storeId}|");
+            RemoveByPrefix(_rolePermissions, $"{tenantId}|{storeId}|");
+            RemoveByPrefix(_permissions, $"{tenantId}|{storeId}|");
+            RemoveByPrefix(_roles, $"{tenantId}|{storeId}|");
+            return Task.CompletedTask;
+        }
+
+        private static void RemoveByPrefix<T>(ConcurrentDictionary<string, T> dictionary, string prefix)
+        {
+            foreach (var key in dictionary.Keys.Where(x => x.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToArray())
+            {
+                dictionary.TryRemove(key, out _);
+            }
+        }
+
         private static string RoleKey(
             string tenantId,
             string storeId,

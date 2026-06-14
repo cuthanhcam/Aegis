@@ -202,5 +202,13 @@ namespace Aegis.Application.Interfaces
         {
             return GetUserRolesAsync(tenantId, userId, cancellationToken);
         }
+
+        Task PurgeStoreAsync(
+            string tenantId,
+            string storeId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 }
