@@ -21,6 +21,16 @@ namespace Aegis.Authorization.Core.Interfaces
             string tenantId,
             string? action,
             string? decision,
+            CancellationToken cancellationToken = default)
+        {
+            return QueryAsync(tenantId, action, decision, storeId: null, cancellationToken);
+        }
+
+        Task<IReadOnlyList<AuditEvent>> QueryAsync(
+            string tenantId,
+            string? action,
+            string? decision,
+            string? storeId,
             CancellationToken cancellationToken = default);
     }
 }

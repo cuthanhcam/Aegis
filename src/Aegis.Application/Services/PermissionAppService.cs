@@ -166,9 +166,19 @@ namespace Aegis.Application.Services
             string tenantId,
             string? action,
             string? decision,
+            string? storeId,
             CancellationToken cancellationToken = default)
         {
-            return await _queryAuditUseCase.ExecuteAsync(tenantId, action, decision, cancellationToken);
+            return await _queryAuditUseCase.ExecuteAsync(tenantId, action, decision, storeId, cancellationToken);
+        }
+
+        public async Task<IReadOnlyList<AuditEventDto>> QueryAuditAsync(
+            string tenantId,
+            string? action,
+            string? decision,
+            CancellationToken cancellationToken = default)
+        {
+            return await QueryAuditAsync(tenantId, action, decision, storeId: null, cancellationToken);
         }
     }
 }

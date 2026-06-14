@@ -21,9 +21,10 @@ namespace Aegis.Application.Features.Permissions
             string tenantId,
             string? action,
             string? decision,
+            string? storeId,
             CancellationToken cancellationToken = default)
         {
-            var events = await _auditStore.QueryAsync(tenantId, action, decision, cancellationToken);
+            var events = await _auditStore.QueryAsync(tenantId, action, decision, storeId, cancellationToken);
             return events
                 .OrderByDescending(x => x.CreatedAt)
                 .Select(x => new AuditEventDto(
