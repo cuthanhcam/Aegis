@@ -223,6 +223,7 @@ app.UseRouting();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<TenantContextMiddleware>();
+app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseAuthorization();
 
 // Liveness & readiness endpoints
