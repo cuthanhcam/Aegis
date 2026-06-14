@@ -104,7 +104,7 @@ public sealed class PostgresRedisIntegrationTests
         var modelRegistry = scope.ServiceProvider.GetRequiredService<IAuthorizationModelRegistry>();
         var relationshipStore = scope.ServiceProvider.GetRequiredService<IRelationshipStore>();
 
-        var store = await storeRegistry.CreateAsync("container-store");
+        var store = await storeRegistry.CreateForTenantAsync(tenantId, "container-store");
         var authorizationModel = await modelRegistry.CreateAsync(store.Id, "1.1", model);
         await relationshipStore.UpsertAsync(
             tenantId,
