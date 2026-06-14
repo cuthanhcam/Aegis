@@ -68,5 +68,15 @@ public interface IPermissionAppService
         string tenantId,
         string? action,
         string? decision,
+        string? storeId,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<AuditEventDto>> QueryAuditAsync(
+        string tenantId,
+        string? action,
+        string? decision,
+        CancellationToken cancellationToken = default)
+    {
+        return QueryAuditAsync(tenantId, action, decision, storeId: null, cancellationToken);
+    }
 }

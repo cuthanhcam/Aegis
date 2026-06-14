@@ -126,6 +126,31 @@ public sealed class ComprehensiveAuthorizationFlowTests
         Assert.True(auditEntries.Count >= 2);
         Assert.All(auditEntries, e => Assert.Equal("check", e.Action));
     }
+
+    [Fact]
+    public async Task Audit_QueryByStore_ReturnsOnlyMatchingStoreEntries()
+    {
+        var service = CreatePermissionService();
+        var storeA = await _storeRegistry.CreateForTenantAsync("tenant-a", "Store A");
+        var storeB = await _storeRegistry.CreateForTenantAsync("tenant-a", "Store B");
+
+        await service.CheckInStoreAsync(
+            "tenant-a",
+            storeA.Id,
+            new StoreCheckRequestDto("user:alice", "viewer", "document:doc1"),
+            CancellationToken.None);
+        await service.CheckInStoreAsync(
+            "tenant-a",
+            storeB.Id,
+            new StoreCheckRequestDto("user:bob", "viewer", "document:doc2"),
+            CancellationToken.None);
+
+        var auditEntries = await service.QueryAuditAsync("tenant-a", action: null, decision: null, storeA.Id, CancellationToken.None);
+
+        Assert.Single(auditEntries);
+        Assert.Equal(storeA.Id, auditEntries[0].StoreId);
+        Assert.Equal("user:alice", auditEntries[0].Subject);
+    }
 }
 
 /// <summary>

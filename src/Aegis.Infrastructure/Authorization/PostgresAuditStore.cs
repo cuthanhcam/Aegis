@@ -33,13 +33,14 @@ namespace Aegis.Infrastructure.Authorization
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        public async Task<IReadOnlyList<AuditEvent>> QueryAsync(string tenantId, string? action, string? decision, CancellationToken cancellationToken = default)
+        public async Task<IReadOnlyList<AuditEvent>> QueryAsync(string tenantId, string? action, string? decision, string? storeId, CancellationToken cancellationToken = default)
         {
             const string sql = @"SELECT action, subject, relation, object_ref, decision, reason_code, created_at, store_id
                                  FROM audit_events
                                  WHERE tenant_id = @tenant_id
                                    AND (@action IS NULL OR action = @action)
                                    AND (@decision IS NULL OR decision = @decision)
+                                   AND (@store_id IS NULL OR store_id = @store_id)
                                  ORDER BY created_at DESC;";
 
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
@@ -47,6 +48,7 @@ namespace Aegis.Infrastructure.Authorization
             command.Parameters.AddWithValue("tenant_id", tenantId);
             command.Parameters.AddWithValue("action", (object?)action ?? DBNull.Value);
             command.Parameters.AddWithValue("decision", (object?)decision ?? DBNull.Value);
+            command.Parameters.AddWithValue("store_id", (object?)storeId ?? DBNull.Value);
 
             var results = new List<AuditEvent>();
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);

@@ -14,10 +14,12 @@ namespace Aegis.Api.Controllers
     public sealed class AuditController : ControllerBase
     {
         private readonly IPermissionAppService _permissionAppService;
+        private readonly IStoreRegistry _storeRegistry;
 
-        public AuditController(IPermissionAppService permissionAppService)
+        public AuditController(IPermissionAppService permissionAppService, IStoreRegistry storeRegistry)
         {
             _permissionAppService = permissionAppService;
+            _storeRegistry = storeRegistry;
         }
 
         [HttpGet]
@@ -26,6 +28,7 @@ namespace Aegis.Api.Controllers
             [FromRoute] string tenantId,
             [FromQuery] string? action,
             [FromQuery] string? decision,
+            [FromQuery] string? storeId,
             CancellationToken cancellationToken)
         {
             var accessResult = TenantAccessGuard.ValidateRouteTenant<IReadOnlyList<AuditEventDto>>(this, tenantId);
@@ -34,7 +37,16 @@ namespace Aegis.Api.Controllers
                 return accessResult;
             }
 
-            var result = await _permissionAppService.QueryAuditAsync(tenantId, action, decision, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(storeId))
+            {
+                var store = await _storeRegistry.GetForTenantAsync(tenantId, storeId, cancellationToken);
+                if (store is null)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<IReadOnlyList<AuditEventDto>>.Fail("STORE_FORBIDDEN", "Store does not belong to the requested tenant."));
+                }
+            }
+
+            var result = await _permissionAppService.QueryAuditAsync(tenantId, action, decision, storeId, cancellationToken);
             return this.OkResponse<IReadOnlyList<AuditEventDto>>(result);
         }
     }
