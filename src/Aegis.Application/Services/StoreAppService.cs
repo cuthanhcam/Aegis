@@ -11,6 +11,7 @@ namespace Aegis.Application.Services
     {
         private readonly IStoreRegistry _storeRegistry;
         private readonly IRelationshipStore _relationshipStore;
+        private readonly IRbacAdminStore? _rbacAdminStore;
         private readonly IStoreRepository? _storeRepository;
         private readonly AssertionAppService? _assertionAppService;
         private readonly IDomainEventDispatcher? _domainEventDispatcher;
@@ -19,6 +20,7 @@ namespace Aegis.Application.Services
         {
             _storeRegistry = storeRegistry;
             _relationshipStore = relationshipStore;
+            _rbacAdminStore = null;
             _storeRepository = storeRegistry as IStoreRepository;
             _domainEventDispatcher = null;
         }
@@ -26,11 +28,13 @@ namespace Aegis.Application.Services
         public StoreAppService(
             IStoreRegistry storeRegistry,
             IRelationshipStore relationshipStore,
+            IRbacAdminStore rbacAdminStore,
             IStoreRepository storeRepository,
             AssertionAppService assertionAppService,
             IDomainEventDispatcher domainEventDispatcher)
             : this(storeRegistry, relationshipStore)
         {
+            _rbacAdminStore = rbacAdminStore;
             _storeRepository = storeRepository;
             _assertionAppService = assertionAppService;
             _domainEventDispatcher = domainEventDispatcher;
@@ -134,6 +138,10 @@ namespace Aegis.Application.Services
                 }
 
                 await _relationshipStore.PurgeStoreAsync(tenantId, storeId, cancellationToken);
+                if (_rbacAdminStore is not null)
+                {
+                    await _rbacAdminStore.PurgeStoreAsync(tenantId, storeId, cancellationToken);
+                }
 
                 return await _storeRegistry.DeleteForTenantAsync(tenantId, storeId, cancellationToken);
             }
