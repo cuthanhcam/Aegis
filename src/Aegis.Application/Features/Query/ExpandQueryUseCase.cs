@@ -35,6 +35,7 @@ namespace Aegis.Application.Features.Query
             _ = AuthorizationQueryHelper.ParseConsistency(request.Consistency);
 
             var modelContext = await _resolveQueryModelContextUseCase.ExecuteAsync(
+                tenantId,
                 storeId,
                 request.AuthorizationModelId,
                 cancellationToken);

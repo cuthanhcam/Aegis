@@ -389,6 +389,22 @@ namespace Aegis.Infrastructure.Authorization
             return new UserRolesDto(userId, roles);
         }
 
+        public async Task PurgeStoreAsync(string tenantId, string storeId, CancellationToken cancellationToken = default)
+        {
+            const string sql = @"
+                DELETE FROM rbac_user_roles WHERE tenant_id = @tenant_id AND store_id = @store_id;
+                DELETE FROM rbac_role_permissions WHERE tenant_id = @tenant_id AND store_id = @store_id;
+                DELETE FROM rbac_permissions WHERE tenant_id = @tenant_id AND store_id = @store_id;
+                DELETE FROM rbac_roles WHERE tenant_id = @tenant_id AND store_id = @store_id;";
+
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            await using var command = new NpgsqlCommand(sql, connection);
+            command.Parameters.AddWithValue("tenant_id", tenantId);
+            command.Parameters.AddWithValue("store_id", storeId);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            EvictTenantGrantCache(tenantId);
+        }
+
         private Task ExecuteAsync(Func<NpgsqlConnection, Task> action, CancellationToken cancellationToken)
         {
             return ExecuteAsyncInternal(action, cancellationToken);

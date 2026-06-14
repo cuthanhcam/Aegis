@@ -214,7 +214,7 @@ namespace Aegis.Application.Services
             string? authorizationModelId,
             CancellationToken cancellationToken = default)
         {
-            var context = await _resolveQueryModelContextUseCase.ExecuteAsync(storeId, authorizationModelId, cancellationToken);
+            var context = await _resolveQueryModelContextUseCase.ExecuteAsync(storeId, storeId, authorizationModelId, cancellationToken);
             return context.AuthorizationModelId;
         }
     }

@@ -69,6 +69,7 @@ namespace Aegis.Application.Services
         public async Task<CheckResponseDto> CheckInStoreAsync(string tenantId, string storeId, StoreCheckRequestDto request, CancellationToken cancellationToken = default)
         {
             var validatedAuthorizationModelId = await _resolveAuthorizationModelUseCase.EnsureStoreAndValidateRequestedAsync(
+                tenantId,
                 storeId,
                 request.AuthorizationModelId,
                 cancellationToken);
@@ -89,6 +90,7 @@ namespace Aegis.Application.Services
         public async Task<CheckResponseDto> ExplainInStoreAsync(string tenantId, string storeId, StoreCheckRequestDto request, CancellationToken cancellationToken = default)
         {
             var validatedAuthorizationModelId = await _resolveAuthorizationModelUseCase.EnsureStoreAndValidateRequestedAsync(
+                tenantId,
                 storeId,
                 request.AuthorizationModelId,
                 cancellationToken);
