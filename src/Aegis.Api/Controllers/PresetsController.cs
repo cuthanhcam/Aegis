@@ -14,24 +14,33 @@ namespace Aegis.Api.Controllers
     public sealed class PresetsController : ControllerBase
     {
         private readonly IPresetAppService _presetAppService;
+        private readonly IStoreRegistry _storeRegistry;
 
-        public PresetsController(IPresetAppService presetAppService)
+        public PresetsController(IPresetAppService presetAppService, IStoreRegistry storeRegistry)
         {
             _presetAppService = presetAppService;
+            _storeRegistry = storeRegistry;
         }
 
         [HttpGet]
         [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<PresetItemDto>>), StatusCodes.Status200OK)]
-        public ActionResult<ApiResponse<IReadOnlyList<PresetItemDto>>> List(
+        public async Task<ActionResult<ApiResponse<IReadOnlyList<PresetItemDto>>>> List(
             [FromRoute] string tenantId,
             [FromQuery] string? storeId,
             [FromQuery] string? source,
-            [FromQuery] string? scope)
+            [FromQuery] string? scope,
+            CancellationToken cancellationToken)
         {
             var accessResult = TenantAccessGuard.ValidateRouteTenant<IReadOnlyList<PresetItemDto>>(this, tenantId);
             if (accessResult is not null)
             {
                 return accessResult;
+            }
+
+            var storeAccessResult = await ValidateOptionalStoreAsync<IReadOnlyList<PresetItemDto>>(tenantId, storeId, cancellationToken);
+            if (storeAccessResult is not null)
+            {
+                return storeAccessResult;
             }
 
             var result = _presetAppService.List(tenantId, storeId, source, scope);
@@ -40,14 +49,21 @@ namespace Aegis.Api.Controllers
 
         [HttpPost]
         [ProducesResponseType(typeof(ApiResponse<PresetItemDto>), StatusCodes.Status201Created)]
-        public ActionResult<ApiResponse<PresetItemDto>> Upsert(
+        public async Task<ActionResult<ApiResponse<PresetItemDto>>> Upsert(
             [FromRoute] string tenantId,
-            [FromBody] UpsertPresetRequestDto request)
+            [FromBody] UpsertPresetRequestDto request,
+            CancellationToken cancellationToken)
         {
             var accessResult = TenantAccessGuard.ValidateRouteTenant<PresetItemDto>(this, tenantId);
             if (accessResult is not null)
             {
                 return accessResult;
+            }
+
+            var storeAccessResult = await ValidateOptionalStoreAsync<PresetItemDto>(tenantId, request.StoreId, cancellationToken);
+            if (storeAccessResult is not null)
+            {
+                return storeAccessResult;
             }
 
             var result = _presetAppService.Upsert(tenantId, request);
@@ -56,14 +72,21 @@ namespace Aegis.Api.Controllers
 
         [HttpDelete]
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
-        public ActionResult<ApiResponse<string>> Delete(
+        public async Task<ActionResult<ApiResponse<string>>> Delete(
             [FromRoute] string tenantId,
-            [FromBody] DeletePresetRequestDto request)
+            [FromBody] DeletePresetRequestDto request,
+            CancellationToken cancellationToken)
         {
             var accessResult = TenantAccessGuard.ValidateRouteTenant<string>(this, tenantId);
             if (accessResult is not null)
             {
                 return accessResult;
+            }
+
+            var storeAccessResult = await ValidateOptionalStoreAsync<string>(tenantId, request.StoreId, cancellationToken);
+            if (storeAccessResult is not null)
+            {
+                return storeAccessResult;
             }
 
             var deleted = _presetAppService.Delete(tenantId, request);
@@ -98,6 +121,25 @@ namespace Aegis.Api.Controllers
 
             var result = _presetAppService.SetMeta(tenantId, request.Meta);
             return this.OkResponse<IReadOnlyDictionary<string, PresetMetaDto>>(result);
+        }
+
+        private async Task<ActionResult<ApiResponse<T>>?> ValidateOptionalStoreAsync<T>(
+            string tenantId,
+            string? storeId,
+            CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(storeId))
+            {
+                return null;
+            }
+
+            var store = await _storeRegistry.GetForTenantAsync(tenantId, storeId, cancellationToken);
+            if (store is null)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail("STORE_FORBIDDEN", "Store does not belong to the requested tenant."));
+            }
+
+            return null;
         }
     }
 }
