@@ -1,11 +1,13 @@
 import { LogoutOutlined } from '@ant-design/icons';
 import { Button, Layout, Menu, Select, Space, Tag, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
 import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { getNavigationItems, protectedRoutes } from '@/app/routes/route-config';
 import { useActiveStore } from '@/app/providers/useActiveStore';
 import { useAuth } from '@/app/providers/useAuth';
 import { apiClient } from '@/shared/api';
+import { TableSkeleton } from '@/shared/ui';
 
 export function MainLayout() {
   const { accessToken, logout } = useAuth();
@@ -14,13 +16,13 @@ export function MainLayout() {
   const navigate = useNavigate();
 
   const storesQuery = useQuery({
-    queryKey: ['stores'],
+    queryKey: ['stores', accessToken],
     queryFn: () => apiClient.listStores(),
     enabled: Boolean(accessToken),
   });
 
   const profileQuery = useQuery({
-    queryKey: ['profile-layout'],
+    queryKey: ['profile-layout', accessToken],
     queryFn: () => apiClient.getProfile(),
     enabled: Boolean(accessToken),
   });
@@ -29,11 +31,32 @@ export function MainLayout() {
 
   const roleText = (profileQuery.data?.roles ?? []).slice(0, 2).join(', ');
   const currentRoute = protectedRoutes.find((route) => location.pathname.startsWith(route.path));
+  const stores = useMemo(() => storesQuery.data ?? [], [storesQuery.data]);
+  const activeStoreIsValid = !activeStoreId || stores.some((store) => store.id === activeStoreId);
+  const isValidatingActiveStore = Boolean(activeStoreId) && (!storesQuery.isSuccess || !activeStoreIsValid);
 
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
   };
+
+  useEffect(() => {
+    if (!storesQuery.isSuccess) {
+      return;
+    }
+
+    if (stores.length === 0) {
+      if (activeStoreId) {
+        setActiveStoreId('');
+      }
+
+      return;
+    }
+
+    if (!activeStoreId || !stores.some((store) => store.id === activeStoreId)) {
+      setActiveStoreId(stores[0].id);
+    }
+  }, [activeStoreId, setActiveStoreId, stores, storesQuery.isSuccess]);
 
   return (
     <Layout className="pro-shell">
@@ -68,7 +91,7 @@ export function MainLayout() {
               placeholder="Select active store"
               loading={storesQuery.isLoading}
               value={activeStoreId || undefined}
-              options={(storesQuery.data ?? []).map((s) => ({ value: s.id, label: `${s.name} (${s.id})` }))}
+              options={stores.map((s) => ({ value: s.id, label: `${s.name} (${s.id})` }))}
               onChange={(value) => setActiveStoreId(value)}
             />
             <Button icon={<LogoutOutlined />} onClick={handleLogout}>
@@ -78,12 +101,10 @@ export function MainLayout() {
         </Layout.Header>
         <Layout.Content className="pro-content">
           <div className="pro-content-frame">
-            <Outlet />
+            {isValidatingActiveStore ? <TableSkeleton rows={5} columns={4} /> : <Outlet />}
           </div>
         </Layout.Content>
       </Layout>
     </Layout>
   );
 }
-
-
