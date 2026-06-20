@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Alert, Button, Card, Input, Select, Space, Table, Tabs, Typography } from 'antd';
+import { Alert, Button, Card, Col, Input, Row, Select, Space, Statistic, Table, Tabs, Tag, Tree, Typography } from 'antd';
+import type { TreeProps } from 'antd';
 import { useMutation } from '@tanstack/react-query';
+import type { ExpandNode } from '@aegis/types/src/graph';
 import { useAuth } from '@/app/providers/useAuth';
 import { useActiveStore } from '@/app/providers/useActiveStore';
 import { apiClient } from '@/shared/api';
@@ -10,6 +12,41 @@ const CONSISTENCY_OPTIONS = [
   { value: 'fully_consistent', label: 'fully_consistent' },
   { value: 'minimize_latency', label: 'minimize_latency' },
 ];
+
+function countExpandNodes(node: ExpandNode): number {
+  return 1 + node.children.reduce((total, child) => total + countExpandNodes(child), 0);
+}
+
+function countExpandUsers(node: ExpandNode): number {
+  return node.users.length + node.children.reduce((total, child) => total + countExpandUsers(child), 0);
+}
+
+function buildExpandTreeData(node: ExpandNode, path = 'root'): NonNullable<TreeProps['treeData']>[number] {
+  const userChildren = node.users.map((user, index) => ({
+    key: `${path}:user:${index}:${user}`,
+    title: (
+      <Space size={8}>
+        <Tag color="success">user</Tag>
+        <Typography.Text copyable>{user}</Typography.Text>
+      </Space>
+    ),
+  }));
+
+  return {
+    key: `${path}:${node.kind}:${node.node}`,
+    title: (
+      <Space size={8} wrap>
+        <Tag color={node.kind === 'object' ? 'processing' : 'default'}>{node.kind}</Tag>
+        <Typography.Text strong copyable>{node.node}</Typography.Text>
+        <Typography.Text type="secondary">{node.users.length} users</Typography.Text>
+      </Space>
+    ),
+    children: [
+      ...userChildren,
+      ...node.children.map((child, index) => buildExpandTreeData(child, `${path}:child:${index}`)),
+    ],
+  };
+}
 
 export function GraphExplorerPage() {
   const { isAuthenticated } = useAuth();
@@ -32,7 +69,7 @@ export function GraphExplorerPage() {
   const [expandObject, setExpandObject] = useState('document:roadmap');
   const [expandConsistency, setExpandConsistency] = useState('');
   const [expandModelId, setExpandModelId] = useState('');
-  const [expandResult, setExpandResult] = useState<unknown>(null);
+  const [expandResult, setExpandResult] = useState<ExpandNode | null>(null);
 
   const listUsersMutation = useMutation({
     mutationFn: () =>
@@ -71,6 +108,10 @@ export function GraphExplorerPage() {
   const errors = useMemo(() => {
     return [listUsersMutation.error, listObjectsMutation.error, expandMutation.error].filter(Boolean) as Error[];
   }, [listUsersMutation.error, listObjectsMutation.error, expandMutation.error]);
+
+  const expandTreeData = useMemo(() => (expandResult ? [buildExpandTreeData(expandResult)] : []), [expandResult]);
+  const expandNodeCount = useMemo(() => (expandResult ? countExpandNodes(expandResult) : 0), [expandResult]);
+  const expandUserCount = useMemo(() => (expandResult ? countExpandUsers(expandResult) : 0), [expandResult]);
 
   if (!isAuthenticated) {
     return <AccessGate title="Graph Explorer" message="Login from sidebar first." />;
@@ -234,13 +275,45 @@ export function GraphExplorerPage() {
                   </Space>
 
                   {expandResult ? (
-                    <JsonEditor
-                      readOnly
-                      value={JSON.stringify(expandResult, null, 2)}
-                      onChange={() => {}}
-                      height={320}
-                      path={`inmemory://model/graph-expand-result-${activeStoreId}.json`}
-                    />
+                    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                      <Row gutter={[16, 16]}>
+                        <Col xs={24} md={8}>
+                          <Statistic title="Expanded nodes" value={expandNodeCount} />
+                        </Col>
+                        <Col xs={24} md={8}>
+                          <Statistic title="Resolved users" value={expandUserCount} />
+                        </Col>
+                        <Col xs={24} md={8}>
+                          <Statistic title="Direct children" value={expandResult.children.length} />
+                        </Col>
+                      </Row>
+
+                      <Tree
+                        showLine
+                        defaultExpandAll
+                        treeData={expandTreeData}
+                        style={{ padding: 12, border: '1px solid #f0f0f0', borderRadius: 8 }}
+                      />
+
+                      <Tabs
+                        size="small"
+                        items={[
+                          {
+                            key: 'raw',
+                            label: 'Raw JSON',
+                            children: (
+                              <JsonEditor
+                                readOnly
+                                value={JSON.stringify(expandResult, null, 2)}
+                                onChange={() => {}}
+                                height={280}
+                                path={`inmemory://model/graph-expand-result-${activeStoreId}.json`}
+                              />
+                            ),
+                          },
+                        ]}
+                      />
+                    </Space>
                   ) : (
                     <TableEmptyState message="No expand result yet. Run query to inspect tree." />
                   )}

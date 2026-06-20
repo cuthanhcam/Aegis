@@ -1,8 +1,9 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Col, Input, Popconfirm, Row, Segmented, Select, Space, Table, Tabs, Tooltip, Typography, message } from 'antd';
+import { Alert, Button, Card, Col, Input, Popconfirm, Row, Segmented, Select, Space, Table, Tabs, Tag, Timeline, Tooltip, Typography, message } from 'antd';
 import { useCallback } from 'react';
 import { CopyOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import type { BatchCheckResponse, CheckResult, ExplainTraceStep } from '@aegis/types/src/check';
 import { useAuth } from '@/app/providers/useAuth';
 import { useActiveStore } from '@/app/providers/useActiveStore';
 import { apiClient } from '@/shared/api';
@@ -77,6 +78,50 @@ const CONTEXT_SCHEMA = {
     additionalProperties: true,
   },
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isCheckResult(value: unknown): value is CheckResult {
+  return isRecord(value) && typeof value.allowed === 'boolean';
+}
+
+function resolvePrimaryCheckResult(value: unknown): CheckResult | null {
+  if (isCheckResult(value)) {
+    return value;
+  }
+
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  if (isCheckResult(value.explain)) {
+    return value.explain;
+  }
+
+  if (isCheckResult(value.check)) {
+    return value.check;
+  }
+
+  return null;
+}
+
+function resolveBatchResult(value: unknown): BatchCheckResponse | null {
+  if (isRecord(value) && Array.isArray(value.results)) {
+    return value as BatchCheckResponse;
+  }
+
+  if (isRecord(value) && isRecord(value.batch) && Array.isArray(value.batch.results)) {
+    return value.batch as BatchCheckResponse;
+  }
+
+  return null;
+}
+
+function formatTraceTuple(step: ExplainTraceStep) {
+  return step.tuple || 'No tuple emitted';
+}
 
 function readHistory(): HistoryItem[] {
   try {
@@ -344,17 +389,10 @@ export function TestConsolePage() {
   }, [authorizationModelId, consistency, objectValue, parseAdvancedPayload, relation, user]);
 
   const resultSummary = useMemo(() => {
-    if (!result || typeof result !== 'object' || Array.isArray(result)) {
-      return null;
-    }
-
-    const payload = result as { allowed?: boolean; decision?: string; reasonCode?: string; trace?: unknown[] };
-    if (typeof payload.allowed !== 'boolean' && !payload.decision) {
-      return null;
-    }
-
-    return payload;
+    return resolvePrimaryCheckResult(result);
   }, [result]);
+
+  const batchResult = useMemo(() => resolveBatchResult(result), [result]);
 
   const contextualTuplePreview = useMemo(() => {
     try {
@@ -696,13 +734,57 @@ export function TestConsolePage() {
             children: result ? (
               <Space direction="vertical" size="middle" style={{ width: '100%' }}>
                 {resultSummary ? (
-                  <Alert
-                    type={resultSummary.allowed ? 'success' : 'warning'}
-                    showIcon
-                    message={`Decision: ${resultSummary.decision ?? (resultSummary.allowed ? 'allow' : 'deny')}`}
-                    description={`Reason: ${resultSummary.reasonCode ?? 'n/a'}${
-                      resultSummary.trace ? ` • Trace steps: ${resultSummary.trace.length}` : ''
-                    }`}
+                  <>
+                    <Alert
+                      type={resultSummary.allowed ? 'success' : 'warning'}
+                      showIcon
+                      message={`Decision: ${resultSummary.decision ?? (resultSummary.allowed ? 'allow' : 'deny')}`}
+                      description={`Reason: ${resultSummary.reasonCode ?? 'n/a'}${
+                        resultSummary.trace ? ` • Trace steps: ${resultSummary.trace.length}` : ''
+                      }`}
+                    />
+                    {resultSummary.trace && resultSummary.trace.length > 0 ? (
+                      <Timeline
+                        style={{ marginTop: 8 }}
+                        items={resultSummary.trace.map((step, index) => ({
+                          color: step.result === 'allow' ? 'green' : step.result === 'deny' ? 'red' : 'gray',
+                          children: (
+                            <Space direction="vertical" size={2}>
+                              <Space wrap>
+                                <Typography.Text strong>{index + 1}. {step.step}</Typography.Text>
+                                <Tag color={step.result === 'allow' ? 'success' : step.result === 'deny' ? 'error' : 'default'}>
+                                  {step.result}
+                                </Tag>
+                              </Space>
+                              <Typography.Text type="secondary" copyable>
+                                {formatTraceTuple(step)}
+                              </Typography.Text>
+                            </Space>
+                          ),
+                        }))}
+                      />
+                    ) : null}
+                  </>
+                ) : null}
+                {batchResult ? (
+                  <Table
+                    size="small"
+                    rowKey={(row) => row.correlationId}
+                    dataSource={batchResult.results}
+                    pagination={false}
+                    scroll={{ x: 'max-content' }}
+                    columns={[
+                      { title: 'Correlation', dataIndex: 'correlationId', key: 'correlationId', width: 180 },
+                      {
+                        title: 'Decision',
+                        key: 'decision',
+                        width: 140,
+                        render: (_, row) => (
+                          <Tag color={row.result.allowed ? 'success' : 'error'}>{row.result.allowed ? 'allow' : 'deny'}</Tag>
+                        ),
+                      },
+                      { title: 'Reason', key: 'reason', render: (_, row) => row.result.reasonCode },
+                    ]}
                   />
                 ) : null}
                 <JsonEditor
