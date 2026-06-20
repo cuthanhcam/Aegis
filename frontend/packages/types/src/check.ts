@@ -25,3 +25,16 @@ export type CheckResult = {
   reasonCode: string;
   trace?: ExplainTraceStep[];
 };
+
+export type BatchCheckItemRequest = StoreCheckRequest & {
+  correlationId?: string;
+};
+
+export type BatchCheckItemResult = {
+  correlationId: string;
+  result: CheckResult;
+};
+
+export type BatchCheckResponse = {
+  results: BatchCheckItemResult[];
+};

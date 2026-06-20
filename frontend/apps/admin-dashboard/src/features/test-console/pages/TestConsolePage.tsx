@@ -294,7 +294,7 @@ export function TestConsolePage() {
   const batchMutation = useMutation({
     mutationFn: () => {
       const size = Math.max(1, Number(batchSize) || 1);
-      return apiClient.batchCheckCompat(
+      return apiClient.batchCheckInStore(
         activeStoreId,
         Array.from({ length: size }).map((_, idx) => ({
           user,
@@ -664,7 +664,7 @@ export function TestConsolePage() {
           Explain
         </Button>
         <Button disabled={!canRun} loading={batchMutation.isPending} onClick={() => batchMutation.mutate()}>
-          Batch-Check (Compat)
+          Batch Check
         </Button>
         <Button disabled={!canRun || anyPending} onClick={runAll}>
           Run All

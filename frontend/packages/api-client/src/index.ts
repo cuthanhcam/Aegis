@@ -15,7 +15,7 @@ import type { ReadAssertionsResponse, WriteAssertionsRequest } from '@aegis/type
 import type { LoginResponse } from '@aegis/types/src/auth';
 import type { UserProfile } from '@aegis/types/src/auth';
 import type { AuditEvent } from '@aegis/types/src/audit';
-import type { CheckResult, StoreCheckRequest } from '@aegis/types/src/check';
+import type { BatchCheckItemRequest, BatchCheckResponse, CheckResult, StoreCheckRequest } from '@aegis/types/src/check';
 import type { ReadChangesResponse } from '@aegis/types/src/changes';
 import type {
   ExpandNode,
@@ -176,16 +176,6 @@ export class AegisApiClient {
     return payload.data as T;
   }
 
-  private async requestDirect<T>(path: string, init?: RequestInit): Promise<T> {
-    const response = await this.execute(path, init);
-
-    if (!response.ok) {
-      throw await this.toError(response);
-    }
-
-    return (await response.json()) as T;
-  }
-
   private async requestText(path: string, init?: RequestInit): Promise<string> {
     const response = await this.execute(path, init);
 
@@ -343,21 +333,14 @@ export class AegisApiClient {
     });
   }
 
-  async batchCheckCompat(
+  async batchCheckInStore(
     storeId: string,
-    checks: Array<{ user: string; relation: string; object: string; correlationId: string }>,
-  ): Promise<unknown> {
-    return this.requestDirect<unknown>(`/stores/${storeId}/batch-check`, {
+    items: BatchCheckItemRequest[],
+  ): Promise<BatchCheckResponse> {
+    return this.request<BatchCheckResponse>(`/stores/${storeId}/batch-check`, {
       method: 'POST',
       body: JSON.stringify({
-        checks: checks.map((item) => ({
-          tuple_key: {
-            user: item.user,
-            relation: item.relation,
-            object: item.object,
-          },
-          correlation_id: item.correlationId,
-        })),
+        items,
       }),
     });
   }
