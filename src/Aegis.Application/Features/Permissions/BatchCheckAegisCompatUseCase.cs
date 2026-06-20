@@ -26,6 +26,15 @@ namespace Aegis.Application.Features.Permissions
             AegisCompatBatchCheckRequestDto request,
             CancellationToken cancellationToken = default)
         {
+            return await ExecuteAsync(storeId, storeId, request, cancellationToken);
+        }
+
+        public async Task<AegisCompatBatchCheckResponseDto> ExecuteAsync(
+            string tenantId,
+            string storeId,
+            AegisCompatBatchCheckRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
             if (request.Checks is null || request.Checks.Count == 0)
             {
                 throw new ArgumentException("checks are required.");
@@ -46,13 +55,14 @@ namespace Aegis.Application.Features.Permissions
                         ? check.AuthorizationModelId
                         : request.AuthorizationModelId;
 
-                    var resolvedAuthorizationModelId = await _resolveAuthorizationModelUseCase.ExecuteAsync(
+                    var resolvedAuthorizationModelId = await _resolveAuthorizationModelUseCase.EnsureStoreAndValidateRequestedAsync(
+                        tenantId,
                         storeId,
                         effectiveAuthorizationModelId,
                         cancellationToken);
 
                     var decision = await _checkPermissionUseCase.ExecuteAsync(
-                        storeId,
+                        tenantId,
                         new CheckRequestDto(
                             check.TupleKey.User,
                             check.TupleKey.Relation,
@@ -62,7 +72,8 @@ namespace Aegis.Application.Features.Permissions
                             resolvedAuthorizationModelId,
                             check.Context),
                         includeTrace: false,
-                        cancellationToken);
+                        cancellationToken,
+                        storeId);
 
                     results.Add(new AegisCompatBatchCheckResultItemDto(check.CorrelationId, decision.Allowed));
                 }
