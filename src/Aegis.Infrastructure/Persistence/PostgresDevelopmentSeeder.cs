@@ -53,6 +53,13 @@ namespace Aegis.Infrastructure.Persistence
                   define maintainer: [user]
                   define contributor: [user]
                   define viewer: [user] or contributor or maintainer',
+                    NOW() - INTERVAL '5 days'),
+                    ('model-analytics-v1', 'store-analytics-tenant-dev', '1.1',
+                'type user
+                type dashboard
+                  define owner: [user]
+                  define analyst: [user]
+                  define viewer: [user] or analyst or owner',
                     NOW() - INTERVAL '5 days')
                 ON CONFLICT (id) DO UPDATE
                 SET schema_version = EXCLUDED.schema_version,
@@ -71,7 +78,57 @@ namespace Aegis.Infrastructure.Persistence
                     ('10000000-0000-0000-0000-000000000009', 'default', 'store-support-default', 'user:agent1', 'assignee', 'ticket:INC-1001', 'Allow', NOW() - INTERVAL '2 days', NOW() - INTERVAL '2 days'),
                     ('10000000-0000-0000-0000-000000000010', 'default', 'store-support-default', 'user:lead', 'manager', 'queue:enterprise', 'Allow', NOW() - INTERVAL '2 days', NOW() - INTERVAL '2 days'),
                     ('10000000-0000-0000-0000-000000000011', 'tenant-dev', 'store-lab-tenant-dev', 'user:dev', 'maintainer', 'project:aegis-lab', 'Allow', NOW() - INTERVAL '2 days', NOW() - INTERVAL '2 days'),
-                    ('10000000-0000-0000-0000-000000000012', 'tenant-dev', 'store-lab-tenant-dev', 'user:intern', 'viewer', 'project:aegis-lab', 'Allow', NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day')
+                    ('10000000-0000-0000-0000-000000000012', 'tenant-dev', 'store-lab-tenant-dev', 'user:intern', 'viewer', 'project:aegis-lab', 'Allow', NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day'),
+                    ('10000000-0000-0000-0000-000000000013', 'tenant-dev', 'store-analytics-tenant-dev', 'user:dev', 'owner', 'dashboard:executive', 'Allow', NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day'),
+                    ('10000000-0000-0000-0000-000000000014', 'tenant-dev', 'store-analytics-tenant-dev', 'user:intern', 'analyst', 'dashboard:quality', 'Allow', NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day')
+                ON CONFLICT (tenant_id, store_id, subject, relation, object_ref) DO UPDATE
+                SET effect = EXCLUDED.effect,
+                    updated_at = EXCLUDED.updated_at;
+
+                INSERT INTO relationships (id, tenant_id, store_id, subject, relation, object_ref, effect, created_at, updated_at)
+                SELECT
+                    ('40000000-0000-0000-0000-' || lpad(gs::text, 12, '0'))::uuid,
+                    'default',
+                    'store-support-default',
+                    'user:agent' || ((gs % 8) + 1)::text,
+                    CASE WHEN gs % 4 = 0 THEN 'viewer' ELSE 'assignee' END,
+                    'ticket:INC-' || (1100 + gs)::text,
+                    'Allow',
+                    NOW() - (gs || ' hours')::interval,
+                    NOW() - (gs || ' hours')::interval
+                FROM generate_series(1, 32) AS gs
+                ON CONFLICT (tenant_id, store_id, subject, relation, object_ref) DO UPDATE
+                SET effect = EXCLUDED.effect,
+                    updated_at = EXCLUDED.updated_at;
+
+                INSERT INTO relationships (id, tenant_id, store_id, subject, relation, object_ref, effect, created_at, updated_at)
+                SELECT
+                    ('41000000-0000-0000-0000-' || lpad(gs::text, 12, '0'))::uuid,
+                    'default',
+                    'store-docs-default',
+                    'user:reviewer' || ((gs % 6) + 1)::text,
+                    CASE WHEN gs % 3 = 0 THEN 'editor' ELSE 'viewer' END,
+                    'document:spec-' || gs::text,
+                    'Allow',
+                    NOW() - (gs || ' hours')::interval,
+                    NOW() - (gs || ' hours')::interval
+                FROM generate_series(1, 24) AS gs
+                ON CONFLICT (tenant_id, store_id, subject, relation, object_ref) DO UPDATE
+                SET effect = EXCLUDED.effect,
+                    updated_at = EXCLUDED.updated_at;
+
+                INSERT INTO relationships (id, tenant_id, store_id, subject, relation, object_ref, effect, created_at, updated_at)
+                SELECT
+                    ('42000000-0000-0000-0000-' || lpad(gs::text, 12, '0'))::uuid,
+                    'default',
+                    'store-billing-default',
+                    CASE WHEN gs % 5 = 0 THEN 'user:admin' ELSE 'user:finance' END,
+                    CASE WHEN gs % 5 = 0 THEN 'admin' ELSE 'analyst' END,
+                    'account:customer-' || gs::text,
+                    'Allow',
+                    NOW() - (gs || ' hours')::interval,
+                    NOW() - (gs || ' hours')::interval
+                FROM generate_series(1, 20) AS gs
                 ON CONFLICT (tenant_id, store_id, subject, relation, object_ref) DO UPDATE
                 SET effect = EXCLUDED.effect,
                     updated_at = EXCLUDED.updated_at;
@@ -82,7 +139,22 @@ namespace Aegis.Infrastructure.Persistence
                     ('20000000-0000-0000-0000-000000000002', 'default', 'store-docs-default', 'user:anne', 'editor', 'document:roadmap', 'upsert', NOW() - INTERVAL '4 days'),
                     ('20000000-0000-0000-0000-000000000003', 'default', 'store-docs-default', 'user:carol', 'viewer', 'document:roadmap', 'upsert', NOW() - INTERVAL '3 days'),
                     ('20000000-0000-0000-0000-000000000004', 'default', 'store-billing-default', 'user:finance', 'analyst', 'account:acme', 'upsert', NOW() - INTERVAL '3 days'),
-                    ('20000000-0000-0000-0000-000000000005', 'tenant-dev', 'store-lab-tenant-dev', 'user:dev', 'maintainer', 'project:aegis-lab', 'upsert', NOW() - INTERVAL '2 days')
+                    ('20000000-0000-0000-0000-000000000005', 'tenant-dev', 'store-lab-tenant-dev', 'user:dev', 'maintainer', 'project:aegis-lab', 'upsert', NOW() - INTERVAL '2 days'),
+                    ('20000000-0000-0000-0000-000000000006', 'default', 'store-support-default', 'user:agent1', 'assignee', 'ticket:INC-1001', 'upsert', NOW() - INTERVAL '2 days'),
+                    ('20000000-0000-0000-0000-000000000007', 'tenant-dev', 'store-analytics-tenant-dev', 'user:dev', 'owner', 'dashboard:executive', 'upsert', NOW() - INTERVAL '1 day')
+                ON CONFLICT (id) DO NOTHING;
+
+                INSERT INTO relationship_changes (id, tenant_id, store_id, subject, relation, object_ref, operation, created_at)
+                SELECT
+                    ('43000000-0000-0000-0000-' || lpad(gs::text, 12, '0'))::uuid,
+                    'default',
+                    'store-support-default',
+                    'user:agent' || ((gs % 8) + 1)::text,
+                    CASE WHEN gs % 4 = 0 THEN 'viewer' ELSE 'assignee' END,
+                    'ticket:INC-' || (1100 + gs)::text,
+                    'upsert',
+                    NOW() - (gs || ' hours')::interval
+                FROM generate_series(1, 32) AS gs
                 ON CONFLICT (id) DO NOTHING;
 
                 INSERT INTO rbac_users (tenant_id, user_id, email, display_name, created_at, updated_at)
@@ -101,6 +173,34 @@ namespace Aegis.Infrastructure.Persistence
                     display_name = EXCLUDED.display_name,
                     updated_at = EXCLUDED.updated_at;
 
+                INSERT INTO rbac_users (tenant_id, user_id, email, display_name, created_at, updated_at)
+                SELECT
+                    'default',
+                    'user:agent' || gs::text,
+                    'agent' || gs::text || '@aegis.local',
+                    'Support Agent ' || gs::text,
+                    NOW() - INTERVAL '7 days',
+                    NOW() - INTERVAL '1 day'
+                FROM generate_series(2, 8) AS gs
+                ON CONFLICT (tenant_id, user_id) DO UPDATE
+                SET email = EXCLUDED.email,
+                    display_name = EXCLUDED.display_name,
+                    updated_at = EXCLUDED.updated_at;
+
+                INSERT INTO rbac_users (tenant_id, user_id, email, display_name, created_at, updated_at)
+                SELECT
+                    'default',
+                    'user:reviewer' || gs::text,
+                    'reviewer' || gs::text || '@aegis.local',
+                    'Document Reviewer ' || gs::text,
+                    NOW() - INTERVAL '7 days',
+                    NOW() - INTERVAL '1 day'
+                FROM generate_series(1, 6) AS gs
+                ON CONFLICT (tenant_id, user_id) DO UPDATE
+                SET email = EXCLUDED.email,
+                    display_name = EXCLUDED.display_name,
+                    updated_at = EXCLUDED.updated_at;
+
                 INSERT INTO rbac_roles (tenant_id, store_id, role_name, description, created_at, updated_at)
                 VALUES
                     ('default', 'store-docs-default', 'docs_admin', 'Full administration over document authorization data.', NOW() - INTERVAL '9 days', NOW() - INTERVAL '1 day'),
@@ -111,7 +211,9 @@ namespace Aegis.Infrastructure.Persistence
                     ('default', 'store-support-default', 'support_manager', 'Manage support queue policy.', NOW() - INTERVAL '7 days', NOW() - INTERVAL '1 day'),
                     ('default', 'store-support-default', 'support_agent', 'Work assigned tickets.', NOW() - INTERVAL '7 days', NOW() - INTERVAL '1 day'),
                     ('tenant-dev', 'store-lab-tenant-dev', 'project_maintainer', 'Maintain sandbox projects.', NOW() - INTERVAL '6 days', NOW() - INTERVAL '1 day'),
-                    ('tenant-dev', 'store-lab-tenant-dev', 'project_viewer', 'View sandbox projects.', NOW() - INTERVAL '6 days', NOW() - INTERVAL '1 day')
+                    ('tenant-dev', 'store-lab-tenant-dev', 'project_viewer', 'View sandbox projects.', NOW() - INTERVAL '6 days', NOW() - INTERVAL '1 day'),
+                    ('tenant-dev', 'store-analytics-tenant-dev', 'analytics_owner', 'Own analytics dashboards.', NOW() - INTERVAL '5 days', NOW() - INTERVAL '1 day'),
+                    ('tenant-dev', 'store-analytics-tenant-dev', 'analytics_viewer', 'View analytics dashboards.', NOW() - INTERVAL '5 days', NOW() - INTERVAL '1 day')
                 ON CONFLICT (tenant_id, store_id, role_name) DO UPDATE
                 SET description = EXCLUDED.description,
                     updated_at = EXCLUDED.updated_at;
@@ -126,7 +228,9 @@ namespace Aegis.Infrastructure.Persistence
                     ('default', 'store-support-default', 'manager', 'queue:*', NULL, NOW() - INTERVAL '7 days'),
                     ('default', 'store-support-default', 'assignee', 'ticket:*', NULL, NOW() - INTERVAL '7 days'),
                     ('tenant-dev', 'store-lab-tenant-dev', 'maintainer', 'project:*', NULL, NOW() - INTERVAL '6 days'),
-                    ('tenant-dev', 'store-lab-tenant-dev', 'viewer', 'project:*', NULL, NOW() - INTERVAL '6 days')
+                    ('tenant-dev', 'store-lab-tenant-dev', 'viewer', 'project:*', NULL, NOW() - INTERVAL '6 days'),
+                    ('tenant-dev', 'store-analytics-tenant-dev', 'owner', 'dashboard:*', NULL, NOW() - INTERVAL '5 days'),
+                    ('tenant-dev', 'store-analytics-tenant-dev', 'viewer', 'dashboard:*', NULL, NOW() - INTERVAL '5 days')
                 ON CONFLICT (tenant_id, store_id, relation, object_ref) DO UPDATE
                 SET condition_name = EXCLUDED.condition_name;
 
@@ -140,7 +244,9 @@ namespace Aegis.Infrastructure.Persistence
                     ('default', 'store-support-default', 'support_manager', 'manager', 'queue:*', NULL, NOW() - INTERVAL '7 days'),
                     ('default', 'store-support-default', 'support_agent', 'assignee', 'ticket:*', NULL, NOW() - INTERVAL '7 days'),
                     ('tenant-dev', 'store-lab-tenant-dev', 'project_maintainer', 'maintainer', 'project:*', NULL, NOW() - INTERVAL '6 days'),
-                    ('tenant-dev', 'store-lab-tenant-dev', 'project_viewer', 'viewer', 'project:*', NULL, NOW() - INTERVAL '6 days')
+                    ('tenant-dev', 'store-lab-tenant-dev', 'project_viewer', 'viewer', 'project:*', NULL, NOW() - INTERVAL '6 days'),
+                    ('tenant-dev', 'store-analytics-tenant-dev', 'analytics_owner', 'owner', 'dashboard:*', NULL, NOW() - INTERVAL '5 days'),
+                    ('tenant-dev', 'store-analytics-tenant-dev', 'analytics_viewer', 'viewer', 'dashboard:*', NULL, NOW() - INTERVAL '5 days')
                 ON CONFLICT (tenant_id, store_id, role_name, relation, object_ref) DO UPDATE
                 SET condition_name = EXCLUDED.condition_name;
 
@@ -154,7 +260,29 @@ namespace Aegis.Infrastructure.Persistence
                     ('default', 'store-support-default', 'user:lead', 'support_manager', NOW() - INTERVAL '6 days'),
                     ('default', 'store-support-default', 'user:agent1', 'support_agent', NOW() - INTERVAL '6 days'),
                     ('tenant-dev', 'store-lab-tenant-dev', 'user:dev', 'project_maintainer', NOW() - INTERVAL '5 days'),
-                    ('tenant-dev', 'store-lab-tenant-dev', 'user:intern', 'project_viewer', NOW() - INTERVAL '5 days')
+                    ('tenant-dev', 'store-lab-tenant-dev', 'user:intern', 'project_viewer', NOW() - INTERVAL '5 days'),
+                    ('tenant-dev', 'store-analytics-tenant-dev', 'user:dev', 'analytics_owner', NOW() - INTERVAL '4 days'),
+                    ('tenant-dev', 'store-analytics-tenant-dev', 'user:intern', 'analytics_viewer', NOW() - INTERVAL '4 days')
+                ON CONFLICT (tenant_id, store_id, user_id, role_name) DO NOTHING;
+
+                INSERT INTO rbac_user_roles (tenant_id, store_id, user_id, role_name, created_at)
+                SELECT
+                    'default',
+                    'store-support-default',
+                    'user:agent' || gs::text,
+                    'support_agent',
+                    NOW() - INTERVAL '5 days'
+                FROM generate_series(2, 8) AS gs
+                ON CONFLICT (tenant_id, store_id, user_id, role_name) DO NOTHING;
+
+                INSERT INTO rbac_user_roles (tenant_id, store_id, user_id, role_name, created_at)
+                SELECT
+                    'default',
+                    'store-docs-default',
+                    'user:reviewer' || gs::text,
+                    'docs_viewer',
+                    NOW() - INTERVAL '5 days'
+                FROM generate_series(1, 6) AS gs
                 ON CONFLICT (tenant_id, store_id, user_id, role_name) DO NOTHING;
 
                 INSERT INTO audit_events (id, tenant_id, store_id, action, subject, relation, object_ref, decision, reason_code, created_at)
@@ -163,7 +291,26 @@ namespace Aegis.Infrastructure.Persistence
                     ('30000000-0000-0000-0000-000000000002', 'default', 'store-docs-default', 'check', 'user:carol', 'viewer', 'document:roadmap', 'deny', 'DENY_REBAC_DIRECT', NOW() - INTERVAL '36 hours'),
                     ('30000000-0000-0000-0000-000000000003', 'default', 'store-billing-default', 'check', 'user:finance', 'analyst', 'account:acme', 'allow', 'ALLOW_REBAC_DIRECT', NOW() - INTERVAL '30 hours'),
                     ('30000000-0000-0000-0000-000000000004', 'default', 'store-support-default', 'check', 'user:agent1', 'assignee', 'ticket:INC-1001', 'allow', 'ALLOW_REBAC_DIRECT', NOW() - INTERVAL '20 hours'),
-                    ('30000000-0000-0000-0000-000000000005', 'tenant-dev', 'store-lab-tenant-dev', 'check', 'user:dev', 'maintainer', 'project:aegis-lab', 'allow', 'ALLOW_REBAC_DIRECT', NOW() - INTERVAL '18 hours')
+                    ('30000000-0000-0000-0000-000000000005', 'tenant-dev', 'store-lab-tenant-dev', 'check', 'user:dev', 'maintainer', 'project:aegis-lab', 'allow', 'ALLOW_REBAC_DIRECT', NOW() - INTERVAL '18 hours'),
+                    ('30000000-0000-0000-0000-000000000006', 'tenant-dev', 'store-analytics-tenant-dev', 'check', 'user:dev', 'owner', 'dashboard:executive', 'allow', 'ALLOW_REBAC_DIRECT', NOW() - INTERVAL '12 hours')
+                ON CONFLICT (id) DO UPDATE
+                SET decision = EXCLUDED.decision,
+                    reason_code = EXCLUDED.reason_code,
+                    created_at = EXCLUDED.created_at;
+
+                INSERT INTO audit_events (id, tenant_id, store_id, action, subject, relation, object_ref, decision, reason_code, created_at)
+                SELECT
+                    ('44000000-0000-0000-0000-' || lpad(gs::text, 12, '0'))::uuid,
+                    'default',
+                    'store-support-default',
+                    CASE WHEN gs % 3 = 0 THEN 'explain' ELSE 'check' END,
+                    'user:agent' || ((gs % 8) + 1)::text,
+                    CASE WHEN gs % 4 = 0 THEN 'viewer' ELSE 'assignee' END,
+                    'ticket:INC-' || (1100 + gs)::text,
+                    'allow',
+                    'ALLOW_REBAC_DIRECT',
+                    NOW() - (gs || ' hours')::interval
+                FROM generate_series(1, 32) AS gs
                 ON CONFLICT (id) DO UPDATE
                 SET decision = EXCLUDED.decision,
                     reason_code = EXCLUDED.reason_code,
