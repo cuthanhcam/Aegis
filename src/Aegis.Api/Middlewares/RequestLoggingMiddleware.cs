@@ -32,6 +32,9 @@ namespace Aegis.Api.Middlewares
                 var traceId = Activity.Current?.TraceId.ToString() ?? requestId;
                 var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
                 var statusCode = context.Response.StatusCode;
+                var errorCode = context.Items.TryGetValue("Aegis.ErrorCode", out var errorCodeValue)
+                    ? errorCodeValue?.ToString() ?? "-"
+                    : "-";
                 var logLevel = statusCode >= StatusCodes.Status500InternalServerError
                     ? LogLevel.Error
                     : statusCode >= StatusCodes.Status400BadRequest
@@ -40,7 +43,7 @@ namespace Aegis.Api.Middlewares
 
                 _logger.Log(
                     logLevel,
-                    "HTTP {Method} {Path}{QueryString} => {StatusCode} in {ElapsedMs:0.00} ms | endpoint={Endpoint} | tenant={TenantId} | user={UserId} | trace={TraceId} | requestId={RequestId} | remoteIp={RemoteIp}",
+                    "HTTP request completed method={Method} path={Path}{QueryString} status={StatusCode} duration_ms={ElapsedMs:0.00} endpoint={Endpoint} tenant={TenantId} user={UserId} trace_id={TraceId} request_id={RequestId} remote_ip={RemoteIp} error_code={ErrorCode}",
                     context.Request.Method,
                     context.Request.Path,
                     context.Request.QueryString,
@@ -51,7 +54,8 @@ namespace Aegis.Api.Middlewares
                     userId,
                     traceId,
                     requestId,
-                    remoteIp);
+                    remoteIp,
+                    errorCode);
             }
         }
 
