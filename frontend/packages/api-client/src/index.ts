@@ -11,7 +11,7 @@ import type {
   User,
   UserRoles,
 } from '@aegis/types/src/access';
-import type { ReadAssertionsResponse, WriteAssertionsRequest } from '@aegis/types/src/assertion';
+import type { AssertionRunListResponse, AssertionRunRecord, ReadAssertionsResponse, WriteAssertionsRequest } from '@aegis/types/src/assertion';
 import type { LoginResponse } from '@aegis/types/src/auth';
 import type { UserProfile } from '@aegis/types/src/auth';
 import type { AuditEvent } from '@aegis/types/src/audit';
@@ -36,8 +36,11 @@ import type {
 } from '@aegis/types/src/graph';
 import type {
   AuthorizationModel,
+  AuthorizationModelDiff,
   AuthorizationModelValidationResult,
   CreateAuthorizationModelRequest,
+  PublishAuthorizationModelResponse,
+  RollbackAuthorizationModelResponse,
   UpdateAuthorizationModelRequest,
   ValidateAuthorizationModelRequest,
 } from '@aegis/types/src/model';
@@ -312,6 +315,26 @@ export class AegisApiClient {
     });
   }
 
+  async publishAuthorizationModel(storeId: string, authorizationModelId: string): Promise<PublishAuthorizationModelResponse> {
+    return this.request<PublishAuthorizationModelResponse>(
+      `/stores/${this.encodeStoreId(storeId)}/authorization-models/${encodeURIComponent(authorizationModelId)}/publish`,
+      { method: 'POST' },
+    );
+  }
+
+  async rollbackAuthorizationModel(storeId: string, authorizationModelId: string): Promise<RollbackAuthorizationModelResponse> {
+    return this.request<RollbackAuthorizationModelResponse>(
+      `/stores/${this.encodeStoreId(storeId)}/authorization-models/${encodeURIComponent(authorizationModelId)}/rollback`,
+      { method: 'POST' },
+    );
+  }
+
+  async diffAuthorizationModels(storeId: string, leftModelId: string, rightModelId: string): Promise<AuthorizationModelDiff> {
+    return this.request<AuthorizationModelDiff>(
+      `/stores/${this.encodeStoreId(storeId)}/authorization-models/${encodeURIComponent(leftModelId)}/diff/${encodeURIComponent(rightModelId)}`,
+    );
+  }
+
   async listRelationships(storeId: string, query?: RelationshipQuery): Promise<RelationshipTuple[]> {
     const qs = this.toQueryString({
       subject: query?.subject,
@@ -436,6 +459,25 @@ export class AegisApiClient {
       method: 'POST',
       body: JSON.stringify(request),
     });
+  }
+
+  async runAssertions(storeId: string, authorizationModelId: string): Promise<AssertionRunRecord> {
+    return this.request<AssertionRunRecord>(
+      `/stores/${this.encodeStoreId(storeId)}/assertions/${encodeURIComponent(authorizationModelId)}/run`,
+      { method: 'POST' },
+    );
+  }
+
+  async listAssertionRuns(storeId: string, authorizationModelId: string): Promise<AssertionRunListResponse> {
+    return this.request<AssertionRunListResponse>(
+      `/stores/${this.encodeStoreId(storeId)}/assertions/${encodeURIComponent(authorizationModelId)}/runs`,
+    );
+  }
+
+  async getAssertionRun(storeId: string, runId: string): Promise<AssertionRunRecord> {
+    return this.request<AssertionRunRecord>(
+      `/stores/${this.encodeStoreId(storeId)}/assertions/runs/${encodeURIComponent(runId)}`,
+    );
   }
 
   async listRoles(): Promise<Role[]> {

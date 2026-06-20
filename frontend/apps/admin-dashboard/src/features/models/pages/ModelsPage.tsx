@@ -3,7 +3,7 @@ import Editor from '@monaco-editor/react';
 import { useMemo } from 'react';
 import { Alert, Button, Card, Col, Drawer, Input, Popconfirm, Row, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AuthorizationModelValidationResult } from '@aegis/types/src/model';
+import type { AuthorizationModelDiff, AuthorizationModelValidationResult } from '@aegis/types/src/model';
 import { useAuth } from '@/app/providers/useAuth';
 import { useActiveStore } from '@/app/providers/useActiveStore';
 import { apiClient } from '@/shared/api';
@@ -72,6 +72,10 @@ export function ModelsPage() {
   const [editSchemaVersion, setEditSchemaVersion] = useState('1.1');
   const [editModelDsl, setEditModelDsl] = useState('');
   const [validationResult, setValidationResult] = useState<AuthorizationModelValidationResult | null>(null);
+  const [diffDrawerOpen, setDiffDrawerOpen] = useState(false);
+  const [diffResult, setDiffResult] = useState<AuthorizationModelDiff | null>(null);
+  const [leftDiffModelId, setLeftDiffModelId] = useState('');
+  const [rightDiffModelId, setRightDiffModelId] = useState('');
 
   const modelsQuery = useQuery({
     queryKey: ['models', activeStoreId],
@@ -137,6 +141,39 @@ export function ModelsPage() {
     },
   });
 
+  const publishModelMutation = useMutation({
+    mutationFn: (authorizationModelId: string) => apiClient.publishAuthorizationModel(activeStoreId, authorizationModelId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['models', activeStoreId] });
+      message.success(`Published model ${formatShortId(result.activeModelId)}`);
+    },
+    onError: (error: unknown) => {
+      message.error(error instanceof Error ? error.message : 'Failed to publish model');
+    },
+  });
+
+  const rollbackModelMutation = useMutation({
+    mutationFn: (authorizationModelId: string) => apiClient.rollbackAuthorizationModel(activeStoreId, authorizationModelId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['models', activeStoreId] });
+      message.success(`Active model rolled back to ${formatShortId(result.activeModelId)}`);
+    },
+    onError: (error: unknown) => {
+      message.error(error instanceof Error ? error.message : 'Failed to roll back model');
+    },
+  });
+
+  const diffModelMutation = useMutation({
+    mutationFn: () => apiClient.diffAuthorizationModels(activeStoreId, leftDiffModelId, rightDiffModelId),
+    onSuccess: (result) => {
+      setDiffResult(result);
+      setDiffDrawerOpen(true);
+    },
+    onError: (error: unknown) => {
+      message.error(error instanceof Error ? error.message : 'Failed to diff models');
+    },
+  });
+
   const modelDiagnostics = useMemo(() => {
     const types = [...modelDsl.matchAll(/^\s*type\s+([A-Za-z0-9_]+)/gm)].map((match) => match[1]);
     const relations = [...modelDsl.matchAll(/^\s*define\s+([A-Za-z0-9_]+)/gm)].map((match) => match[1]);
@@ -194,6 +231,26 @@ export function ModelsPage() {
     return `${value.slice(0, 8)}...${value.slice(-6)}`;
   };
 
+  const modelOptions = (modelsQuery.data ?? []).map((model) => ({
+    value: model.id,
+    label: `${formatShortId(model.id)} - ${model.state}`,
+  }));
+
+  const stateColor = (state: string) => {
+    switch (state) {
+      case 'Published':
+        return 'green';
+      case 'Validated':
+        return 'blue';
+      case 'Archived':
+        return 'default';
+      case 'Deprecated':
+        return 'orange';
+      default:
+        return 'gold';
+    }
+  };
+
   return (
     <Card>
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -244,6 +301,33 @@ export function ModelsPage() {
             disabled={!schemaVersion.trim() || !modelDsl.trim()}
           >
             Validate Model
+          </Button>
+        </Space>
+
+        <Space wrap align="center">
+          <Typography.Text strong>Compare Versions</Typography.Text>
+          <Select
+            showSearch
+            placeholder="Base model"
+            style={{ width: 240 }}
+            value={leftDiffModelId || undefined}
+            options={modelOptions}
+            onChange={setLeftDiffModelId}
+          />
+          <Select
+            showSearch
+            placeholder="Candidate model"
+            style={{ width: 240 }}
+            value={rightDiffModelId || undefined}
+            options={modelOptions}
+            onChange={setRightDiffModelId}
+          />
+          <Button
+            disabled={!leftDiffModelId || !rightDiffModelId || leftDiffModelId === rightDiffModelId}
+            loading={diffModelMutation.isPending}
+            onClick={() => diffModelMutation.mutate()}
+          >
+            View Diff
           </Button>
         </Space>
 
@@ -384,6 +468,21 @@ export function ModelsPage() {
               key: 'schemaVersion',
             },
             {
+              title: 'State',
+              dataIndex: 'state',
+              key: 'state',
+              render: (value: string, row) => (
+                <Space direction="vertical" size={2}>
+                  <Tag color={stateColor(value)}>{value}</Tag>
+                  {row.supersededBy ? (
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      by {formatShortId(row.supersededBy)}
+                    </Typography.Text>
+                  ) : null}
+                </Space>
+              ),
+            },
+            {
               title: 'Created',
               dataIndex: 'createdAt',
               key: 'createdAt',
@@ -446,6 +545,30 @@ export function ModelsPage() {
                 <Space>
                   <Button
                     size="small"
+                    type={row.state === 'Published' ? 'default' : 'primary'}
+                    disabled={row.state === 'Published' || publishModelMutation.isPending}
+                    loading={publishModelMutation.isPending}
+                    onClick={() => publishModelMutation.mutate(row.id)}
+                  >
+                    Publish
+                  </Button>
+                  <Popconfirm
+                    title="Rollback active model?"
+                    description="This model will become the active published version."
+                    okText="Rollback"
+                    cancelText="Cancel"
+                    onConfirm={() => rollbackModelMutation.mutate(row.id)}
+                  >
+                    <Button
+                      size="small"
+                      disabled={row.state === 'Published' || rollbackModelMutation.isPending}
+                      loading={rollbackModelMutation.isPending}
+                    >
+                      Rollback
+                    </Button>
+                  </Popconfirm>
+                  <Button
+                    size="small"
                     onClick={() => {
                       setEditingModelId(row.id);
                       setEditSchemaVersion(row.schemaVersion);
@@ -472,6 +595,58 @@ export function ModelsPage() {
             },
           ]}
         />
+
+        <Drawer
+          title="Model Diff"
+          width={720}
+          open={diffDrawerOpen}
+          onClose={() => setDiffDrawerOpen(false)}
+          destroyOnClose
+        >
+          {diffResult ? (
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              {diffResult.breakingChangeHints.length > 0 ? (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="Risk hints"
+                  description={diffResult.breakingChangeHints.join(' ')}
+                />
+              ) : (
+                <Alert type="success" showIcon message="No breaking-change hints detected" />
+              )}
+              <Row gutter={[12, 12]}>
+                <Col span={8}><Statistic title="Added types" value={diffResult.addedTypes.length} /></Col>
+                <Col span={8}><Statistic title="Removed types" value={diffResult.removedTypes.length} /></Col>
+                <Col span={8}><Statistic title="Changed relations" value={diffResult.changedRelations.length} /></Col>
+              </Row>
+              <Typography.Text strong>Types</Typography.Text>
+              <Space wrap>
+                {diffResult.addedTypes.map((type) => <Tag key={`added-${type}`} color="green">+ {type}</Tag>)}
+                {diffResult.removedTypes.map((type) => <Tag key={`removed-${type}`} color="red">- {type}</Tag>)}
+                {diffResult.changedTypes.map((type) => <Tag key={`changed-${type}`} color="orange">~ {type}</Tag>)}
+                {diffResult.addedTypes.length + diffResult.removedTypes.length + diffResult.changedTypes.length === 0 ? <Tag>No type changes</Tag> : null}
+              </Space>
+              <Typography.Text strong>Relations</Typography.Text>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                {diffResult.addedRelations.map((relation) => (
+                  <Alert key={`added-${relation.type}-${relation.relation}`} type="success" message={`+ ${relation.type}#${relation.relation}`} description={relation.expression} />
+                ))}
+                {diffResult.removedRelations.map((relation) => (
+                  <Alert key={`removed-${relation.type}-${relation.relation}`} type="error" message={`- ${relation.type}#${relation.relation}`} description={relation.expression} />
+                ))}
+                {diffResult.changedRelations.map((relation) => (
+                  <Alert
+                    key={`changed-${relation.type}-${relation.relation}`}
+                    type="warning"
+                    message={`~ ${relation.type}#${relation.relation}`}
+                    description={`${relation.leftExpression} -> ${relation.rightExpression}`}
+                  />
+                ))}
+              </Space>
+            </Space>
+          ) : null}
+        </Drawer>
 
         <Drawer
           title="Model DSL Preview"

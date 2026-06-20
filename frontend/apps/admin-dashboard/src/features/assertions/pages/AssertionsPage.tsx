@@ -8,7 +8,9 @@ import {
   useAssertionPresetDeleteMutation,
   useAssertionPresetSaveMutation,
   useAssertionPresetsQuery,
+  useAssertionRunsQuery,
   useAssertionsQuery,
+  useRunAssertionsMutation,
   useWriteAssertionsMutation,
 } from '@/features/assertions/api/useAssertionsApi';
 import { AccessGate, JsonDiffView, JsonEditor, TableEmptyState } from '@/shared/ui';
@@ -170,9 +172,14 @@ export function AssertionsPage() {
   const modelsQuery = useAssertionModelsQuery(isAuthenticated, activeStoreId);
 
   const assertionsQuery = useAssertionsQuery(isAuthenticated, activeStoreId, authorizationModelId);
+  const assertionRunsQuery = useAssertionRunsQuery(isAuthenticated, activeStoreId, authorizationModelId);
 
   const writeMutation = useWriteAssertionsMutation(() => {
     setJsonError('');
+  });
+
+  const runAssertionsMutation = useRunAssertionsMutation(() => {
+    assertionRunsQuery.refetch();
   });
 
   const presetSaveMutation = useAssertionPresetSaveMutation(() => {
@@ -347,6 +354,13 @@ export function AssertionsPage() {
           <Button type="primary" disabled={!canSave} loading={writeMutation.isPending} onClick={handleSave}>
             Save Assertions
           </Button>
+          <Button
+            disabled={!authorizationModelId.trim()}
+            loading={runAssertionsMutation.isPending}
+            onClick={() => runAssertionsMutation.mutate({ activeStoreId, authorizationModelId })}
+          >
+            Run Suite
+          </Button>
           <Button onClick={validateOnly}>Validate Only</Button>
           <Button onClick={formatJson}>Format JSON</Button>
           <Button icon={<DownloadOutlined />} onClick={exportJson}>
@@ -406,6 +420,83 @@ export function AssertionsPage() {
         {assertionsQuery.error ? <Alert type="error" showIcon message={(assertionsQuery.error as Error).message} /> : null}
         {writeMutation.error ? <Alert type="error" showIcon message={(writeMutation.error as Error).message} /> : null}
         {writeMutation.isSuccess ? <Alert type="success" showIcon message="Assertions saved." /> : null}
+        {runAssertionsMutation.error ? <Alert type="error" showIcon message={(runAssertionsMutation.error as Error).message} /> : null}
+        {runAssertionsMutation.data ? (
+          <Alert
+            type={runAssertionsMutation.data.summary.failed === 0 ? 'success' : 'error'}
+            showIcon
+            message={`Run complete: ${runAssertionsMutation.data.summary.passed}/${runAssertionsMutation.data.summary.total} passed`}
+          />
+        ) : null}
+
+        {runAssertionsMutation.data ? (
+          <Table
+            rowKey={(_, index) => `run-result-${index}`}
+            size="small"
+            dataSource={runAssertionsMutation.data.results}
+            pagination={false}
+            scroll={{ x: 'max-content' }}
+            columns={[
+              {
+                title: 'Tuple',
+                key: 'tuple',
+                render: (_, row) => `${row.tuple_key.user} ${row.tuple_key.relation} ${row.tuple_key.object}`,
+              },
+              {
+                title: 'Expected',
+                dataIndex: 'expected',
+                key: 'expected',
+                render: (value: boolean) => (value ? 'allow' : 'deny'),
+              },
+              {
+                title: 'Actual',
+                dataIndex: 'actual',
+                key: 'actual',
+                render: (value: boolean) => (value ? 'allow' : 'deny'),
+              },
+              {
+                title: 'Result',
+                dataIndex: 'passed',
+                key: 'passed',
+                render: (value: boolean) => <Tag color={value ? 'green' : 'red'}>{value ? 'pass' : 'fail'}</Tag>,
+              },
+              { title: 'Reason', dataIndex: 'reason', key: 'reason' },
+            ]}
+          />
+        ) : null}
+
+        {assertionRunsQuery.data?.runs.length ? (
+          <Table
+            rowKey="run_id"
+            size="small"
+            dataSource={assertionRunsQuery.data.runs}
+            pagination={{ pageSize: 5 }}
+            columns={[
+              {
+                title: 'Run',
+                dataIndex: 'run_id',
+                key: 'run_id',
+                render: (value: string) => <Typography.Text code>{value.length > 18 ? `${value.slice(0, 8)}...${value.slice(-6)}` : value}</Typography.Text>,
+              },
+              {
+                title: 'Completed',
+                dataIndex: 'completed_at',
+                key: 'completed_at',
+                render: (value: string) => new Date(value).toLocaleString('en-US'),
+              },
+              {
+                title: 'Summary',
+                key: 'summary',
+                render: (_, row) => (
+                  <Space>
+                    <Tag color="green">{row.summary.passed} pass</Tag>
+                    <Tag color={row.summary.failed ? 'red' : 'default'}>{row.summary.failed} fail</Tag>
+                  </Space>
+                ),
+              },
+            ]}
+          />
+        ) : null}
 
         {assertionRows.length === 0 ? (
           <TableEmptyState message="No assertions loaded. Load an authorization model or create assertions above." />
@@ -519,6 +610,5 @@ export function AssertionsPage() {
     </Card>
   );
 }
-
 
 

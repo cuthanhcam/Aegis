@@ -47,6 +47,22 @@ export function useAssertionsQuery(isAuthenticated: boolean, activeStoreId: stri
   });
 }
 
+export function useAssertionRunsQuery(isAuthenticated: boolean, activeStoreId: string, authorizationModelId: string) {
+  return useQuery({
+    queryKey: ['assertion-runs', activeStoreId, authorizationModelId],
+    queryFn: () => apiClient.listAssertionRuns(activeStoreId, authorizationModelId),
+    enabled: isAuthenticated && Boolean(activeStoreId) && Boolean(authorizationModelId),
+  });
+}
+
+export function useRunAssertionsMutation(onSuccess: () => void) {
+  return useMutation({
+    mutationFn: (payload: { activeStoreId: string; authorizationModelId: string }) =>
+      apiClient.runAssertions(payload.activeStoreId, payload.authorizationModelId),
+    onSuccess,
+  });
+}
+
 export function useWriteAssertionsMutation(onMutate?: () => void) {
   return useMutation({
     mutationFn: (payload: {
