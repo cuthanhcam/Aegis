@@ -63,7 +63,9 @@ export function MainLayout() {
     <Layout className="pro-shell">
       <Layout.Sider width={232} theme="light" className="pro-sider">
         <div className="pro-brand">
-          <div className="pro-brand-mark">A</div>
+          <div className="pro-brand-mark">
+            <img src="/aegis.svg" alt="Aegis" />
+          </div>
           <div>
             <div className="pro-brand-title">Aegis</div>
             <div className="pro-brand-subtitle">Authorization Console</div>

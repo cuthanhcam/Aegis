@@ -79,11 +79,16 @@ textarea {
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, var(--brand), #ff7a99);
-  color: #fff;
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  background: var(--brand-soft);
+  border: 1px solid rgb(255 51 102 / 0.24);
+  overflow: hidden;
+}
+
+.pro-brand-mark img {
+  width: 24px;
+  height: 24px;
+  display: block;
+  object-fit: contain;
 }
 
 .pro-brand-title {
