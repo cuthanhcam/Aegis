@@ -410,4 +410,4 @@ curl http://localhost:5271/health/ready
 - [API Reference](api-reference.md)
 - [Core Concepts](../concepts/core-concepts-tuple-model.md)
 - [Getting Started](../guides/getting-started-development.md)
-- [Deployment Guide](../guides/deployment-operations-guide.md)
+- [Deployment Guide](../operations/deployment.md)
