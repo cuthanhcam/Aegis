@@ -3,7 +3,13 @@ import { Alert, Button, Card, Col, Input, Popconfirm, Row, Segmented, Select, Sp
 import { useCallback } from 'react';
 import { CopyOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import type { BatchCheckResponse, CheckResult, ExplainTraceStep } from '@aegis/types/src/check';
+import type {
+  BatchCheckResponse,
+  CheckResult,
+  ExplainTraceStep,
+  OpenFgaBatchCheckResponse,
+  OpenFgaContextualTuples,
+} from '@aegis/types/src/check';
 import { useAuth } from '@/app/providers/useAuth';
 import { useActiveStore } from '@/app/providers/useActiveStore';
 import { apiClient } from '@/shared/api';
@@ -119,8 +125,36 @@ function resolveBatchResult(value: unknown): BatchCheckResponse | null {
   return null;
 }
 
+function resolveCompatBatchResult(value: unknown): OpenFgaBatchCheckResponse | null {
+  if (isRecord(value) && Array.isArray(value.result)) {
+    return value as OpenFgaBatchCheckResponse;
+  }
+
+  if (isRecord(value) && isRecord(value.compatBatch) && Array.isArray(value.compatBatch.result)) {
+    return value.compatBatch as OpenFgaBatchCheckResponse;
+  }
+
+  return null;
+}
+
 function formatTraceTuple(step: ExplainTraceStep) {
   return step.tuple || 'No tuple emitted';
+}
+
+function toOpenFgaContextualTuples(
+  contextualTuples?: Array<{ subject: string; relation: string; object: string }>,
+): OpenFgaContextualTuples | undefined {
+  if (!contextualTuples || contextualTuples.length === 0) {
+    return undefined;
+  }
+
+  return {
+    tuple_keys: contextualTuples.map((tuple) => ({
+      user: tuple.subject,
+      relation: tuple.relation,
+      object: tuple.object,
+    })),
+  };
 }
 
 function readHistory(): HistoryItem[] {
@@ -355,13 +389,70 @@ export function TestConsolePage() {
     },
   });
 
+  const compatCheckMutation = useMutation({
+    mutationFn: () => {
+      const advanced = parseAdvancedPayload();
+      return apiClient.checkCompatInStore(activeStoreId, {
+        tuple_key: {
+          user,
+          relation,
+          object: objectValue,
+        },
+        contextual_tuples: toOpenFgaContextualTuples(advanced.contextualTuples),
+        context: advanced.context,
+        consistency: consistency || undefined,
+        authorization_model_id: authorizationModelId || undefined,
+      });
+    },
+    onSuccess: (data) => {
+      setResult(data);
+      saveHistory();
+    },
+  });
+
+  const compatBatchMutation = useMutation({
+    mutationFn: () => {
+      const advanced = parseAdvancedPayload();
+      const size = Math.max(1, Number(batchSize) || 1);
+      return apiClient.batchCheckCompatInStore(activeStoreId, {
+        authorization_model_id: authorizationModelId || undefined,
+        checks: Array.from({ length: size }).map((_, idx) => ({
+          tuple_key: {
+            user,
+            relation,
+            object: objectValue,
+          },
+          correlation_id: `openfga-${idx + 1}`,
+          contextual_tuples: toOpenFgaContextualTuples(advanced.contextualTuples),
+          context: advanced.context,
+          consistency: consistency || undefined,
+        })),
+      });
+    },
+    onSuccess: (data) => {
+      setResult(data);
+      saveHistory();
+    },
+  });
+
   const canRun = Boolean(user.trim()) && Boolean(relation.trim()) && Boolean(objectValue.trim());
 
-  const anyPending = checkMutation.isPending || explainMutation.isPending || batchMutation.isPending;
+  const anyPending =
+    checkMutation.isPending
+    || explainMutation.isPending
+    || batchMutation.isPending
+    || compatCheckMutation.isPending
+    || compatBatchMutation.isPending;
 
   const errors = useMemo(() => {
-    return [checkMutation.error, explainMutation.error, batchMutation.error].filter(Boolean) as Error[];
-  }, [checkMutation.error, explainMutation.error, batchMutation.error]);
+    return [
+      checkMutation.error,
+      explainMutation.error,
+      batchMutation.error,
+      compatCheckMutation.error,
+      compatBatchMutation.error,
+    ].filter(Boolean) as Error[];
+  }, [batchMutation.error, checkMutation.error, compatBatchMutation.error, compatCheckMutation.error, explainMutation.error]);
 
   const requestPreview = useMemo(() => {
     try {
@@ -393,6 +484,7 @@ export function TestConsolePage() {
   }, [result]);
 
   const batchResult = useMemo(() => resolveBatchResult(result), [result]);
+  const compatBatchResult = useMemo(() => resolveCompatBatchResult(result), [result]);
 
   const contextualTuplePreview = useMemo(() => {
     try {
@@ -460,8 +552,10 @@ export function TestConsolePage() {
       const check = await checkMutation.mutateAsync();
       const explain = await explainMutation.mutateAsync();
       const batch = await batchMutation.mutateAsync();
-      setResult({ check, explain, batch });
-      message.success('Executed check, explain and batch-check.');
+      const compatCheck = await compatCheckMutation.mutateAsync();
+      const compatBatch = await compatBatchMutation.mutateAsync();
+      setResult({ check, explain, batch, compatCheck, compatBatch });
+      message.success('Executed Aegis and OpenFGA-compatible checks.');
     } catch {
       // Errors are already surfaced from query mutation states.
     }
@@ -704,6 +798,12 @@ export function TestConsolePage() {
         <Button disabled={!canRun} loading={batchMutation.isPending} onClick={() => batchMutation.mutate()}>
           Batch Check
         </Button>
+        <Button disabled={!canRun} loading={compatCheckMutation.isPending} onClick={() => compatCheckMutation.mutate()}>
+          OpenFGA Check
+        </Button>
+        <Button disabled={!canRun} loading={compatBatchMutation.isPending} onClick={() => compatBatchMutation.mutate()}>
+          OpenFGA Batch
+        </Button>
         <Button disabled={!canRun || anyPending} onClick={runAll}>
           Run All
         </Button>
@@ -784,6 +884,30 @@ export function TestConsolePage() {
                         ),
                       },
                       { title: 'Reason', key: 'reason', render: (_, row) => row.result.reasonCode },
+                    ]}
+                  />
+                ) : null}
+                {compatBatchResult ? (
+                  <Table
+                    size="small"
+                    rowKey={(row) => row.correlation_id}
+                    dataSource={compatBatchResult.result}
+                    pagination={false}
+                    scroll={{ x: 'max-content' }}
+                    columns={[
+                      { title: 'OpenFGA Correlation', dataIndex: 'correlation_id', key: 'correlation_id', width: 220 },
+                      {
+                        title: 'Decision',
+                        key: 'decision',
+                        width: 140,
+                        render: (_, row) =>
+                          row.error ? (
+                            <Tag color="error">{row.error.code}</Tag>
+                          ) : (
+                            <Tag color={row.allowed ? 'success' : 'error'}>{row.allowed ? 'allow' : 'deny'}</Tag>
+                          ),
+                      },
+                      { title: 'Message', key: 'message', render: (_, row) => row.error?.message ?? 'ok' },
                     ]}
                   />
                 ) : null}
