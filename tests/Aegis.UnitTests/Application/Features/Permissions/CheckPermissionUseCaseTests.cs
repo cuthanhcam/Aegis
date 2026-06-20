@@ -1,5 +1,6 @@
 using Aegis.Application.Features.Permissions;
 using Aegis.Authorization.Core.Interfaces;
+using Aegis.Authorization.Core.Metrics;
 using Aegis.Authorization.Core.Models;
 using Aegis.Contracts.Permissions;
 using Moq;
@@ -133,6 +134,76 @@ namespace Aegis.UnitTests.Application.Features.Permissions
             // Assert
             Assert.NotNull(result.Trace);
             Assert.NotEmpty(result.Trace);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithAllowedDecision_RecordsMetrics()
+        {
+            var mockAuthEngine = new Mock<IAuthorizationEngine>();
+            var mockAuditStore = new Mock<IAuditStore>();
+            var metrics = new InMemoryAuthorizationMetrics();
+            var useCase = new CheckPermissionUseCase(mockAuthEngine.Object, mockAuditStore.Object, metrics);
+
+            mockAuthEngine
+                .Setup(x => x.CheckAsync(It.IsAny<CheckRequest>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DecisionResult(true, "Allow", "AUTHORIZED", new List<TraceStep>()));
+
+            var request = new CheckRequestDto("user:alice", "viewer", "doc:1");
+
+            await useCase.ExecuteAsync("tenant-1", request, includeTrace: false, CancellationToken.None);
+
+            var snapshot = metrics.Snapshot();
+            Assert.Equal(1, snapshot.CheckRequests);
+            Assert.Equal(1, snapshot.CheckAllowed);
+            Assert.Equal(0, snapshot.CheckDenied);
+            Assert.Equal(0, snapshot.CheckErrors);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithDeniedDecision_RecordsMetrics()
+        {
+            var mockAuthEngine = new Mock<IAuthorizationEngine>();
+            var mockAuditStore = new Mock<IAuditStore>();
+            var metrics = new InMemoryAuthorizationMetrics();
+            var useCase = new CheckPermissionUseCase(mockAuthEngine.Object, mockAuditStore.Object, metrics);
+
+            mockAuthEngine
+                .Setup(x => x.CheckAsync(It.IsAny<CheckRequest>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DecisionResult(false, "Deny", "UNAUTHORIZED", new List<TraceStep>()));
+
+            var request = new CheckRequestDto("user:bob", "viewer", "doc:1");
+
+            await useCase.ExecuteAsync("tenant-1", request, includeTrace: false, CancellationToken.None);
+
+            var snapshot = metrics.Snapshot();
+            Assert.Equal(1, snapshot.CheckRequests);
+            Assert.Equal(0, snapshot.CheckAllowed);
+            Assert.Equal(1, snapshot.CheckDenied);
+            Assert.Equal(0, snapshot.CheckErrors);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WhenAuthorizationEngineFails_RecordsErrorMetric()
+        {
+            var mockAuthEngine = new Mock<IAuthorizationEngine>();
+            var mockAuditStore = new Mock<IAuditStore>();
+            var metrics = new InMemoryAuthorizationMetrics();
+            var useCase = new CheckPermissionUseCase(mockAuthEngine.Object, mockAuditStore.Object, metrics);
+
+            mockAuthEngine
+                .Setup(x => x.CheckAsync(It.IsAny<CheckRequest>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new InvalidOperationException("engine failed"));
+
+            var request = new CheckRequestDto("user:bob", "viewer", "doc:1");
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                useCase.ExecuteAsync("tenant-1", request, includeTrace: false, CancellationToken.None));
+
+            var snapshot = metrics.Snapshot();
+            Assert.Equal(1, snapshot.CheckRequests);
+            Assert.Equal(0, snapshot.CheckAllowed);
+            Assert.Equal(0, snapshot.CheckDenied);
+            Assert.Equal(1, snapshot.CheckErrors);
         }
     }
 }

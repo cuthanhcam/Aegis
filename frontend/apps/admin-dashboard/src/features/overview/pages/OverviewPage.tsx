@@ -125,6 +125,10 @@ export function OverviewPage() {
   const dbResultCount = parsePrometheusMetric(metricsQuery.data, 'aegis_authorization_db_results_total');
   const memoHitCount = parsePrometheusMetric(metricsQuery.data, 'aegis_authorization_memo_hits_total');
   const memoMissCount = parsePrometheusMetric(metricsQuery.data, 'aegis_authorization_memo_misses_total');
+  const checkCount = parsePrometheusMetric(metricsQuery.data, 'aegis_authorization_checks_total');
+  const allowCount = parsePrometheusMetric(metricsQuery.data, 'aegis_authorization_allowed_total');
+  const denyCount = parsePrometheusMetric(metricsQuery.data, 'aegis_authorization_denied_total');
+  const errorCount = parsePrometheusMetric(metricsQuery.data, 'aegis_authorization_errors_total');
 
   const quickActions = [
     { path: '/models', label: 'Model Playground', icon: <FileTextOutlined /> },
@@ -215,8 +219,8 @@ export function OverviewPage() {
         <Col xs={24} md={12} xl={6}>
           <Card>
             <Statistic
-              title="Auth DB queries"
-              value={dbQueryCount ?? 0}
+              title="Auth checks"
+              value={checkCount ?? 0}
               prefix={<SafetyCertificateOutlined />}
               loading={metricsQuery.isLoading}
             />
@@ -293,8 +297,12 @@ export function OverviewPage() {
                 </Descriptions.Item>
                 <Descriptions.Item label="Metrics">
                   <Space wrap>
+                    <Tag color="success">allow {allowCount ?? 0}</Tag>
+                    <Tag color="error">deny {denyCount ?? 0}</Tag>
+                    <Tag color={errorCount ? 'warning' : 'default'}>error {errorCount ?? 0}</Tag>
                     <Tag color="processing">memo hit {memoHitCount ?? 0}</Tag>
                     <Tag>memo miss {memoMissCount ?? 0}</Tag>
+                    <Tag>db query {dbQueryCount ?? 0}</Tag>
                     <Tag>db rows {dbResultCount ?? 0}</Tag>
                   </Space>
                 </Descriptions.Item>
