@@ -30,6 +30,13 @@ namespace Aegis.Application.Interfaces
             string storeId,
             CancellationToken cancellationToken = default);
 
+        Task<AuthorizationModelDto?> GetPublishedAsync(
+            string storeId,
+            CancellationToken cancellationToken = default)
+        {
+            return GetLatestAsync(storeId, cancellationToken);
+        }
+
         /// <summary>
         /// Gets a specific authorization model by identifier.
         /// </summary>
@@ -46,6 +53,18 @@ namespace Aegis.Application.Interfaces
             string schemaVersion,
             string model,
             CancellationToken cancellationToken = default);
+
+        Task<AuthorizationModelDto?> UpdateStateAsync(
+            string storeId,
+            string authorizationModelId,
+            string state,
+            DateTimeOffset? publishedAt,
+            DateTimeOffset? archivedAt,
+            string? supersededBy,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException("Authorization model lifecycle state updates are not supported by this registry.");
+        }
 
         /// <summary>
         /// Deletes an authorization model from a store.

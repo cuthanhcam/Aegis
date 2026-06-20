@@ -15,6 +15,21 @@ namespace Aegis.Application.Interfaces
             AegisCompatWriteAssertionsRequestDto request,
             CancellationToken cancellationToken = default);
 
+        Task<AegisAssertionRunRecordDto> RunAsync(
+            string storeId,
+            string authorizationModelId,
+            CancellationToken cancellationToken = default);
+
+        Task<AegisAssertionRunListResponseDto> ListRunsAsync(
+            string storeId,
+            string authorizationModelId,
+            CancellationToken cancellationToken = default);
+
+        Task<AegisAssertionRunRecordDto?> GetRunAsync(
+            string storeId,
+            string runId,
+            CancellationToken cancellationToken = default);
+
         Task PurgeStoreAsync(string storeId, CancellationToken cancellationToken = default);
     }
 }

@@ -1,6 +1,9 @@
 using Aegis.Application.Interfaces;
 using Aegis.Application.Services;
+using Aegis.Application.DomainEvents;
 using Aegis.Contracts.Administration;
+using Aegis.Infrastructure.Authorization;
+using Aegis.Infrastructure.Persistence;
 using Moq;
 
 namespace Aegis.UnitTests.Application.Services
@@ -87,11 +90,75 @@ namespace Aegis.UnitTests.Application.Services
             Assert.Contains(result.Warnings, warning => warning.Code == "DIRECT_RELATION_RECOMMENDED");
         }
 
+        [Fact]
+        public async Task PublishAsync_MarksTargetPublishedAndArchivesPreviousPublishedModel()
+        {
+            var registry = new InMemoryStoreRegistry();
+            var store = await registry.CreateAsync("docs");
+            var service = new AuthorizationModelAppService(registry, registry, registry, new NoopDomainEventDispatcher());
+            var first = await service.CreateAsync(store.Id, new CreateAuthorizationModelRequestDto("1.1", "type user\n\ntype document\n  relations\n    define viewer: [user]"));
+            var second = await service.CreateAsync(store.Id, new CreateAuthorizationModelRequestDto("1.1", "type user\n\ntype document\n  relations\n    define viewer: [user]\n    define editor: [user]"));
+
+            await service.PublishAsync(store.Id, first.Id);
+            var published = await service.PublishAsync(store.Id, second.Id);
+            var models = await service.ListAsync(store.Id);
+
+            Assert.NotNull(published);
+            Assert.Equal(second.Id, published.ActiveModelId);
+            Assert.Equal(AuthorizationModelLifecycleStates.Published, models.Single(x => x.Id == second.Id).State);
+            Assert.Equal(AuthorizationModelLifecycleStates.Archived, models.Single(x => x.Id == first.Id).State);
+            Assert.Equal(second.Id, models.Single(x => x.Id == first.Id).SupersededBy);
+        }
+
+        [Fact]
+        public async Task RollbackAsync_RestoresArchivedModelAsPublished()
+        {
+            var registry = new InMemoryStoreRegistry();
+            var store = await registry.CreateAsync("docs");
+            var service = new AuthorizationModelAppService(registry, registry, registry, new NoopDomainEventDispatcher(), new InMemoryAuditStore());
+            var first = await service.CreateAsync(store.Id, new CreateAuthorizationModelRequestDto("1.1", "type user\n\ntype document\n  relations\n    define viewer: [user]"));
+            var second = await service.CreateAsync(store.Id, new CreateAuthorizationModelRequestDto("1.1", "type user\n\ntype document\n  relations\n    define viewer: [user]\n    define editor: [user]"));
+            await service.PublishAsync(store.Id, first.Id);
+            await service.PublishAsync(store.Id, second.Id);
+
+            var rollback = await service.RollbackAsync(store.Id, first.Id);
+
+            Assert.NotNull(rollback);
+            Assert.Equal(first.Id, rollback.ActiveModelId);
+            Assert.Equal(AuthorizationModelLifecycleStates.Published, (await service.GetByIdAsync(store.Id, first.Id))!.State);
+            Assert.Equal(AuthorizationModelLifecycleStates.Archived, (await service.GetByIdAsync(store.Id, second.Id))!.State);
+        }
+
+        [Fact]
+        public async Task DiffAsync_ReturnsChangedTypesRelationsAndBreakingHints()
+        {
+            var registry = new InMemoryStoreRegistry();
+            var store = await registry.CreateAsync("docs");
+            var service = new AuthorizationModelAppService(registry, registry, registry, new NoopDomainEventDispatcher());
+            var left = await service.CreateAsync(store.Id, new CreateAuthorizationModelRequestDto("1.1", "type user\n\ntype document\n  relations\n    define viewer: [user]\n    define editor: [user]"));
+            var right = await service.CreateAsync(store.Id, new CreateAuthorizationModelRequestDto("1.1", "type user\n\ntype document\n  relations\n    define viewer: [user]\n    define owner: [user]"));
+
+            var diff = await service.DiffAsync(store.Id, left.Id, right.Id);
+
+            Assert.NotNull(diff);
+            Assert.Contains(diff.RemovedRelations, relation => relation.Type == "document" && relation.Relation == "editor");
+            Assert.Contains(diff.AddedRelations, relation => relation.Type == "document" && relation.Relation == "owner");
+            Assert.Contains(diff.BreakingChangeHints, hint => hint.Contains("document#editor", StringComparison.Ordinal));
+        }
+
         private static AuthorizationModelAppService CreateService()
         {
             return new AuthorizationModelAppService(
                 new Mock<IStoreRegistry>().Object,
                 new Mock<IAuthorizationModelRegistry>().Object);
+        }
+
+        private sealed class NoopDomainEventDispatcher : IDomainEventDispatcher
+        {
+            public Task DispatchAsync(IEnumerable<Aegis.SharedKernel.DomainEvent> domainEvents, CancellationToken cancellationToken = default)
+            {
+                return Task.CompletedTask;
+            }
         }
     }
 }
