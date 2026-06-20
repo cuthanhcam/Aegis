@@ -318,16 +318,10 @@ export function AssertionsPage() {
   };
 
   return (
-    <Card>
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        <div>
-          <Typography.Title level={4} style={{ marginBottom: 4 }}>
-            Assertions
-          </Typography.Title>
-          <Typography.Text type="secondary">Run assertion suites against model versions in the active store.</Typography.Text>
-        </div>
-
-        <Space wrap>
+    <div className="page-surface">
+      <section className="page-section">
+        <div className="page-toolbar">
+          <div className="page-toolbar-main">
           <Select
             showSearch
             style={{ width: 460 }}
@@ -337,10 +331,23 @@ export function AssertionsPage() {
             options={(modelsQuery.data ?? []).map((m) => ({ value: m.id, label: `${m.id} (${m.schemaVersion})` }))}
             onChange={(value) => setAuthorizationModelId(value)}
           />
-          <Button disabled={!canLoad} onClick={() => assertionsQuery.refetch()}>
-            Load
-          </Button>
-        </Space>
+            <Button disabled={!canLoad} onClick={() => assertionsQuery.refetch()}>
+              Load
+            </Button>
+          </div>
+          <div className="page-toolbar-actions">
+            <Button type="primary" disabled={!canSave} loading={writeMutation.isPending} onClick={handleSave}>
+              Save
+            </Button>
+            <Button
+              disabled={!authorizationModelId.trim()}
+              loading={runAssertionsMutation.isPending}
+              onClick={() => runAssertionsMutation.mutate({ activeStoreId, authorizationModelId })}
+            >
+              Run Suite
+            </Button>
+          </div>
+        </div>
 
         <JsonEditor
           value={assertionsJson}
@@ -350,70 +357,64 @@ export function AssertionsPage() {
           schema={ASSERTION_SCHEMA}
         />
 
-        <Space wrap>
-          <Button type="primary" disabled={!canSave} loading={writeMutation.isPending} onClick={handleSave}>
-            Save Assertions
-          </Button>
-          <Button
-            disabled={!authorizationModelId.trim()}
-            loading={runAssertionsMutation.isPending}
-            onClick={() => runAssertionsMutation.mutate({ activeStoreId, authorizationModelId })}
-          >
-            Run Suite
-          </Button>
-          <Button onClick={validateOnly}>Validate Only</Button>
-          <Button onClick={formatJson}>Format JSON</Button>
-          <Button icon={<DownloadOutlined />} onClick={exportJson}>
-            Export JSON
-          </Button>
-          <Upload
-            accept="application/json"
-            showUploadList={false}
-            beforeUpload={async (file) => {
-              const content = await file.text();
-              setAssertionsJson(content);
-              setJsonError('');
-              message.success('Assertions JSON loaded.');
-              return false;
-            }}
-          >
-            <Button icon={<UploadOutlined />}>Import JSON</Button>
-          </Upload>
-        </Space>
-
-        <Space wrap>
-          <Input
-            style={{ width: 220 }}
-            placeholder="new preset name"
-            value={presetName}
-            onChange={(e) => setPresetName(e.target.value)}
-          />
-          <Button disabled={!presetName.trim() || !authorizationModelId.trim()} onClick={handleSavePreset}>
-            Save Preset
-          </Button>
-          <Select
-            style={{ width: 280 }}
-            placeholder="load preset"
-            value={selectedPresetName || undefined}
-            options={presets.map((item) => ({ value: item.name, label: `${item.name} (${new Date(item.updatedAt).toLocaleString('en-US')})` }))}
-            onChange={(value) => setSelectedPresetName(value)}
-          />
-          <Button disabled={!selectedPresetName} onClick={handleLoadPreset}>
-            Load Preset
-          </Button>
-          <Popconfirm
-            title="Delete Preset?"
-            description={`This will permanently delete preset "${selectedPresetName}".`}
-            okText="Delete"
-            cancelText="Cancel"
-            okButtonProps={{ danger: true, loading: presetDeleteMutation.isPending }}
-            onConfirm={handleDeletePreset}
-          >
-            <Button danger disabled={!selectedPresetName || presetDeleteMutation.isPending}>
-              Delete Preset
-            </Button>
-          </Popconfirm>
-        </Space>
+        <details className="secondary-details">
+          <summary>Utilities and presets</summary>
+          <div className="secondary-details-body">
+            <div className="form-row">
+              <Button onClick={validateOnly}>Validate JSON</Button>
+              <Button onClick={formatJson}>Format</Button>
+              <Button icon={<DownloadOutlined />} onClick={exportJson}>
+                Export
+              </Button>
+              <Upload
+                accept="application/json"
+                showUploadList={false}
+                beforeUpload={async (file) => {
+                  const content = await file.text();
+                  setAssertionsJson(content);
+                  setJsonError('');
+                  message.success('Assertions JSON loaded.');
+                  return false;
+                }}
+              >
+                <Button icon={<UploadOutlined />}>Import</Button>
+              </Upload>
+            </div>
+            <div className="form-row">
+              <Input
+                style={{ width: 220 }}
+                placeholder="new preset name"
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+              />
+              <Button disabled={!presetName.trim() || !authorizationModelId.trim()} onClick={handleSavePreset}>
+                Save Preset
+              </Button>
+              <Select
+                style={{ width: 280 }}
+                placeholder="load preset"
+                value={selectedPresetName || undefined}
+                options={presets.map((item) => ({ value: item.name, label: `${item.name} (${new Date(item.updatedAt).toLocaleString('en-US')})` }))}
+                onChange={(value) => setSelectedPresetName(value)}
+              />
+              <Button disabled={!selectedPresetName} onClick={handleLoadPreset}>
+                Load
+              </Button>
+              <Popconfirm
+                title="Delete Preset?"
+                description={`This will permanently delete preset "${selectedPresetName}".`}
+                okText="Delete"
+                cancelText="Cancel"
+                okButtonProps={{ danger: true, loading: presetDeleteMutation.isPending }}
+                onConfirm={handleDeletePreset}
+              >
+                <Button danger disabled={!selectedPresetName || presetDeleteMutation.isPending}>
+                  Delete
+                </Button>
+              </Popconfirm>
+            </div>
+          </div>
+        </details>
 
         {jsonError ? <Alert type="error" showIcon message={jsonError} /> : null}
         {validateMessage ? <Alert type="success" showIcon message={validateMessage} /> : null}
@@ -428,7 +429,17 @@ export function AssertionsPage() {
             message={`Run complete: ${runAssertionsMutation.data.summary.passed}/${runAssertionsMutation.data.summary.total} passed`}
           />
         ) : null}
+      </section>
 
+      <section className="page-section">
+        <div className="page-toolbar">
+          <div>
+            <Typography.Text className="section-label">Run Results</Typography.Text>
+            <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
+              Latest suite result and recent run history for the selected model.
+            </Typography.Paragraph>
+          </div>
+        </div>
         {runAssertionsMutation.data ? (
           <Table
             rowKey={(_, index) => `run-result-${index}`}
@@ -463,7 +474,9 @@ export function AssertionsPage() {
               { title: 'Reason', dataIndex: 'reason', key: 'reason' },
             ]}
           />
-        ) : null}
+        ) : (
+          <Typography.Text type="secondary">Run the suite to see assertion decisions here.</Typography.Text>
+        )}
 
         {assertionRunsQuery.data?.runs.length ? (
           <Table
@@ -497,25 +510,33 @@ export function AssertionsPage() {
             ]}
           />
         ) : null}
+      </section>
 
+      <section className="page-section">
+        <div className="page-toolbar">
+          <div>
+            <Typography.Text className="section-label">Assertion Preview</Typography.Text>
+            <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
+              Review the suite before saving or running it.
+            </Typography.Paragraph>
+          </div>
+          <Segmented
+            options={[
+              { label: 'Cards', value: 'cards' },
+              { label: 'Table', value: 'table' },
+            ]}
+            value={assertionViewMode}
+            onChange={(value) => setAssertionViewMode(value as 'table' | 'cards')}
+          />
+        </div>
         {assertionRows.length === 0 ? (
           <TableEmptyState message="No assertions loaded. Load an authorization model or create assertions above." />
         ) : (
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            <Space wrap style={{ justifyContent: 'space-between', width: '100%' }}>
-              <Space wrap>
-                <Tag color="blue">Total: {assertionRows.length}</Tag>
-                <Tag color="green">Allow: {allowCount}</Tag>
-                <Tag color="red">Deny: {denyCount}</Tag>
-              </Space>
-              <Segmented
-                options={[
-                  { label: 'Cards', value: 'cards' },
-                  { label: 'Table', value: 'table' },
-                ]}
-                value={assertionViewMode}
-                onChange={(value) => setAssertionViewMode(value as 'table' | 'cards')}
-              />
+            <Space wrap>
+              <Tag color="blue">Total: {assertionRows.length}</Tag>
+              <Tag color="green">Allow: {allowCount}</Tag>
+              <Tag color="red">Deny: {denyCount}</Tag>
             </Space>
 
             {assertionViewMode === 'table' ? (
@@ -589,7 +610,10 @@ export function AssertionsPage() {
             )}
           </Space>
         )}
+      </section>
 
+      <section className="page-section page-section-soft">
+        <Typography.Text className="section-label">Backend Payloads</Typography.Text>
         {assertionsQuery.data ? (
           <JsonEditor
             readOnly
@@ -606,9 +630,7 @@ export function AssertionsPage() {
             <JsonDiffView left={selectedPresetPayload} right={assertionsJson} />
           </Space>
         ) : null}
-      </Space>
-    </Card>
+      </section>
+    </div>
   );
 }
-
-

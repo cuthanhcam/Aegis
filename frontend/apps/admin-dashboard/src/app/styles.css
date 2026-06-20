@@ -53,6 +53,11 @@ textarea {
     linear-gradient(180deg, rgb(255 51 102 / 0.035) 1px, transparent 1px),
     var(--workspace);
   background-size: 32px 32px;
+  min-width: 0;
+}
+
+.pro-shell .ant-layout {
+  min-width: 0;
 }
 
 .pro-sider {
@@ -178,7 +183,7 @@ textarea {
 }
 
 .pro-header-title {
-  min-width: 220px;
+  min-width: 0;
 }
 
 .pro-header-title .ant-typography {
@@ -204,6 +209,7 @@ textarea {
 
 .pro-header-actions {
   justify-content: flex-end;
+  min-width: 0;
 }
 
 .pro-store-select {
@@ -214,16 +220,124 @@ textarea {
   height: calc(100vh - 82px);
   padding: 18px 22px 24px;
   overflow: auto;
+  min-width: 0;
 }
 
 .ant-card {
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: none;
+  min-width: 0;
 }
 
 .ant-card > .ant-card-body {
   padding: 18px;
+  min-width: 0;
+}
+
+.page-surface {
+  display: grid;
+  gap: 14px;
+}
+
+.page-section {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.page-section-soft {
+  background: #f8fafc;
+}
+
+.page-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.page-toolbar-main,
+.page-toolbar-actions,
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.page-toolbar-main {
+  flex: 1 1 420px;
+}
+
+.page-toolbar-actions {
+  justify-content: flex-end;
+}
+
+.section-label {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.metric-tile {
+  min-height: 68px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.metric-tile .ant-statistic-title {
+  margin-bottom: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.two-pane {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: 14px;
+  align-items: start;
+}
+
+.secondary-details {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.secondary-details > summary {
+  padding: 10px 12px;
+  color: #475569;
+  cursor: pointer;
+  font-weight: 720;
+  list-style-position: inside;
+}
+
+.secondary-details-body {
+  display: grid;
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+
+.compact-code-preview {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 10px;
+  cursor: pointer;
 }
 
 .ant-card-small > .ant-card-head {
@@ -250,11 +364,32 @@ h4.ant-typography {
   max-width: 100%;
 }
 
+.ant-space-item {
+  min-width: 0;
+}
+
+.ant-row,
+.ant-col,
+.ant-tabs,
+.ant-tabs-content,
+.ant-tabs-tabpane {
+  min-width: 0;
+}
+
 .ant-input,
 .ant-select-selector,
 .ant-input-affix-wrapper {
   border-color: var(--line-strong) !important;
   border-radius: 7px !important;
+}
+
+.ant-input,
+.ant-input-number,
+.ant-input-affix-wrapper,
+.ant-select,
+.ant-picker,
+.ant-segmented {
+  max-width: 100%;
 }
 
 .ant-input:focus,
@@ -298,6 +433,18 @@ h4.ant-typography {
   border: 1px solid var(--line);
   border-radius: 8px;
   overflow: hidden;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.ant-table-wrapper .ant-table-container,
+.ant-table-wrapper .ant-table-content {
+  min-width: 0;
+}
+
+.ant-table-wrapper .ant-pagination {
+  flex-wrap: wrap;
+  row-gap: 6px;
 }
 
 .ant-table {
@@ -319,6 +466,23 @@ h4.ant-typography {
 
 .ant-table-tbody > tr:hover > td {
   background: var(--brand-soft) !important;
+}
+
+.ant-tabs-nav {
+  margin-bottom: 12px !important;
+}
+
+.ant-tabs-nav-wrap {
+  min-width: 0;
+}
+
+.ant-drawer-content-wrapper {
+  max-width: 100vw;
+}
+
+.ant-drawer-body {
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .ant-descriptions-bordered .ant-descriptions-item-label {
@@ -533,6 +697,7 @@ h4.ant-typography {
   border: 1px solid var(--line);
   border-radius: 8px;
   overflow: hidden;
+  min-width: 0;
 }
 
 .json-diff-pre {
@@ -562,7 +727,59 @@ h4.ant-typography {
   display: block;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1440px) {
+  .pro-sider {
+    width: 208px !important;
+    min-width: 208px !important;
+    max-width: 208px !important;
+    flex: 0 0 208px !important;
+  }
+
+  .pro-brand {
+    min-height: 60px;
+    padding: 12px;
+  }
+
+  .pro-header {
+    min-height: 72px;
+    padding: 10px 16px;
+    gap: 12px;
+  }
+
+  .pro-header-title h3.ant-typography {
+    font-size: 19px;
+    line-height: 24px;
+  }
+
+  .pro-store-select {
+    width: min(300px, 34vw);
+  }
+
+  .pro-content {
+    height: calc(100vh - 72px);
+    padding: 14px 16px 18px;
+  }
+
+  .ant-card > .ant-card-body {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 1320px) {
+  .pro-route-description {
+    display: none;
+  }
+
+  .pro-header-actions .ant-tag {
+    display: none;
+  }
+
+  .pro-store-select {
+    width: min(260px, 30vw);
+  }
+}
+
+@media (max-width: 1180px) {
   .pro-shell {
     display: block;
   }
@@ -597,5 +814,73 @@ h4.ant-typography {
     height: auto;
     min-height: calc(100vh - 82px);
     padding: 14px;
+  }
+
+  .metrics-strip,
+  .two-pane {
+    grid-template-columns: 1fr;
+  }
+
+  .page-toolbar,
+  .page-toolbar-actions,
+  .page-toolbar-main {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .page-toolbar-actions > *,
+  .page-toolbar-main > *,
+  .form-row > * {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    font-size: 12px;
+  }
+
+  .pro-brand {
+    min-height: 56px;
+  }
+
+  .pro-header-title h3.ant-typography {
+    font-size: 17px;
+    line-height: 22px;
+  }
+
+  .pro-route-description,
+  .pro-sider-context {
+    display: none;
+  }
+
+  .pro-menu {
+    padding: 4px 6px 8px;
+  }
+
+  .pro-menu .ant-menu-item {
+    height: 34px;
+  }
+
+  .pro-content {
+    padding: 10px;
+  }
+
+  .page-section {
+    padding: 10px;
+  }
+
+  .ant-card-small > .ant-card-body,
+  .ant-card > .ant-card-body {
+    padding: 10px;
+  }
+
+  .ant-table {
+    font-size: 12px;
+  }
+
+  .ant-drawer-header,
+  .ant-drawer-body {
+    padding: 12px !important;
   }
 }
