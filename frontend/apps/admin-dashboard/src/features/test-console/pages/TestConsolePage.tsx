@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Col, Input, Popconfirm, Row, Segmented, Select, Space, Table, Tabs, Tooltip, Typography, message } from 'antd';
+import { useCallback } from 'react';
 import { CopyOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/app/providers/useAuth';
@@ -212,7 +213,7 @@ export function TestConsolePage() {
     writeHistory(next);
   };
 
-  const parseAdvancedPayload = () => {
+  const parseAdvancedPayload = useCallback(() => {
     const contextualTuples = JSON.parse(contextualTuplesJson) as Array<{
       subject: string;
       relation: string;
@@ -225,7 +226,7 @@ export function TestConsolePage() {
       contextualTuples: Array.isArray(contextualTuples) && contextualTuples.length > 0 ? contextualTuples : undefined,
       context: Object.keys(context).length > 0 ? context : undefined,
     };
-  };
+  }, [contextJson, contextualTuplesJson]);
 
   const validateOnly = () => {
     setValidateMessage('');
@@ -316,6 +317,44 @@ export function TestConsolePage() {
   const errors = useMemo(() => {
     return [checkMutation.error, explainMutation.error, batchMutation.error].filter(Boolean) as Error[];
   }, [checkMutation.error, explainMutation.error, batchMutation.error]);
+
+  const requestPreview = useMemo(() => {
+    try {
+      const advanced = parseAdvancedPayload();
+      return {
+        user,
+        relation,
+        object: objectValue,
+        consistency: consistency || undefined,
+        authorizationModelId: authorizationModelId || undefined,
+        contextualTuples: advanced.contextualTuples,
+        context: advanced.context,
+      };
+    } catch {
+      return {
+        user,
+        relation,
+        object: objectValue,
+        consistency: consistency || undefined,
+        authorizationModelId: authorizationModelId || undefined,
+        contextualTuples: 'Invalid JSON',
+        context: 'Invalid JSON',
+      };
+    }
+  }, [authorizationModelId, consistency, objectValue, parseAdvancedPayload, relation, user]);
+
+  const resultSummary = useMemo(() => {
+    if (!result || typeof result !== 'object' || Array.isArray(result)) {
+      return null;
+    }
+
+    const payload = result as { allowed?: boolean; decision?: string; reasonCode?: string; trace?: unknown[] };
+    if (typeof payload.allowed !== 'boolean' && !payload.decision) {
+      return null;
+    }
+
+    return payload;
+  }, [result]);
 
   const contextualTuplePreview = useMemo(() => {
     try {
@@ -655,15 +694,40 @@ export function TestConsolePage() {
             key: 'result',
             label: 'Result',
             children: result ? (
-              <JsonEditor
-                readOnly
-                value={JSON.stringify(result, null, 2)}
-                onChange={() => {}}
-                height={320}
-                path={`inmemory://model/test-console-result-${activeStoreId}.json`}
-              />
+              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                {resultSummary ? (
+                  <Alert
+                    type={resultSummary.allowed ? 'success' : 'warning'}
+                    showIcon
+                    message={`Decision: ${resultSummary.decision ?? (resultSummary.allowed ? 'allow' : 'deny')}`}
+                    description={`Reason: ${resultSummary.reasonCode ?? 'n/a'}${
+                      resultSummary.trace ? ` • Trace steps: ${resultSummary.trace.length}` : ''
+                    }`}
+                  />
+                ) : null}
+                <JsonEditor
+                  readOnly
+                  value={JSON.stringify(result, null, 2)}
+                  onChange={() => {}}
+                  height={320}
+                  path={`inmemory://model/test-console-result-${activeStoreId}.json`}
+                />
+              </Space>
             ) : (
               <Typography.Text type="secondary">No result yet.</Typography.Text>
+            ),
+          },
+          {
+            key: 'request-preview',
+            label: 'Request Preview',
+            children: (
+              <JsonEditor
+                readOnly
+                value={JSON.stringify(requestPreview, null, 2)}
+                onChange={() => {}}
+                height={320}
+                path={`inmemory://model/test-console-request-${activeStoreId}.json`}
+              />
             ),
           },
           {
@@ -822,6 +886,3 @@ export function TestConsolePage() {
     </Card>
   );
 }
-
-
-

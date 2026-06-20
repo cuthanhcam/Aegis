@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react';
-import { Button, Card, Input, Popconfirm, Space, Table, Tag, Tooltip, Typography } from 'antd';
+import { Button, Card, Col, Input, Popconfirm, Row, Space, Statistic, Table, Tag, Tooltip, Typography } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/app/providers/useAuth';
 import { useActiveStore } from '@/app/providers/useActiveStore';
@@ -66,6 +66,8 @@ export function StoresPage() {
 
   const stores = storesQuery.data ?? [];
   const showEmptyState = !storesQuery.isLoading && stores.length === 0;
+  const totalModels = stores.reduce((sum, store) => sum + (store.modelCount ?? 0), 0);
+  const totalRelationships = stores.reduce((sum, store) => sum + (store.relationshipCount ?? 0), 0);
 
   return (
     <Card>
@@ -90,6 +92,29 @@ export function StoresPage() {
             Create Store
           </Button>
         </Space>
+
+        <Row gutter={[12, 12]}>
+          <Col xs={12} lg={6}>
+            <Card size="small">
+              <Statistic title="Stores" value={stores.length} loading={storesQuery.isLoading} />
+            </Card>
+          </Col>
+          <Col xs={12} lg={6}>
+            <Card size="small">
+              <Statistic title="Active store" value={activeStoreId ? 1 : 0} suffix="/ 1" />
+            </Card>
+          </Col>
+          <Col xs={12} lg={6}>
+            <Card size="small">
+              <Statistic title="Model versions" value={totalModels} loading={storesQuery.isLoading} />
+            </Card>
+          </Col>
+          <Col xs={12} lg={6}>
+            <Card size="small">
+              <Statistic title="Relationship tuples" value={totalRelationships} loading={storesQuery.isLoading} />
+            </Card>
+          </Col>
+        </Row>
 
         {storesQuery.isLoading ? (
           <TableSkeleton rows={4} columns={4} />
@@ -188,6 +213,5 @@ export function StoresPage() {
     </Card>
   );
 }
-
 
 

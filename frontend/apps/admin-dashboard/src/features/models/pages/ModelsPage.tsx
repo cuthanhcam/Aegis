@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react';
 import Editor from '@monaco-editor/react';
-import { Button, Card, Drawer, Input, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message } from 'antd';
+import { useMemo } from 'react';
+import { Alert, Button, Card, Col, Drawer, Input, Popconfirm, Row, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/app/providers/useAuth';
 import { useActiveStore } from '@/app/providers/useActiveStore';
@@ -34,6 +35,26 @@ type repo
     define parent: [org]
     define reader: [user, org#member]
     define writer: [user, org#admin]`,
+  'folder-inheritance': `type user
+
+type folder
+  relations
+    define viewer: [user]
+    define editor: [user]
+
+type document
+  relations
+    define parent: [folder]
+    define viewer: [user] or viewer from parent
+    define editor: [user] or editor from parent`,
+  'approval-gate': `type user
+
+type document
+  relations
+    define viewer: [user]
+    define allowed: [user]
+    define blocked: [user]
+    define can_view: viewer and allowed but not blocked`,
 };
 
 export function ModelsPage() {
@@ -95,6 +116,32 @@ export function ModelsPage() {
     },
   });
 
+  const modelDiagnostics = useMemo(() => {
+    const types = [...modelDsl.matchAll(/^\s*type\s+([A-Za-z0-9_]+)/gm)].map((match) => match[1]);
+    const relations = [...modelDsl.matchAll(/^\s*define\s+([A-Za-z0-9_]+)/gm)].map((match) => match[1]);
+    const directRelations = [...modelDsl.matchAll(/^\s*define\s+[A-Za-z0-9_]+:\s*\[/gm)].length;
+    const hasUnion = /\sor\s/.test(modelDsl);
+    const hasIntersection = /\sand\s/.test(modelDsl);
+    const hasExclusion = /\sbut not\s/.test(modelDsl);
+    const hasInheritance = /\sfrom\s+[A-Za-z0-9_]+/.test(modelDsl);
+    const warnings = [
+      types.length === 0 ? 'Add at least one type definition.' : '',
+      relations.length === 0 ? 'Add relations before publishing the model.' : '',
+      directRelations === 0 ? 'At least one direct assignable relation is recommended for tuple writes.' : '',
+    ].filter(Boolean);
+
+    return {
+      typeCount: new Set(types).size,
+      relationCount: relations.length,
+      directRelations,
+      hasUnion,
+      hasIntersection,
+      hasExclusion,
+      hasInheritance,
+      warnings,
+    };
+  }, [modelDsl]);
+
   if (!isAuthenticated) {
     return <AccessGate title="Authorization Models" message="Login first to manage models." />;
   }
@@ -154,6 +201,8 @@ export function ModelsPage() {
               { value: 'document-viewer', label: 'Template: Document Viewer' },
               { value: 'document-editor', label: 'Template: Document Editor' },
               { value: 'org-repo', label: 'Template: Org + Repo' },
+              { value: 'folder-inheritance', label: 'Template: Folder Inheritance' },
+              { value: 'approval-gate', label: 'Template: Approval Gate' },
             ]}
             onChange={(value) => {
               setSelectedTemplate(value);
@@ -168,6 +217,54 @@ export function ModelsPage() {
             Copy DSL
           </Button>
         </Space>
+
+        <Row gutter={[12, 12]}>
+          <Col xs={12} lg={6}>
+            <Card size="small">
+              <Statistic title="Types" value={modelDiagnostics.typeCount} />
+            </Card>
+          </Col>
+          <Col xs={12} lg={6}>
+            <Card size="small">
+              <Statistic title="Relations" value={modelDiagnostics.relationCount} />
+            </Card>
+          </Col>
+          <Col xs={12} lg={6}>
+            <Card size="small">
+              <Statistic title="Direct writes" value={modelDiagnostics.directRelations} />
+            </Card>
+          </Col>
+          <Col xs={12} lg={6}>
+            <Card size="small">
+              <Space wrap size={[6, 6]}>
+                {modelDiagnostics.hasUnion ? <Tag color="processing">union</Tag> : null}
+                {modelDiagnostics.hasIntersection ? <Tag color="processing">intersection</Tag> : null}
+                {modelDiagnostics.hasExclusion ? <Tag color="processing">exclusion</Tag> : null}
+                {modelDiagnostics.hasInheritance ? <Tag color="processing">inheritance</Tag> : null}
+                {!modelDiagnostics.hasUnion
+                  && !modelDiagnostics.hasIntersection
+                  && !modelDiagnostics.hasExclusion
+                  && !modelDiagnostics.hasInheritance ? <Tag>direct only</Tag> : null}
+              </Space>
+            </Card>
+          </Col>
+        </Row>
+
+        {modelDiagnostics.warnings.length > 0 ? (
+          <Alert
+            type="warning"
+            showIcon
+            message="Model readiness checks"
+            description={modelDiagnostics.warnings.join(' ')}
+          />
+        ) : (
+          <Alert
+            type="success"
+            showIcon
+            message="Model has publishable structure"
+            description="The DSL includes types, relations, and at least one direct assignable relation for tuple writes."
+          />
+        )}
 
         <div className="json-editor-wrap">
           <Editor
@@ -403,6 +500,3 @@ export function ModelsPage() {
     </Card>
   );
 }
-
-
-
