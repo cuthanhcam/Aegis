@@ -14,7 +14,8 @@ namespace Aegis.Infrastructure.Authorization
 
         public async Task<string?> GetLatestModelAsync(string storeId, CancellationToken cancellationToken = default)
         {
-            var model = await _registry.GetLatestAsync(storeId, cancellationToken);
+            var model = await _registry.GetPublishedAsync(storeId, cancellationToken)
+                ?? await _registry.GetLatestAsync(storeId, cancellationToken);
             return model?.Model;
         }
 

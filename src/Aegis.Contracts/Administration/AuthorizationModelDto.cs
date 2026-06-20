@@ -1,5 +1,14 @@
 namespace Aegis.Contracts.Administration
 {
+    public static class AuthorizationModelLifecycleStates
+    {
+        public const string Draft = "Draft";
+        public const string Validated = "Validated";
+        public const string Published = "Published";
+        public const string Archived = "Archived";
+        public const string Deprecated = "Deprecated";
+    }
+
     /// <summary>
     /// Request payload for creating a new authorization model.
     /// </summary>
@@ -15,7 +24,43 @@ namespace Aegis.Contracts.Administration
         string StoreId,
         string SchemaVersion,
         string Model,
-        DateTimeOffset CreatedAt);
+        DateTimeOffset CreatedAt,
+        string State = AuthorizationModelLifecycleStates.Draft,
+        DateTimeOffset? PublishedAt = null,
+        DateTimeOffset? ArchivedAt = null,
+        string? SupersededBy = null);
+
+    public sealed record PublishAuthorizationModelResponseDto(
+        AuthorizationModelDto PublishedModel,
+        string ActiveModelId,
+        string Version);
+
+    public sealed record RollbackAuthorizationModelResponseDto(
+        AuthorizationModelDto ActiveModel,
+        string ActiveModelId,
+        string RolledBackFromModelId);
+
+    public sealed record AuthorizationModelDiffDto(
+        string LeftModelId,
+        string RightModelId,
+        IReadOnlyList<string> AddedTypes,
+        IReadOnlyList<string> RemovedTypes,
+        IReadOnlyList<string> ChangedTypes,
+        IReadOnlyList<AuthorizationModelRelationDiffDto> AddedRelations,
+        IReadOnlyList<AuthorizationModelRelationDiffDto> RemovedRelations,
+        IReadOnlyList<AuthorizationModelRelationChangeDto> ChangedRelations,
+        IReadOnlyList<string> BreakingChangeHints);
+
+    public sealed record AuthorizationModelRelationDiffDto(
+        string Type,
+        string Relation,
+        string Expression);
+
+    public sealed record AuthorizationModelRelationChangeDto(
+        string Type,
+        string Relation,
+        string LeftExpression,
+        string RightExpression);
 
     /// <summary>
     /// Validation request payload for an authorization model draft.

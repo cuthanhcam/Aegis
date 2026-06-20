@@ -85,6 +85,76 @@ namespace Aegis.Api.Controllers
             return this.OkResponse(result);
         }
 
+        [HttpPost("{authorizationModelId}/publish")]
+        [ProducesResponseType(typeof(ApiResponse<PublishAuthorizationModelResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<PublishAuthorizationModelResponseDto>), StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ApiResponse<PublishAuthorizationModelResponseDto>>> Publish(
+            [FromRoute] string storeId,
+            [FromRoute] string authorizationModelId,
+            CancellationToken cancellationToken)
+        {
+            var storeAccess = await TenantAccessGuard.ValidateStoreTenantAsync<PublishAuthorizationModelResponseDto>(this, _storeRegistry, storeId, cancellationToken);
+            if (storeAccess is not null)
+            {
+                return storeAccess;
+            }
+
+            var result = await _authorizationModelAppService.PublishAsync(storeId, authorizationModelId, cancellationToken);
+            if (result is null)
+            {
+                return this.NotFoundResponse<PublishAuthorizationModelResponseDto>("AUTHORIZATION_MODEL_NOT_FOUND", $"Authorization model '{authorizationModelId}' was not found.");
+            }
+
+            return this.OkResponse(result);
+        }
+
+        [HttpPost("{authorizationModelId}/rollback")]
+        [ProducesResponseType(typeof(ApiResponse<RollbackAuthorizationModelResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<RollbackAuthorizationModelResponseDto>), StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ApiResponse<RollbackAuthorizationModelResponseDto>>> Rollback(
+            [FromRoute] string storeId,
+            [FromRoute] string authorizationModelId,
+            CancellationToken cancellationToken)
+        {
+            var storeAccess = await TenantAccessGuard.ValidateStoreTenantAsync<RollbackAuthorizationModelResponseDto>(this, _storeRegistry, storeId, cancellationToken);
+            if (storeAccess is not null)
+            {
+                return storeAccess;
+            }
+
+            var result = await _authorizationModelAppService.RollbackAsync(storeId, authorizationModelId, cancellationToken);
+            if (result is null)
+            {
+                return this.NotFoundResponse<RollbackAuthorizationModelResponseDto>("AUTHORIZATION_MODEL_NOT_FOUND", $"Authorization model '{authorizationModelId}' was not found.");
+            }
+
+            return this.OkResponse(result);
+        }
+
+        [HttpGet("{leftAuthorizationModelId}/diff/{rightAuthorizationModelId}")]
+        [ProducesResponseType(typeof(ApiResponse<AuthorizationModelDiffDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<AuthorizationModelDiffDto>), StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ApiResponse<AuthorizationModelDiffDto>>> Diff(
+            [FromRoute] string storeId,
+            [FromRoute] string leftAuthorizationModelId,
+            [FromRoute] string rightAuthorizationModelId,
+            CancellationToken cancellationToken)
+        {
+            var storeAccess = await TenantAccessGuard.ValidateStoreTenantAsync<AuthorizationModelDiffDto>(this, _storeRegistry, storeId, cancellationToken);
+            if (storeAccess is not null)
+            {
+                return storeAccess;
+            }
+
+            var result = await _authorizationModelAppService.DiffAsync(storeId, leftAuthorizationModelId, rightAuthorizationModelId, cancellationToken);
+            if (result is null)
+            {
+                return this.NotFoundResponse<AuthorizationModelDiffDto>("AUTHORIZATION_MODEL_NOT_FOUND", "One or both authorization models were not found.");
+            }
+
+            return this.OkResponse(result);
+        }
+
         [HttpPost]
         [ProducesResponseType(typeof(ApiResponse<AuthorizationModelDto>), StatusCodes.Status201Created)]
         public async Task<ActionResult<ApiResponse<AuthorizationModelDto>>> Create(

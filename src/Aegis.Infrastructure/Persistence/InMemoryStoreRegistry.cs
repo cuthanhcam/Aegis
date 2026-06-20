@@ -128,10 +128,22 @@ namespace Aegis.Infrastructure.Persistence
         {
             var latest = _models.Values
                 .Where(x => x.StoreId == storeId)
-                .OrderByDescending(x => x.CreatedAt)
+                .OrderByDescending(x => x.State == AuthorizationModelLifecycleStates.Published)
+                .ThenByDescending(x => x.PublishedAt ?? x.CreatedAt)
+                .ThenByDescending(x => x.CreatedAt)
                 .FirstOrDefault();
 
             return Task.FromResult(latest);
+        }
+
+        public Task<AuthorizationModelDto?> GetPublishedAsync(string storeId, CancellationToken cancellationToken = default)
+        {
+            var published = _models.Values
+                .Where(x => x.StoreId == storeId && x.State == AuthorizationModelLifecycleStates.Published)
+                .OrderByDescending(x => x.PublishedAt ?? x.CreatedAt)
+                .FirstOrDefault();
+
+            return Task.FromResult(published);
         }
 
         public Task<AuthorizationModelDto?> GetByIdAsync(string storeId, string authorizationModelId, CancellationToken cancellationToken = default)
@@ -157,6 +169,39 @@ namespace Aegis.Infrastructure.Persistence
             {
                 SchemaVersion = schemaVersion,
                 Model = model,
+                State = current.State == AuthorizationModelLifecycleStates.Published
+                    ? AuthorizationModelLifecycleStates.Deprecated
+                    : AuthorizationModelLifecycleStates.Draft,
+                PublishedAt = current.State == AuthorizationModelLifecycleStates.Published ? current.PublishedAt : null,
+                ArchivedAt = null,
+                SupersededBy = null,
+            };
+
+            _models[key] = updated;
+            return Task.FromResult<AuthorizationModelDto?>(updated);
+        }
+
+        public Task<AuthorizationModelDto?> UpdateStateAsync(
+            string storeId,
+            string authorizationModelId,
+            string state,
+            DateTimeOffset? publishedAt,
+            DateTimeOffset? archivedAt,
+            string? supersededBy,
+            CancellationToken cancellationToken = default)
+        {
+            var key = $"{storeId}:{authorizationModelId}";
+            if (!_models.TryGetValue(key, out var current))
+            {
+                return Task.FromResult<AuthorizationModelDto?>(null);
+            }
+
+            var updated = current with
+            {
+                State = state,
+                PublishedAt = publishedAt,
+                ArchivedAt = archivedAt,
+                SupersededBy = supersededBy,
             };
 
             _models[key] = updated;
@@ -176,7 +221,11 @@ namespace Aegis.Infrastructure.Persistence
                 authorizationModel.StoreId,
                 authorizationModel.SchemaVersion,
                 authorizationModel.Model,
-                authorizationModel.CreatedAt);
+                authorizationModel.CreatedAt,
+                authorizationModel.State,
+                authorizationModel.PublishedAt,
+                authorizationModel.ArchivedAt,
+                authorizationModel.SupersededBy);
 
             _models[$"{authorizationModel.StoreId}:{authorizationModel.Id}"] = dto;
             return Task.CompletedTask;
@@ -187,7 +236,7 @@ namespace Aegis.Infrastructure.Persistence
             IReadOnlyList<AuthorizationModel> models = _models.Values
                 .Where(x => x.StoreId == storeId)
                 .OrderByDescending(x => x.CreatedAt)
-                .Select(x => AuthorizationModel.Rehydrate(x.Id, x.StoreId, x.SchemaVersion, x.Model, x.CreatedAt))
+                .Select(ToAggregate)
                 .ToList();
 
             return Task.FromResult(models);
@@ -202,9 +251,15 @@ namespace Aegis.Infrastructure.Persistence
 
             var model = latest is null
                 ? null
-                : AuthorizationModel.Rehydrate(latest.Id, latest.StoreId, latest.SchemaVersion, latest.Model, latest.CreatedAt);
+                : ToAggregate(latest);
 
             return Task.FromResult(model);
+        }
+
+        Task<AuthorizationModel?> IAuthorizationModelRepository.GetPublishedByStoreAsync(string storeId, CancellationToken cancellationToken)
+        {
+            return GetPublishedAsync(storeId, cancellationToken)
+                .ContinueWith(task => task.Result is null ? null : ToAggregate(task.Result), cancellationToken);
         }
 
         Task<AuthorizationModel?> IAuthorizationModelRepository.GetByIdAsync(string storeId, string authorizationModelId, CancellationToken cancellationToken)
@@ -212,7 +267,7 @@ namespace Aegis.Infrastructure.Persistence
             _models.TryGetValue($"{storeId}:{authorizationModelId}", out var dto);
             var model = dto is null
                 ? null
-                : AuthorizationModel.Rehydrate(dto.Id, dto.StoreId, dto.SchemaVersion, dto.Model, dto.CreatedAt);
+                : ToAggregate(dto);
 
             return Task.FromResult(model);
         }
@@ -229,11 +284,95 @@ namespace Aegis.Infrastructure.Persistence
             {
                 SchemaVersion = authorizationModel.SchemaVersion,
                 Model = authorizationModel.Model,
+                State = authorizationModel.State,
+                PublishedAt = authorizationModel.PublishedAt,
+                ArchivedAt = authorizationModel.ArchivedAt,
+                SupersededBy = authorizationModel.SupersededBy,
             };
 
             _models[key] = updated;
-            return Task.FromResult<AuthorizationModel?>(
-                AuthorizationModel.Rehydrate(updated.Id, updated.StoreId, updated.SchemaVersion, updated.Model, updated.CreatedAt));
+            return Task.FromResult<AuthorizationModel?>(ToAggregate(updated));
+        }
+
+        Task<IReadOnlyList<AuthorizationModel>> IAuthorizationModelRepository.PublishAsync(
+            string storeId,
+            string authorizationModelId,
+            CancellationToken cancellationToken)
+        {
+            var now = DateTimeOffset.UtcNow;
+            var updated = new List<AuthorizationModel>();
+            foreach (var item in _models.Values.Where(x => x.StoreId == storeId).ToList())
+            {
+                var key = $"{item.StoreId}:{item.Id}";
+                AuthorizationModelDto next;
+                if (item.Id.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase))
+                {
+                    next = item with
+                    {
+                        State = AuthorizationModelLifecycleStates.Published,
+                        PublishedAt = now,
+                        ArchivedAt = null,
+                        SupersededBy = null,
+                    };
+                }
+                else if (item.State == AuthorizationModelLifecycleStates.Published)
+                {
+                    next = item with
+                    {
+                        State = AuthorizationModelLifecycleStates.Archived,
+                        ArchivedAt = now,
+                        SupersededBy = authorizationModelId,
+                    };
+                }
+                else
+                {
+                    continue;
+                }
+
+                _models[key] = next;
+                updated.Add(ToAggregate(next));
+            }
+
+            return Task.FromResult<IReadOnlyList<AuthorizationModel>>(updated);
+        }
+
+        Task<AuthorizationModel?> IAuthorizationModelRepository.RollbackAsync(
+            string storeId,
+            string authorizationModelId,
+            CancellationToken cancellationToken)
+        {
+            var targetKey = $"{storeId}:{authorizationModelId}";
+            if (!_models.TryGetValue(targetKey, out var target))
+            {
+                return Task.FromResult<AuthorizationModel?>(null);
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            foreach (var item in _models.Values.Where(x => x.StoreId == storeId).ToList())
+            {
+                var key = $"{item.StoreId}:{item.Id}";
+                if (item.Id.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase))
+                {
+                    _models[key] = item with
+                    {
+                        State = AuthorizationModelLifecycleStates.Published,
+                        PublishedAt = now,
+                        ArchivedAt = null,
+                        SupersededBy = null,
+                    };
+                }
+                else if (item.State == AuthorizationModelLifecycleStates.Published)
+                {
+                    _models[key] = item with
+                    {
+                        State = AuthorizationModelLifecycleStates.Archived,
+                        ArchivedAt = now,
+                        SupersededBy = authorizationModelId,
+                    };
+                }
+            }
+
+            return Task.FromResult<AuthorizationModel?>(ToAggregate(_models[targetKey]));
         }
 
         Task<bool> IAuthorizationModelRepository.DeleteAsync(AuthorizationModel authorizationModel, CancellationToken cancellationToken)
@@ -244,6 +383,20 @@ namespace Aegis.Infrastructure.Persistence
         private static string NewUlidLikeId()
         {
             return Convert.ToBase64String(Guid.NewGuid().ToByteArray()).Replace("=", string.Empty).Replace("+", "A").Replace("/", "B");
+        }
+
+        private static AuthorizationModel ToAggregate(AuthorizationModelDto dto)
+        {
+            return AuthorizationModel.Rehydrate(
+                dto.Id,
+                dto.StoreId,
+                dto.SchemaVersion,
+                dto.Model,
+                dto.CreatedAt,
+                dto.State,
+                dto.PublishedAt,
+                dto.ArchivedAt,
+                dto.SupersededBy);
         }
     }
 }

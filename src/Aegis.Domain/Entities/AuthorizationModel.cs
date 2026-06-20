@@ -16,6 +16,14 @@ namespace Aegis.Domain.Entities
 
         public DateTimeOffset CreatedAt { get; private init; }
 
+        public string State { get; private set; } = DraftState;
+
+        public DateTimeOffset? PublishedAt { get; private set; }
+
+        public DateTimeOffset? ArchivedAt { get; private set; }
+
+        public string? SupersededBy { get; private set; }
+
         private AuthorizationModel()
         {
             // For serializers/ORM tools.
@@ -26,13 +34,21 @@ namespace Aegis.Domain.Entities
             string storeId,
             string schemaVersion,
             string model,
-            DateTimeOffset createdAt)
+            DateTimeOffset createdAt,
+            string state = DraftState,
+            DateTimeOffset? publishedAt = null,
+            DateTimeOffset? archivedAt = null,
+            string? supersededBy = null)
             : base(id)
         {
             StoreId = NormalizeStoreId(storeId);
             SchemaVersion = NormalizeSchemaVersion(schemaVersion);
             Model = NormalizeModel(model);
             CreatedAt = createdAt;
+            State = NormalizeState(state);
+            PublishedAt = publishedAt;
+            ArchivedAt = archivedAt;
+            SupersededBy = string.IsNullOrWhiteSpace(supersededBy) ? null : supersededBy.Trim();
         }
 
         /// <summary>
@@ -57,14 +73,18 @@ namespace Aegis.Domain.Entities
             string storeId,
             string schemaVersion,
             string model,
-            DateTimeOffset createdAt)
+            DateTimeOffset createdAt,
+            string state = DraftState,
+            DateTimeOffset? publishedAt = null,
+            DateTimeOffset? archivedAt = null,
+            string? supersededBy = null)
         {
             if (string.IsNullOrWhiteSpace(id))
             {
                 throw new ArgumentException("authorizationModelId is required.", nameof(id));
             }
 
-            return new AuthorizationModel(id.Trim(), storeId, schemaVersion, model, createdAt);
+            return new AuthorizationModel(id.Trim(), storeId, schemaVersion, model, createdAt, state, publishedAt, archivedAt, supersededBy);
         }
 
         /// <summary>
@@ -75,6 +95,31 @@ namespace Aegis.Domain.Entities
             SchemaVersion = NormalizeSchemaVersion(schemaVersion);
             Model = NormalizeModel(model);
             RaiseDomainEvent(new AuthorizationModelUpdatedDomainEvent(Id, StoreId, SchemaVersion, DateTimeOffset.UtcNow));
+        }
+
+        public void MarkValidated()
+        {
+            State = ValidatedState;
+        }
+
+        public void MarkPublished()
+        {
+            State = PublishedState;
+            PublishedAt = DateTimeOffset.UtcNow;
+            ArchivedAt = null;
+            SupersededBy = null;
+        }
+
+        public void MarkArchived(string supersededBy)
+        {
+            if (string.IsNullOrWhiteSpace(supersededBy))
+            {
+                throw new ArgumentException("supersededBy is required.", nameof(supersededBy));
+            }
+
+            State = ArchivedState;
+            ArchivedAt = DateTimeOffset.UtcNow;
+            SupersededBy = supersededBy.Trim();
         }
 
         /// <summary>
@@ -121,9 +166,36 @@ namespace Aegis.Domain.Entities
             return model.Trim();
         }
 
+        private static string NormalizeState(string state)
+        {
+            if (string.IsNullOrWhiteSpace(state))
+            {
+                return DraftState;
+            }
+
+            var normalized = state.Trim();
+            var allowed = new[]
+            {
+                DraftState,
+                ValidatedState,
+                PublishedState,
+                ArchivedState,
+                DeprecatedState,
+            };
+
+            return allowed.FirstOrDefault(x => x.Equals(normalized, StringComparison.OrdinalIgnoreCase))
+                ?? throw new ArgumentException($"Unsupported authorization model state '{state}'.", nameof(state));
+        }
+
         private static string NewUlidLikeId()
         {
             return Convert.ToBase64String(Guid.NewGuid().ToByteArray()).Replace("=", string.Empty).Replace("+", "A").Replace("/", "B");
         }
+
+        private const string DraftState = "Draft";
+        private const string ValidatedState = "Validated";
+        private const string PublishedState = "Published";
+        private const string ArchivedState = "Archived";
+        private const string DeprecatedState = "Deprecated";
     }
 }

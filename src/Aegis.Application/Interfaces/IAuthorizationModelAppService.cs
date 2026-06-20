@@ -26,6 +26,22 @@ public interface IAuthorizationModelAppService
         string authorizationModelId,
         CancellationToken cancellationToken = default);
 
+    Task<PublishAuthorizationModelResponseDto?> PublishAsync(
+        string storeId,
+        string authorizationModelId,
+        CancellationToken cancellationToken = default);
+
+    Task<RollbackAuthorizationModelResponseDto?> RollbackAsync(
+        string storeId,
+        string authorizationModelId,
+        CancellationToken cancellationToken = default);
+
+    Task<AuthorizationModelDiffDto?> DiffAsync(
+        string storeId,
+        string leftAuthorizationModelId,
+        string rightAuthorizationModelId,
+        CancellationToken cancellationToken = default);
+
     Task<AuthorizationModelDto?> UpdateAsync(
         string storeId,
         string authorizationModelId,
