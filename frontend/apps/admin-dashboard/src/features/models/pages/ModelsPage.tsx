@@ -1,7 +1,8 @@
 ﻿import { useState } from 'react';
 import Editor from '@monaco-editor/react';
 import { useMemo } from 'react';
-import { Alert, Button, Card, Col, Drawer, Input, Popconfirm, Row, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message } from 'antd';
+import { Alert, Button, Col, Drawer, Dropdown, Input, Modal, Row, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message } from 'antd';
+import { MoreOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AuthorizationModelDiff, AuthorizationModelValidationResult } from '@aegis/types/src/model';
 import { useAuth } from '@/app/providers/useAuth';
@@ -252,132 +253,155 @@ export function ModelsPage() {
   };
 
   return (
-    <Card>
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        <div>
-          <Typography.Title level={4} style={{ marginBottom: 4 }}>
-            Authorization Models
-          </Typography.Title>
-          <Typography.Text type="secondary">Build authorization models for store: {activeStoreId}</Typography.Text>
+    <div className="page-surface">
+      <section className="page-section">
+        <div className="page-toolbar">
+          <div className="page-toolbar-main">
+            <Input
+              style={{ width: 140 }}
+              value={schemaVersion}
+              onChange={(e) => setSchemaVersion(e.target.value)}
+              placeholder="schema version"
+              addonBefore="Schema"
+            />
+            <Select
+              style={{ minWidth: 260 }}
+              value={selectedTemplate}
+              options={[
+                { value: 'document-viewer', label: 'Template: Document Viewer' },
+                { value: 'document-editor', label: 'Template: Document Editor' },
+                { value: 'org-repo', label: 'Template: Org + Repo' },
+                { value: 'folder-inheritance', label: 'Template: Folder Inheritance' },
+                { value: 'approval-gate', label: 'Template: Approval Gate' },
+              ]}
+              onChange={(value) => {
+                setSelectedTemplate(value);
+                setModelDsl(MODEL_TEMPLATES[value]);
+                setValidationResult(null);
+              }}
+            />
+          </div>
+          <div className="page-toolbar-actions">
+            <Button
+              onClick={() => validateModelMutation.mutate()}
+              loading={validateModelMutation.isPending}
+              disabled={!schemaVersion.trim() || !modelDsl.trim()}
+            >
+              Validate
+            </Button>
+            <Button
+              type="primary"
+              onClick={() => createModelMutation.mutate()}
+              loading={createModelMutation.isPending}
+              disabled={!schemaVersion.trim() || !modelDsl.trim() || validationResult?.valid === false}
+            >
+              Create Version
+            </Button>
+            <Dropdown
+              trigger={['click']}
+              menu={{
+                items: [
+                  { key: 'copy', label: 'Copy DSL' },
+                ],
+                onClick: async ({ key }) => {
+                  if (key === 'copy') {
+                    await navigator.clipboard.writeText(modelDsl);
+                    message.success('Model DSL copied.');
+                  }
+                },
+              }}
+            >
+              <Button icon={<MoreOutlined />} />
+            </Dropdown>
+          </div>
         </div>
 
-        <Space align="center" wrap>
-          <Typography.Text strong>Schema Version</Typography.Text>
-          <Input
-            style={{ width: 220 }}
-            value={schemaVersion}
-            onChange={(e) => setSchemaVersion(e.target.value)}
-            placeholder="schema version"
-          />
-        </Space>
+        <div className="two-pane">
+          <div className="json-editor-wrap">
+            <Editor
+              path={`inmemory://model/openfga-model-${activeStoreId || 'draft'}.fga`}
+              height={360}
+              defaultLanguage="yaml"
+              theme="vs"
+              value={modelDsl}
+              onChange={(next) => {
+                setModelDsl(next ?? '');
+                setValidationResult(null);
+              }}
+              options={{
+                minimap: { enabled: false },
+                wordWrap: 'on',
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                lineNumbers: 'on',
+                lineNumbersMinChars: 4,
+                renderLineHighlight: 'line',
+                fontSize: 13,
+                fontFamily: APP_CODE_FONT_FAMILY,
+                lineHeight: 20,
+                tabSize: 2,
+                formatOnPaste: false,
+                formatOnType: false,
+              }}
+            />
+          </div>
+          <div className="page-section page-section-soft">
+            <Typography.Text className="section-label">Draft Summary</Typography.Text>
+            <div className="metrics-strip" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+              <div className="metric-tile"><Statistic title="Types" value={modelDiagnostics.typeCount} /></div>
+              <div className="metric-tile"><Statistic title="Relations" value={modelDiagnostics.relationCount} /></div>
+              <div className="metric-tile"><Statistic title="Direct writes" value={modelDiagnostics.directRelations} /></div>
+              <div className="metric-tile">
+                <Space wrap size={[6, 6]}>
+                  {modelDiagnostics.hasUnion ? <Tag color="processing">union</Tag> : null}
+                  {modelDiagnostics.hasIntersection ? <Tag color="processing">intersection</Tag> : null}
+                  {modelDiagnostics.hasExclusion ? <Tag color="processing">exclusion</Tag> : null}
+                  {modelDiagnostics.hasInheritance ? <Tag color="processing">inheritance</Tag> : null}
+                  {!modelDiagnostics.hasUnion
+                    && !modelDiagnostics.hasIntersection
+                    && !modelDiagnostics.hasExclusion
+                    && !modelDiagnostics.hasInheritance ? <Tag>direct</Tag> : null}
+                </Space>
+              </div>
+            </div>
+            {modelDiagnostics.warnings.length > 0 ? (
+              <Alert type="warning" showIcon message="Needs review" description={modelDiagnostics.warnings.join(' ')} />
+            ) : (
+              <Alert type="success" showIcon message="Ready to validate" />
+            )}
+          </div>
+        </div>
 
-        <Space wrap>
-          <Select
-            style={{ width: 280 }}
-            value={selectedTemplate}
-            options={[
-              { value: 'document-viewer', label: 'Template: Document Viewer' },
-              { value: 'document-editor', label: 'Template: Document Editor' },
-              { value: 'org-repo', label: 'Template: Org + Repo' },
-              { value: 'folder-inheritance', label: 'Template: Folder Inheritance' },
-              { value: 'approval-gate', label: 'Template: Approval Gate' },
-            ]}
-            onChange={(value) => {
-              setSelectedTemplate(value);
-              setModelDsl(MODEL_TEMPLATES[value]);
-              setValidationResult(null);
-            }}
-          />
-          <Button
-            onClick={async () => {
-              await navigator.clipboard.writeText(modelDsl);
-            }}
-          >
-            Copy DSL
-          </Button>
-          <Button
-            onClick={() => validateModelMutation.mutate()}
-            loading={validateModelMutation.isPending}
-            disabled={!schemaVersion.trim() || !modelDsl.trim()}
-          >
-            Validate Model
-          </Button>
-        </Space>
-
-        <Space wrap align="center">
-          <Typography.Text strong>Compare Versions</Typography.Text>
-          <Select
-            showSearch
-            placeholder="Base model"
-            style={{ width: 240 }}
-            value={leftDiffModelId || undefined}
-            options={modelOptions}
-            onChange={setLeftDiffModelId}
-          />
-          <Select
-            showSearch
-            placeholder="Candidate model"
-            style={{ width: 240 }}
-            value={rightDiffModelId || undefined}
-            options={modelOptions}
-            onChange={setRightDiffModelId}
-          />
-          <Button
-            disabled={!leftDiffModelId || !rightDiffModelId || leftDiffModelId === rightDiffModelId}
-            loading={diffModelMutation.isPending}
-            onClick={() => diffModelMutation.mutate()}
-          >
-            View Diff
-          </Button>
-        </Space>
-
-        <Row gutter={[12, 12]}>
-          <Col xs={12} lg={6}>
-            <Card size="small">
-              <Statistic title="Types" value={modelDiagnostics.typeCount} />
-            </Card>
-          </Col>
-          <Col xs={12} lg={6}>
-            <Card size="small">
-              <Statistic title="Relations" value={modelDiagnostics.relationCount} />
-            </Card>
-          </Col>
-          <Col xs={12} lg={6}>
-            <Card size="small">
-              <Statistic title="Direct writes" value={modelDiagnostics.directRelations} />
-            </Card>
-          </Col>
-          <Col xs={12} lg={6}>
-            <Card size="small">
-              <Space wrap size={[6, 6]}>
-                {modelDiagnostics.hasUnion ? <Tag color="processing">union</Tag> : null}
-                {modelDiagnostics.hasIntersection ? <Tag color="processing">intersection</Tag> : null}
-                {modelDiagnostics.hasExclusion ? <Tag color="processing">exclusion</Tag> : null}
-                {modelDiagnostics.hasInheritance ? <Tag color="processing">inheritance</Tag> : null}
-                {!modelDiagnostics.hasUnion
-                  && !modelDiagnostics.hasIntersection
-                  && !modelDiagnostics.hasExclusion
-                  && !modelDiagnostics.hasInheritance ? <Tag>direct only</Tag> : null}
-              </Space>
-            </Card>
-          </Col>
-        </Row>
-
-        {modelDiagnostics.warnings.length > 0 ? (
-          <Alert
-            type="warning"
-            showIcon
-            message="Model readiness checks"
-            description={modelDiagnostics.warnings.join(' ')}
-          />
-        ) : (
-          <Alert
-            type="success"
-            showIcon
-            message="Model has publishable structure"
-            description="The DSL includes types, relations, and at least one direct assignable relation for tuple writes."
-          />
-        )}
+        <details className="secondary-details">
+          <summary>Compare model versions</summary>
+          <div className="secondary-details-body">
+            <div className="form-row">
+              <Select
+                showSearch
+                placeholder="Base model"
+                style={{ minWidth: 240 }}
+                value={leftDiffModelId || undefined}
+                options={modelOptions}
+                onChange={setLeftDiffModelId}
+              />
+              <Select
+                showSearch
+                placeholder="Candidate model"
+                style={{ minWidth: 240 }}
+                value={rightDiffModelId || undefined}
+                options={modelOptions}
+                onChange={setRightDiffModelId}
+              />
+              <Button
+                disabled={!leftDiffModelId || !rightDiffModelId || leftDiffModelId === rightDiffModelId}
+                loading={diffModelMutation.isPending}
+                onClick={() => diffModelMutation.mutate()}
+              >
+                View Diff
+              </Button>
+            </div>
+          </div>
+        </details>
 
         {validationResult ? (
           <Alert
@@ -403,44 +427,17 @@ export function ModelsPage() {
             )}
           />
         ) : null}
+      </section>
 
-        <div className="json-editor-wrap">
-          <Editor
-            path={`inmemory://model/openfga-model-${activeStoreId || 'draft'}.fga`}
-            height={300}
-            defaultLanguage="yaml"
-            theme="vs"
-            value={modelDsl}
-            onChange={(next) => {
-              setModelDsl(next ?? '');
-              setValidationResult(null);
-            }}
-            options={{
-              minimap: { enabled: false },
-              wordWrap: 'on',
-              scrollBeyondLastLine: false,
-              automaticLayout: true,
-              lineNumbers: 'on',
-              lineNumbersMinChars: 4,
-              renderLineHighlight: 'line',
-              fontSize: 13,
-              fontFamily: APP_CODE_FONT_FAMILY,
-              lineHeight: 20,
-              tabSize: 2,
-              formatOnPaste: false,
-              formatOnType: false,
-            }}
-          />
+      <section className="page-section">
+        <div className="page-toolbar">
+          <div>
+            <Typography.Text className="section-label">Model Versions</Typography.Text>
+            <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
+              Publish, roll back, or inspect versions for the active store.
+            </Typography.Paragraph>
+          </div>
         </div>
-
-        <Button
-          type="primary"
-          onClick={() => createModelMutation.mutate()}
-          loading={createModelMutation.isPending}
-          disabled={!schemaVersion.trim() || !modelDsl.trim() || validationResult?.valid === false}
-        >
-          Create Model Version
-        </Button>
 
         <Table
           rowKey="id"
@@ -542,59 +539,63 @@ export function ModelsPage() {
               title: 'Actions',
               key: 'actions',
               render: (_, row) => (
-                <Space>
-                  <Button
-                    size="small"
-                    type={row.state === 'Published' ? 'default' : 'primary'}
-                    disabled={row.state === 'Published' || publishModelMutation.isPending}
-                    loading={publishModelMutation.isPending}
-                    onClick={() => publishModelMutation.mutate(row.id)}
-                  >
-                    Publish
-                  </Button>
-                  <Popconfirm
-                    title="Rollback active model?"
-                    description="This model will become the active published version."
-                    okText="Rollback"
-                    cancelText="Cancel"
-                    onConfirm={() => rollbackModelMutation.mutate(row.id)}
-                  >
-                    <Button
-                      size="small"
-                      disabled={row.state === 'Published' || rollbackModelMutation.isPending}
-                      loading={rollbackModelMutation.isPending}
-                    >
-                      Rollback
-                    </Button>
-                  </Popconfirm>
-                  <Button
-                    size="small"
-                    onClick={() => {
-                      setEditingModelId(row.id);
-                      setEditSchemaVersion(row.schemaVersion);
-                      setEditModelDsl(row.model);
-                      setEditDrawerOpen(true);
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <Popconfirm
-                    title="Delete Model?"
-                    description="This will permanently delete this authorization model."
-                    okText="Delete"
-                    cancelText="Cancel"
-                    okButtonProps={{ danger: true, loading: deleteModelMutation.isPending }}
-                    onConfirm={() => deleteModelMutation.mutate(row.id)}
-                  >
-                    <Button size="small" danger disabled={deleteModelMutation.isPending}>
-                      Delete
-                    </Button>
-                  </Popconfirm>
-                </Space>
+                <Dropdown
+                  trigger={['click']}
+                  menu={{
+                    items: [
+                      {
+                        key: 'publish',
+                        label: 'Publish',
+                        disabled: row.state === 'Published' || publishModelMutation.isPending,
+                      },
+                      {
+                        key: 'rollback',
+                        label: 'Rollback to this version',
+                        disabled: row.state === 'Published' || rollbackModelMutation.isPending,
+                      },
+                      { key: 'edit', label: 'Edit DSL' },
+                      { key: 'delete', label: 'Delete', danger: true, disabled: deleteModelMutation.isPending },
+                    ],
+                    onClick: ({ key }) => {
+                      if (key === 'publish') {
+                        publishModelMutation.mutate(row.id);
+                      }
+
+                      if (key === 'rollback') {
+                        Modal.confirm({
+                          title: 'Rollback active model?',
+                          content: 'This model will become the active published version.',
+                          okText: 'Rollback',
+                          onOk: () => rollbackModelMutation.mutate(row.id),
+                        });
+                      }
+
+                      if (key === 'edit') {
+                        setEditingModelId(row.id);
+                        setEditSchemaVersion(row.schemaVersion);
+                        setEditModelDsl(row.model);
+                        setEditDrawerOpen(true);
+                      }
+
+                      if (key === 'delete') {
+                        Modal.confirm({
+                          title: 'Delete model?',
+                          content: 'This will permanently delete this authorization model.',
+                          okText: 'Delete',
+                          okButtonProps: { danger: true },
+                          onOk: () => deleteModelMutation.mutate(row.id),
+                        });
+                      }
+                    },
+                  }}
+                >
+                  <Button size="small" icon={<MoreOutlined />} />
+                </Dropdown>
               ),
             },
           ]}
         />
+      </section>
 
         <Drawer
           title="Model Diff"
@@ -728,7 +729,6 @@ export function ModelsPage() {
         {createModelMutation.error ? (
           <Typography.Text type="danger">{(createModelMutation.error as Error).message}</Typography.Text>
         ) : null}
-      </Space>
-    </Card>
+    </div>
   );
 }
