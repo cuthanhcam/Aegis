@@ -3,7 +3,7 @@
 Fast commands for the current API shape. All examples assume:
 
 ```bash
-BASE=http://localhost:5000/api/v1
+BASE=http://localhost:5271/api/v1
 TOKEN=<access-token>
 TENANT=tenant-a
 STORE=<store-id>
@@ -63,7 +63,7 @@ curl -X POST "$BASE/stores/$STORE/authorization-models" \
   -H "Content-Type: application/json" \
   -d '{
     "schemaVersion": "1.1",
-    "dsl": "type user\ntype document\n  define viewer: [user]"
+    "model": "type user\ntype document\n  define viewer: [user]"
   }'
 ```
 
@@ -75,7 +75,7 @@ curl -X POST "$BASE/stores/$STORE/authorization-models/validate" \
   -H "Content-Type: application/json" \
   -d '{
     "schemaVersion": "1.1",
-    "dsl": "type user\ntype document\n  define viewer: [user]"
+    "model": "type user\ntype document\n  define viewer: [user]"
   }'
 ```
 
@@ -377,14 +377,14 @@ curl "$BASE/metrics/authorization" \
 ```
 
 ```bash
-curl http://localhost:5000/metrics
+curl http://localhost:5271/metrics
 ```
 
 ## Health
 
 ```bash
-curl http://localhost:5000/health/live
-curl http://localhost:5000/health/ready
+curl http://localhost:5271/health/live
+curl http://localhost:5271/health/ready
 ```
 
 ## Common Decision Codes
@@ -410,4 +410,4 @@ curl http://localhost:5000/health/ready
 - [API Reference](api-reference.md)
 - [Core Concepts](../concepts/core-concepts-tuple-model.md)
 - [Getting Started](../guides/getting-started-development.md)
-- [Deployment Guide](../guides/deployment-operations-guide.md)
+- [Deployment Guide](../operations/deployment.md)
