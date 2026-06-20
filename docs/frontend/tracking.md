@@ -1,6 +1,6 @@
 # Frontend Tracking
 
-Last updated: 2026-05-23
+Last updated: 2026-06-20
 
 ## Status
 
@@ -8,13 +8,14 @@ Last updated: 2026-05-23
 | --------------------- | ----------- | ---------------------------------------------------------------------------------- |
 | Workspace review      | Done        | Reference frontend exists under `temp/Aegis-refactor/frontend`.                    |
 | Backend mapping       | Done        | API client and management/store routes are aligned with the live backend contract. |
-| UI shell              | In progress | Shell is stable; route config manifest introduced for easier growth.               |
+| UI shell              | Done        | Shell, Aegis logo asset, route manifest, and active store workspace are in place.  |
 | Design tokens         | Not started | Need a formal density, typography, and color token system.                         |
 | Shared design system  | In progress | Shared package exists; next step is extracting repeated table/form primitives.     |
 | Enterprise tables     | Not started | Data tables need filtering, sorting, bulk actions, and saved views.                |
 | Realtime data flow    | Not started | Keep deferred until event transport strategy is finalized.                         |
 | Command palette       | Not started | Global search and keyboard-first navigation still need implementation.             |
-| Explain visualization | Not started | Check/explain should become a first-class operational UX.                          |
+| Explain visualization | Done        | Test Console has decision summary, trace timeline, and batch correlation tables.   |
+| Graph visualization   | Done        | Graph Explorer renders expand results as a tree with node/user statistics.         |
 
 ## Work To Do
 
@@ -41,7 +42,7 @@ Last updated: 2026-05-23
 8. Add permission-aware UI guards and admin-only action handling.
 9. Add realtime refresh for audit and relationship events.
 10. Promote repeated UI patterns into shared packages.
-11. Add explain visualization and graph-based permission exploration.
+11. Add explain visualization and graph-based permission exploration. Done for the current API surface.
 
 ## Backend Contract Notes
 
@@ -51,7 +52,16 @@ Last updated: 2026-05-23
 - graph and admin views need to respect current backend route names exactly
 - the frontend should treat live backend permissions as the source of truth for UI access
 
-## Recently Completed (2026-05-23)
+## Recently Completed (2026-06-20)
+
+- aligned API reference and quick reference with the live store-scoped backend routes
+- documented OpenFGA-compatible check, batch-check, and graph endpoints
+- added OpenFGA-compatible check and batch-check actions to Test Console
+- added decision summaries, trace timeline, native batch table, and OpenFGA batch table to Test Console
+- added expand tree visualization and graph statistics to Graph Explorer
+- switched sidebar and favicon to the supplied Aegis SVG asset
+
+## Previously Completed (2026-05-23)
 
 - exposed backend endpoints for:
     - assign role to user
@@ -65,9 +75,7 @@ Last updated: 2026-05-23
 
 ## Known Gaps In The Reference Frontend
 
-- some client paths are still based on the refactor workspace and must be audited against the live backend
 - the shared UI package currently looks thin and needs real reusable primitives
 - realtime transport is not yet implemented
 - search and command palette behavior is still mostly a design requirement rather than a complete feature
 - there is no completed tokens/density standard yet
-- explain/check trace visualization still needs design and implementation work

@@ -33,26 +33,6 @@ namespace Aegis.Api.Security
             return null;
         }
 
-        public static ActionResult<T>? ValidateRouteTenantResult<T>(ControllerBase controller, string routeTenantId)
-        {
-            var tenantId = ResolveTenantId(controller.User);
-            if (string.IsNullOrWhiteSpace(tenantId))
-            {
-                return controller.StatusCode(
-                    StatusCodes.Status403Forbidden,
-                    new AegisCompatErrorResponseDto("tenant_forbidden", "Tenant claim is required."));
-            }
-
-            if (!tenantId.Equals(routeTenantId, StringComparison.OrdinalIgnoreCase))
-            {
-                return controller.StatusCode(
-                    StatusCodes.Status403Forbidden,
-                    new AegisCompatErrorResponseDto("tenant_forbidden", "Tenant claim does not match the requested tenant."));
-            }
-
-            return null;
-        }
-
         public static ActionResult<ApiResponse<T>>? ValidateContextTenant<T>(ControllerBase controller, string? queryTenantId, string? contextualTenantId)
         {
             if (!string.IsNullOrWhiteSpace(queryTenantId)

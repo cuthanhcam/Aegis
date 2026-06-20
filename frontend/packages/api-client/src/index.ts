@@ -96,6 +96,10 @@ export class AegisApiClient {
     return tenantId;
   }
 
+  private encodeStoreId(storeId: string): string {
+    return encodeURIComponent(storeId);
+  }
+
   private async toError(response: Response): Promise<Error> {
     const text = await response.text();
     if (!text) {
@@ -264,18 +268,18 @@ export class AegisApiClient {
   }
 
   async deleteStore(storeId: string): Promise<string> {
-    return this.request<string>(`/stores/${storeId}`, { method: 'DELETE' });
+    return this.request<string>(`/stores/${this.encodeStoreId(storeId)}`, { method: 'DELETE' });
   }
 
   async listAuthorizationModels(storeId: string): Promise<AuthorizationModel[]> {
-    return this.request<AuthorizationModel[]>(`/stores/${storeId}/authorization-models`);
+    return this.request<AuthorizationModel[]>(`/stores/${this.encodeStoreId(storeId)}/authorization-models`);
   }
 
   async createAuthorizationModel(
     storeId: string,
     request: CreateAuthorizationModelRequest,
   ): Promise<AuthorizationModel> {
-    return this.request<AuthorizationModel>(`/stores/${storeId}/authorization-models`, {
+    return this.request<AuthorizationModel>(`/stores/${this.encodeStoreId(storeId)}/authorization-models`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -285,7 +289,7 @@ export class AegisApiClient {
     storeId: string,
     request: ValidateAuthorizationModelRequest,
   ): Promise<AuthorizationModelValidationResult> {
-    return this.request<AuthorizationModelValidationResult>(`/stores/${storeId}/authorization-models/validate`, {
+    return this.request<AuthorizationModelValidationResult>(`/stores/${this.encodeStoreId(storeId)}/authorization-models/validate`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -296,14 +300,14 @@ export class AegisApiClient {
     authorizationModelId: string,
     request: UpdateAuthorizationModelRequest,
   ): Promise<AuthorizationModel> {
-    return this.request<AuthorizationModel>(`/stores/${storeId}/authorization-models/${authorizationModelId}`, {
+    return this.request<AuthorizationModel>(`/stores/${this.encodeStoreId(storeId)}/authorization-models/${encodeURIComponent(authorizationModelId)}`, {
       method: 'PUT',
       body: JSON.stringify(request),
     });
   }
 
   async deleteAuthorizationModel(storeId: string, authorizationModelId: string): Promise<string> {
-    return this.request<string>(`/stores/${storeId}/authorization-models/${authorizationModelId}`, {
+    return this.request<string>(`/stores/${this.encodeStoreId(storeId)}/authorization-models/${encodeURIComponent(authorizationModelId)}`, {
       method: 'DELETE',
     });
   }
@@ -316,53 +320,53 @@ export class AegisApiClient {
       effect: query?.effect,
     });
 
-    return this.request<RelationshipTuple[]>(`/stores/${storeId}/relationships${qs}`);
+    return this.request<RelationshipTuple[]>(`/stores/${this.encodeStoreId(storeId)}/relationships${qs}`);
   }
 
   async upsertRelationship(storeId: string, request: RelationshipWriteRequest): Promise<string> {
-    return this.request<string>(`/stores/${storeId}/relationships`, {
+    return this.request<string>(`/stores/${this.encodeStoreId(storeId)}/relationships`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
   }
 
   async deleteRelationship(storeId: string, request: RelationshipDeleteRequest): Promise<string> {
-    return this.request<string>(`/stores/${storeId}/relationships`, {
+    return this.request<string>(`/stores/${this.encodeStoreId(storeId)}/relationships`, {
       method: 'DELETE',
       body: JSON.stringify(request),
     });
   }
 
   async checkInStore(storeId: string, request: StoreCheckRequest): Promise<CheckResult> {
-    return this.request<CheckResult>(`/stores/${storeId}/check`, {
+    return this.request<CheckResult>(`/stores/${this.encodeStoreId(storeId)}/check`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
   }
 
   async explainInStore(storeId: string, request: StoreCheckRequest): Promise<CheckResult> {
-    return this.request<CheckResult>(`/stores/${storeId}/explain`, {
+    return this.request<CheckResult>(`/stores/${this.encodeStoreId(storeId)}/explain`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
   }
 
   async listUsersInStore(storeId: string, request: ListUsersRequest): Promise<ListUsersResponse> {
-    return this.request<ListUsersResponse>(`/stores/${storeId}/graph/list-users`, {
+    return this.request<ListUsersResponse>(`/stores/${this.encodeStoreId(storeId)}/graph/list-users`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
   }
 
   async listObjectsInStore(storeId: string, request: ListObjectsRequest): Promise<ListObjectsResponse> {
-    return this.request<ListObjectsResponse>(`/stores/${storeId}/graph/list-objects`, {
+    return this.request<ListObjectsResponse>(`/stores/${this.encodeStoreId(storeId)}/graph/list-objects`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
   }
 
   async expandInStore(storeId: string, request: ExpandRequest): Promise<ExpandNode> {
-    return this.request<ExpandNode>(`/stores/${storeId}/graph/expand`, {
+    return this.request<ExpandNode>(`/stores/${this.encodeStoreId(storeId)}/graph/expand`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -372,7 +376,7 @@ export class AegisApiClient {
     storeId: string,
     items: BatchCheckItemRequest[],
   ): Promise<BatchCheckResponse> {
-    return this.request<BatchCheckResponse>(`/stores/${storeId}/batch-check`, {
+    return this.request<BatchCheckResponse>(`/stores/${this.encodeStoreId(storeId)}/batch-check`, {
       method: 'POST',
       body: JSON.stringify({
         items,
@@ -381,7 +385,7 @@ export class AegisApiClient {
   }
 
   async checkCompatInStore(storeId: string, request: OpenFgaCheckRequest): Promise<OpenFgaCheckResponse> {
-    return this.requestRaw<OpenFgaCheckResponse>(`/stores/${storeId}/check/compat`, {
+    return this.requestRaw<OpenFgaCheckResponse>(`/stores/${this.encodeStoreId(storeId)}/check/compat`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -391,7 +395,7 @@ export class AegisApiClient {
     storeId: string,
     request: OpenFgaBatchCheckRequest,
   ): Promise<OpenFgaBatchCheckResponse> {
-    return this.requestRaw<OpenFgaBatchCheckResponse>(`/stores/${storeId}/batch-check/compat`, {
+    return this.requestRaw<OpenFgaBatchCheckResponse>(`/stores/${this.encodeStoreId(storeId)}/batch-check/compat`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -404,7 +408,7 @@ export class AegisApiClient {
       type: params?.type,
     });
 
-    return this.request<ReadChangesResponse>(`/stores/${storeId}/relationships/changes${qs}`);
+    return this.request<ReadChangesResponse>(`/stores/${this.encodeStoreId(storeId)}/relationships/changes${qs}`);
   }
 
   async readAuditEvents(params?: { action?: string; decision?: string }): Promise<AuditEvent[]> {
@@ -419,7 +423,7 @@ export class AegisApiClient {
 
   async readAssertions(storeId: string, authorizationModelId: string) {
     return this.request<ReadAssertionsResponse>(
-      `/stores/${storeId}/assertions/${authorizationModelId}`,
+      `/stores/${this.encodeStoreId(storeId)}/assertions/${encodeURIComponent(authorizationModelId)}`,
     );
   }
 
@@ -428,7 +432,7 @@ export class AegisApiClient {
     authorizationModelId: string,
     request: WriteAssertionsRequest,
   ): Promise<void> {
-    await this.request<string>(`/stores/${storeId}/assertions/${authorizationModelId}`, {
+    await this.request<string>(`/stores/${this.encodeStoreId(storeId)}/assertions/${encodeURIComponent(authorizationModelId)}`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -439,9 +443,20 @@ export class AegisApiClient {
     return this.request<Role[]>(`/tenants/${encodeURIComponent(tenantId)}/roles`);
   }
 
+  async listStoreRoles(storeId: string): Promise<Role[]> {
+    return this.request<Role[]>(`/stores/${this.encodeStoreId(storeId)}/roles`);
+  }
+
   async createRole(request: CreateRoleRequest): Promise<string> {
     const tenantId = this.resolveTenantId();
     return this.request<string>(`/tenants/${encodeURIComponent(tenantId)}/roles`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  async createStoreRole(storeId: string, request: CreateRoleRequest): Promise<string> {
+    return this.request<string>(`/stores/${this.encodeStoreId(storeId)}/roles`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -455,9 +470,20 @@ export class AegisApiClient {
     });
   }
 
+  async assignStorePermissionToRole(storeId: string, request: AssignPermissionToRoleRequest): Promise<string> {
+    return this.request<string>(`/stores/${this.encodeStoreId(storeId)}/roles/assign-permission`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
   async listPermissions(): Promise<Permission[]> {
     const tenantId = this.resolveTenantId();
     return this.request<Permission[]>(`/tenants/${encodeURIComponent(tenantId)}/permissions`);
+  }
+
+  async listStorePermissions(storeId: string): Promise<Permission[]> {
+    return this.request<Permission[]>(`/stores/${this.encodeStoreId(storeId)}/permissions`);
   }
 
   async createPermission(request: CreatePermissionRequest): Promise<string> {
@@ -468,9 +494,23 @@ export class AegisApiClient {
     });
   }
 
+  async createStorePermission(storeId: string, request: CreatePermissionRequest): Promise<string> {
+    return this.request<string>(`/stores/${this.encodeStoreId(storeId)}/permissions`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
   async assignRoleToUser(userId: string, request: AssignRoleToUserRequest): Promise<string> {
     const tenantId = this.resolveTenantId();
     return this.request<string>(`/tenants/${encodeURIComponent(tenantId)}/users/${encodeURIComponent(userId)}/roles`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  async assignStoreRoleToUser(storeId: string, userId: string, request: AssignRoleToUserRequest): Promise<string> {
+    return this.request<string>(`/stores/${this.encodeStoreId(storeId)}/users/${encodeURIComponent(userId)}/roles`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -507,6 +547,10 @@ export class AegisApiClient {
   async getUserRoles(userId: string): Promise<UserRoles> {
     const tenantId = this.resolveTenantId();
     return this.request<UserRoles>(`/tenants/${encodeURIComponent(tenantId)}/users/${encodeURIComponent(userId)}/roles`);
+  }
+
+  async getStoreUserRoles(storeId: string, userId: string): Promise<UserRoles> {
+    return this.request<UserRoles>(`/stores/${this.encodeStoreId(storeId)}/users/${encodeURIComponent(userId)}/roles`);
   }
 
   async listPresets(params?: { storeId?: string; source?: PresetSource; scope?: string }): Promise<PresetItem[]> {

@@ -51,13 +51,17 @@ builder.Services
     });
 builder.Services.AddAegisApplication();
 builder.Services.AddAegisInfrastructure(builder.Configuration);
-builder.Services.AddHttpLogging(options =>
+var httpLoggingEnabled = builder.Configuration.GetSection("Logging:Http").GetValue<bool>("Enabled");
+if (httpLoggingEnabled)
 {
-    options.LoggingFields = HttpLoggingFields.RequestMethod
-        | HttpLoggingFields.RequestPath
-        | HttpLoggingFields.ResponseStatusCode
-        | HttpLoggingFields.Duration;
-});
+    builder.Services.AddHttpLogging(options =>
+    {
+        options.LoggingFields = HttpLoggingFields.RequestMethod
+            | HttpLoggingFields.RequestPath
+            | HttpLoggingFields.ResponseStatusCode
+            | HttpLoggingFields.Duration;
+    });
+}
 builder.Services.AddOptions<AuthOptions>()
     .BindConfiguration("Auth")
     .Validate(options => options.DemoUsers is { Count: > 0 }, "Auth:DemoUsers configuration is missing.")
@@ -210,13 +214,16 @@ if (args.Any(arg => string.Equals(arg, "--migrate-only", StringComparison.Ordina
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseHttpLogging();
+    if (httpLoggingEnabled)
+    {
+        app.UseHttpLogging();
+    }
+
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
 // Middleware Pipeline
-app.UseMiddleware<ExceptionMiddleware>();
 app.UseCors("FrontendDev");
 app.UseHttpsRedirection();
 app.UseRouting();
@@ -224,6 +231,7 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<TenantContextMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
+app.UseMiddleware<ExceptionMiddleware>();
 app.UseAuthorization();
 
 // Liveness & readiness endpoints

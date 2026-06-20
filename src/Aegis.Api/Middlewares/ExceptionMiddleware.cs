@@ -60,6 +60,7 @@ namespace Aegis.Api.Middlewares
         /// </summary>
         private static Task WriteErrorAsync(HttpContext context, int statusCode, string code, string message)
         {
+            context.Items["Aegis.ErrorCode"] = code;
             context.Response.StatusCode = statusCode;
             context.Response.ContentType = "application/json";
 

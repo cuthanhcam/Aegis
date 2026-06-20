@@ -8,15 +8,17 @@ type UpdateUserPayload = {
   displayName?: string;
 };
 
-export function useAccessQueries(selectedUserId: string | null) {
+export function useAccessQueries(activeStoreId: string, selectedUserId: string | null) {
   const rolesQuery = useQuery({
-    queryKey: ['roles'],
-    queryFn: () => apiClient.listRoles(),
+    queryKey: ['stores', activeStoreId, 'roles'],
+    queryFn: () => apiClient.listStoreRoles(activeStoreId),
+    enabled: Boolean(activeStoreId),
   });
 
   const permissionsQuery = useQuery({
-    queryKey: ['permissions'],
-    queryFn: () => apiClient.listPermissions(),
+    queryKey: ['stores', activeStoreId, 'permissions'],
+    queryFn: () => apiClient.listStorePermissions(activeStoreId),
+    enabled: Boolean(activeStoreId),
   });
 
   const usersQuery = useQuery({
@@ -25,9 +27,9 @@ export function useAccessQueries(selectedUserId: string | null) {
   });
 
   const userRolesQuery = useQuery({
-    queryKey: ['users', selectedUserId, 'roles'],
-    queryFn: () => apiClient.getUserRoles(selectedUserId as string),
-    enabled: Boolean(selectedUserId),
+    queryKey: ['stores', activeStoreId, 'users', selectedUserId, 'roles'],
+    queryFn: () => apiClient.getStoreUserRoles(activeStoreId, selectedUserId as string),
+    enabled: Boolean(activeStoreId && selectedUserId),
   });
 
   return {
@@ -38,14 +40,14 @@ export function useAccessQueries(selectedUserId: string | null) {
   };
 }
 
-export function useAccessMutations(selectedUserId: string | null) {
+export function useAccessMutations(activeStoreId: string, selectedUserId: string | null) {
   const queryClient = useQueryClient();
   const notification = useNotification();
 
   const createRoleMutation = useMutation({
-    mutationFn: (payload: { name: string; description?: string }) => apiClient.createRole(payload),
+    mutationFn: (payload: { name: string; description?: string }) => apiClient.createStoreRole(activeStoreId, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['roles'] });
+      queryClient.invalidateQueries({ queryKey: ['stores', activeStoreId, 'roles'] });
       notification.success('Role created.');
     },
     onError: (error: unknown) => {
@@ -54,9 +56,9 @@ export function useAccessMutations(selectedUserId: string | null) {
   });
 
   const createPermissionMutation = useMutation({
-    mutationFn: (payload: { relation: string; object: string }) => apiClient.createPermission(payload),
+    mutationFn: (payload: { relation: string; object: string }) => apiClient.createStorePermission(activeStoreId, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['stores', activeStoreId, 'permissions'] });
       notification.success('Permission created.');
     },
     onError: (error: unknown) => {
@@ -65,10 +67,10 @@ export function useAccessMutations(selectedUserId: string | null) {
   });
 
   const assignPermissionMutation = useMutation({
-    mutationFn: (payload: { roleName: string; relation: string; object: string }) => apiClient.assignPermissionToRole(payload),
+    mutationFn: (payload: { roleName: string; relation: string; object: string }) => apiClient.assignStorePermissionToRole(activeStoreId, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['permissions'] });
-      queryClient.invalidateQueries({ queryKey: ['roles'] });
+      queryClient.invalidateQueries({ queryKey: ['stores', activeStoreId, 'permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['stores', activeStoreId, 'roles'] });
       notification.success('Permission assigned to role.');
     },
     onError: (error: unknown) => {
@@ -78,11 +80,11 @@ export function useAccessMutations(selectedUserId: string | null) {
 
   const assignUserRoleMutation = useMutation({
     mutationFn: (payload: { userId: string; roleName: string }) =>
-      apiClient.assignRoleToUser(payload.userId, { roleName: payload.roleName }),
+      apiClient.assignStoreRoleToUser(activeStoreId, payload.userId, { roleName: payload.roleName }),
     onSuccess: (_, payload) => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       if (selectedUserId && selectedUserId === payload.userId) {
-        queryClient.invalidateQueries({ queryKey: ['users', selectedUserId, 'roles'] });
+        queryClient.invalidateQueries({ queryKey: ['stores', activeStoreId, 'users', selectedUserId, 'roles'] });
       }
       notification.success('Role assigned to user.');
     },
@@ -111,7 +113,7 @@ export function useAccessMutations(selectedUserId: string | null) {
     onSuccess: (_, payload) => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       if (selectedUserId && selectedUserId === payload.userId) {
-        queryClient.invalidateQueries({ queryKey: ['users', selectedUserId, 'roles'] });
+        queryClient.invalidateQueries({ queryKey: ['stores', activeStoreId, 'users', selectedUserId, 'roles'] });
       }
       notification.success('User updated.');
     },

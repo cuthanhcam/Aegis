@@ -87,6 +87,29 @@ public sealed class StoreGraphSuccessPathTests
         Assert.False(string.IsNullOrWhiteSpace(payload.Data.Kind));
     }
 
+    [Fact]
+    public async Task ListUsers_returns_support_ticket_viewers_for_support_store_shape()
+    {
+        await using var factory = new TestApiFactory();
+        var seed = await SeedSupportGraphDataAsync(factory.AppServices);
+
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, seed.TenantId);
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/v1/stores/{seed.StoreId}/graph/list-users",
+            new ListUsersRequestDto("viewer", "ticket:INC-1001", AuthorizationModelId: seed.AuthorizationModelId));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<ListUsersResponseDto>>(JsonOptions);
+        Assert.NotNull(payload);
+        Assert.True(payload!.Success);
+        Assert.NotNull(payload.Data);
+        Assert.Contains("user:agent1", payload.Data!.Users);
+    }
+
     private static async Task<(string TenantId, string StoreId, string AuthorizationModelId)> SeedGraphDataAsync(IServiceProvider services)
     {
         const string tenantId = "tenant-a";
@@ -107,6 +130,37 @@ public sealed class StoreGraphSuccessPathTests
         await relationshipStore.UpsertAsync(
             tenantId,
             new RelationshipTuple(new Subject("user:anne"), "viewer", new ObjectRef("document:roadmap"), RelationshipEffect.Allow, DateTimeOffset.UtcNow),
+            CancellationToken.None,
+            storeId: store.Id);
+
+        return (tenantId, store.Id, authorizationModel.Id);
+    }
+
+    private static async Task<(string TenantId, string StoreId, string AuthorizationModelId)> SeedSupportGraphDataAsync(IServiceProvider services)
+    {
+        const string tenantId = "tenant-a";
+        const string model = """
+            type user
+            type queue
+              define manager: [user]
+              define agent: [user]
+              define viewer: [user] or agent or manager
+            type ticket
+              define assignee: [user]
+              define viewer: [user] or assignee
+            """;
+
+        using var scope = services.CreateScope();
+        var storeRegistry = scope.ServiceProvider.GetRequiredService<IStoreRegistry>();
+        var modelRegistry = scope.ServiceProvider.GetRequiredService<IAuthorizationModelRegistry>();
+        var relationshipStore = scope.ServiceProvider.GetRequiredService<IRelationshipStore>();
+
+        var store = await storeRegistry.CreateForTenantAsync(tenantId, "support-graph-store");
+        var authorizationModel = await modelRegistry.CreateAsync(store.Id, "1.1", model);
+
+        await relationshipStore.UpsertAsync(
+            tenantId,
+            new RelationshipTuple(new Subject("user:agent1"), "assignee", new ObjectRef("ticket:INC-1001"), RelationshipEffect.Allow, DateTimeOffset.UtcNow),
             CancellationToken.None,
             storeId: store.Id);
 

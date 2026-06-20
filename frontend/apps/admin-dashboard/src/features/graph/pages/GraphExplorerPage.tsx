@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Col, Input, Row, Select, Space, Statistic, Table, Tabs, Tag, Tree, Typography } from 'antd';
 import type { TreeProps } from 'antd';
 import { useMutation } from '@tanstack/react-query';
@@ -12,6 +12,78 @@ const CONSISTENCY_OPTIONS = [
   { value: 'fully_consistent', label: 'fully_consistent' },
   { value: 'minimize_latency', label: 'minimize_latency' },
 ];
+
+type GraphPreset = {
+  usersRelation: string;
+  usersObject: string;
+  objectsUser: string;
+  objectsRelation: string;
+  objectsType: string;
+  expandRelation: string;
+  expandObject: string;
+};
+
+function getGraphPreset(storeId: string): GraphPreset {
+  const normalized = storeId.toLowerCase();
+
+  if (normalized.includes('support')) {
+    return {
+      usersRelation: 'viewer',
+      usersObject: 'ticket:INC-1001',
+      objectsUser: 'user:agent1',
+      objectsRelation: 'viewer',
+      objectsType: 'ticket',
+      expandRelation: 'viewer',
+      expandObject: 'ticket:INC-1001',
+    };
+  }
+
+  if (normalized.includes('billing')) {
+    return {
+      usersRelation: 'viewer',
+      usersObject: 'account:acme',
+      objectsUser: 'user:finance',
+      objectsRelation: 'viewer',
+      objectsType: 'account',
+      expandRelation: 'viewer',
+      expandObject: 'account:acme',
+    };
+  }
+
+  if (normalized.includes('analytics')) {
+    return {
+      usersRelation: 'viewer',
+      usersObject: 'dashboard:quality',
+      objectsUser: 'user:intern',
+      objectsRelation: 'viewer',
+      objectsType: 'dashboard',
+      expandRelation: 'viewer',
+      expandObject: 'dashboard:quality',
+    };
+  }
+
+  if (normalized.includes('lab') || normalized.includes('dev')) {
+    return {
+      usersRelation: 'viewer',
+      usersObject: 'project:aegis-lab',
+      objectsUser: 'user:intern',
+      objectsRelation: 'viewer',
+      objectsType: 'project',
+      expandRelation: 'viewer',
+      expandObject: 'project:aegis-lab',
+    };
+  }
+
+  return {
+    usersRelation: 'viewer',
+    usersObject: 'document:roadmap',
+    objectsUser: 'user:anne',
+    objectsRelation: 'viewer',
+    objectsType: 'document',
+    expandRelation: 'viewer',
+    expandObject: 'document:roadmap',
+  };
+}
 
 function countExpandNodes(node: ExpandNode): number {
   return 1 + node.children.reduce((total, child) => total + countExpandNodes(child), 0);
@@ -112,6 +184,24 @@ export function GraphExplorerPage() {
   const expandTreeData = useMemo(() => (expandResult ? [buildExpandTreeData(expandResult)] : []), [expandResult]);
   const expandNodeCount = useMemo(() => (expandResult ? countExpandNodes(expandResult) : 0), [expandResult]);
   const expandUserCount = useMemo(() => (expandResult ? countExpandUsers(expandResult) : 0), [expandResult]);
+
+  useEffect(() => {
+    if (!activeStoreId) {
+      return;
+    }
+
+    const preset = getGraphPreset(activeStoreId);
+    setUsersRelation(preset.usersRelation);
+    setUsersObject(preset.usersObject);
+    setObjectsUser(preset.objectsUser);
+    setObjectsRelation(preset.objectsRelation);
+    setObjectsType(preset.objectsType);
+    setExpandRelation(preset.expandRelation);
+    setExpandObject(preset.expandObject);
+    setUsersResult([]);
+    setObjectsResult([]);
+    setExpandResult(null);
+  }, [activeStoreId]);
 
   if (!isAuthenticated) {
     return <AccessGate title="Graph Explorer" message="Login from sidebar first." />;
