@@ -102,6 +102,23 @@ namespace Aegis.Api.Controllers
             return this.CreatedResponse(result);
         }
 
+        [HttpPost("validate")]
+        [ProducesResponseType(typeof(ApiResponse<AuthorizationModelValidationResultDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<ApiResponse<AuthorizationModelValidationResultDto>>> Validate(
+            [FromRoute] string storeId,
+            [FromBody] ValidateAuthorizationModelRequestDto request,
+            CancellationToken cancellationToken)
+        {
+            var storeAccess = await TenantAccessGuard.ValidateStoreTenantAsync<AuthorizationModelValidationResultDto>(this, _storeRegistry, storeId, cancellationToken);
+            if (storeAccess is not null)
+            {
+                return storeAccess;
+            }
+
+            var result = await _authorizationModelAppService.ValidateAsync(request, cancellationToken);
+            return this.OkResponse(result);
+        }
+
         [HttpPut("{authorizationModelId}")]
         [ProducesResponseType(typeof(ApiResponse<AuthorizationModelDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<AuthorizationModelDto>), StatusCodes.Status404NotFound)]

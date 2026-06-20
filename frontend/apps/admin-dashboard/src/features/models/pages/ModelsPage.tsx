@@ -3,6 +3,7 @@ import Editor from '@monaco-editor/react';
 import { useMemo } from 'react';
 import { Alert, Button, Card, Col, Drawer, Input, Popconfirm, Row, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { AuthorizationModelValidationResult } from '@aegis/types/src/model';
 import { useAuth } from '@/app/providers/useAuth';
 import { useActiveStore } from '@/app/providers/useActiveStore';
 import { apiClient } from '@/shared/api';
@@ -70,6 +71,7 @@ export function ModelsPage() {
   const [editingModelId, setEditingModelId] = useState('');
   const [editSchemaVersion, setEditSchemaVersion] = useState('1.1');
   const [editModelDsl, setEditModelDsl] = useState('');
+  const [validationResult, setValidationResult] = useState<AuthorizationModelValidationResult | null>(null);
 
   const modelsQuery = useQuery({
     queryKey: ['models', activeStoreId],
@@ -85,6 +87,25 @@ export function ModelsPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['models', activeStoreId] });
+    },
+  });
+
+  const validateModelMutation = useMutation({
+    mutationFn: () =>
+      apiClient.validateAuthorizationModel(activeStoreId, {
+        schemaVersion,
+        model: modelDsl,
+      }),
+    onSuccess: (result) => {
+      setValidationResult(result);
+      if (result.valid) {
+        message.success('Model validation passed');
+      } else {
+        message.warning('Model validation found errors');
+      }
+    },
+    onError: (error: unknown) => {
+      message.error(error instanceof Error ? error.message : 'Failed to validate model');
     },
   });
 
@@ -207,6 +228,7 @@ export function ModelsPage() {
             onChange={(value) => {
               setSelectedTemplate(value);
               setModelDsl(MODEL_TEMPLATES[value]);
+              setValidationResult(null);
             }}
           />
           <Button
@@ -215,6 +237,13 @@ export function ModelsPage() {
             }}
           >
             Copy DSL
+          </Button>
+          <Button
+            onClick={() => validateModelMutation.mutate()}
+            loading={validateModelMutation.isPending}
+            disabled={!schemaVersion.trim() || !modelDsl.trim()}
+          >
+            Validate Model
           </Button>
         </Space>
 
@@ -266,6 +295,31 @@ export function ModelsPage() {
           />
         )}
 
+        {validationResult ? (
+          <Alert
+            type={validationResult.valid ? 'success' : 'error'}
+            showIcon
+            message={validationResult.valid ? 'Backend validation passed' : 'Backend validation failed'}
+            description={(
+              <Space direction="vertical" size={4}>
+                {validationResult.errors.map((issue) => (
+                  <Typography.Text key={`${issue.code}-${issue.line ?? 'root'}`} type="danger">
+                    {issue.line ? `Line ${issue.line}: ` : ''}{issue.code} - {issue.message}
+                  </Typography.Text>
+                ))}
+                {validationResult.warnings.map((issue) => (
+                  <Typography.Text key={`${issue.code}-${issue.line ?? 'root'}`} type="secondary">
+                    {issue.line ? `Line ${issue.line}: ` : ''}{issue.code} - {issue.message}
+                  </Typography.Text>
+                ))}
+                {validationResult.errors.length === 0 && validationResult.warnings.length === 0 ? (
+                  <Typography.Text type="secondary">No errors or warnings.</Typography.Text>
+                ) : null}
+              </Space>
+            )}
+          />
+        ) : null}
+
         <div className="json-editor-wrap">
           <Editor
             path={`inmemory://model/openfga-model-${activeStoreId || 'draft'}.fga`}
@@ -273,7 +327,10 @@ export function ModelsPage() {
             defaultLanguage="yaml"
             theme="vs"
             value={modelDsl}
-            onChange={(next) => setModelDsl(next ?? '')}
+            onChange={(next) => {
+              setModelDsl(next ?? '');
+              setValidationResult(null);
+            }}
             options={{
               minimap: { enabled: false },
               wordWrap: 'on',
@@ -296,7 +353,7 @@ export function ModelsPage() {
           type="primary"
           onClick={() => createModelMutation.mutate()}
           loading={createModelMutation.isPending}
-          disabled={!schemaVersion.trim() || !modelDsl.trim()}
+          disabled={!schemaVersion.trim() || !modelDsl.trim() || validationResult?.valid === false}
         >
           Create Model Version
         </Button>

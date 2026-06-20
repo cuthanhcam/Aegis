@@ -9,6 +9,10 @@ public interface IAuthorizationModelAppService
         CreateAuthorizationModelRequestDto request,
         CancellationToken cancellationToken = default);
 
+    Task<AuthorizationModelValidationResultDto> ValidateAsync(
+        ValidateAuthorizationModelRequestDto request,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<AuthorizationModelDto>> ListAsync(
         string storeId,
         CancellationToken cancellationToken = default);

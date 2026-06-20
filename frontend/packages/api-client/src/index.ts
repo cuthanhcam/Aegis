@@ -25,7 +25,13 @@ import type {
   ListUsersRequest,
   ListUsersResponse,
 } from '@aegis/types/src/graph';
-import type { CreateAuthorizationModelRequest, AuthorizationModel, UpdateAuthorizationModelRequest } from '@aegis/types/src/model';
+import type {
+  AuthorizationModel,
+  AuthorizationModelValidationResult,
+  CreateAuthorizationModelRequest,
+  UpdateAuthorizationModelRequest,
+  ValidateAuthorizationModelRequest,
+} from '@aegis/types/src/model';
 import type { DeletePresetRequest, PresetItem, PresetMeta, PresetSource, UpsertPresetRequest } from '@aegis/types/src/preset';
 import type {
   RelationshipDeleteRequest,
@@ -251,6 +257,16 @@ export class AegisApiClient {
     request: CreateAuthorizationModelRequest,
   ): Promise<AuthorizationModel> {
     return this.request<AuthorizationModel>(`/stores/${storeId}/authorization-models`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  async validateAuthorizationModel(
+    storeId: string,
+    request: ValidateAuthorizationModelRequest,
+  ): Promise<AuthorizationModelValidationResult> {
+    return this.request<AuthorizationModelValidationResult>(`/stores/${storeId}/authorization-models/validate`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
