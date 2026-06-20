@@ -1,294 +1,259 @@
-# 🛡️ Aegis Authorization Platform
+# Aegis
 
-![Platform](https://img.shields.io/badge/Platform-Authorization-blueviolet?logo=shield&logoColor=white)
-![Authorization Model](https://img.shields.io/badge/Auth-ReBAC%20%7C%20RBAC%20%7C%20ABAC-blueviolet)
-![.NET 8 | 10](https://img.shields.io/badge/.NET-8%20%7C%2010-blueviolet?logo=dotnet&logoColor=white)
-![ASP.NET Core](https://img.shields.io/badge/ASP.NET-Core-blueviolet?logo=dotnet&logoColor=white)
-![Architecture](https://img.shields.io/badge/Architecture-DDD-blueviolet)
-![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+> Centralized, explainable authorization for multi-tenant applications.
 
-**Centralized, explainable authorization for modern distributed systems.**
+[![.NET](https://img.shields.io/badge/.NET-8-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![ASP.NET Core](https://img.shields.io/badge/ASP.NET-Core-512BD4?logo=dotnet&logoColor=white)](https://learn.microsoft.com/aspnet/core)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io/)
+[![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
----
+Aegis is an authorization platform for applications that need fine-grained, auditable, and explainable access control. It combines relationship-based authorization, role-based administration, conditional checks, graph queries, audit trails, and a modern admin dashboard.
 
-## 🚀 Overview
+The project is under active development. The backend and dashboard are already usable for local development, demos, and integration experiments.
 
-**Aegis** is a **centralized authorization platform** designed for modern, multi-tenant applications.
+## Why Aegis?
 
-It provides a dedicated authorization service that delivers **deterministic and explainable access decisions**, eliminating the need to embed permission logic across multiple services.
+Modern applications often spread permission logic across services, controllers, database queries, and background jobs. That makes access decisions hard to reason about, hard to audit, and easy to drift.
 
-![Aegis Architecture & Evaluation Flow](images/aegis-architecture-evaluation-flow.png)
-*Figure 1: Aegis High-Level Architecture and Evaluation Pipeline.*
+Aegis moves authorization into a dedicated platform:
 
-Aegis supports multiple authorization models:
+- Centralize access decisions across services.
+- Model fine-grained permissions with relationship tuples.
+- Explain why a request was allowed or denied.
+- Keep authorization data isolated by tenant and store.
+- Manage roles, permissions, users, and assignments.
+- Explore access graphs with list-users, list-objects, and expand.
+- Audit decisions and administrative changes.
+- Integrate through Aegis-native APIs or OpenFGA-style compatibility endpoints.
 
-- Relationship-Based Access Control (**ReBAC**)
-- Role-Based Access Control (**RBAC**)
-- Attribute-Based Access Control (**ABAC**)
+## Features
 
-Built with **Domain-Driven Design (DDD)** and clean architecture principles, Aegis ensures scalability, maintainability, and clear separation of concerns.
+- Store-scoped authorization workspaces.
+- Authorization model registry and validation.
+- ReBAC tuple checks with relation rewrites.
+- RBAC roles, permissions, users, and assignments.
+- Context-aware checks for conditional decisions.
+- Check, explain, batch-check, list-users, list-objects, and expand APIs.
+- OpenFGA-compatible check, batch-check, graph, and assertion routes.
+- Relationship change history.
+- Audit event query.
+- Prometheus-style metrics endpoint.
+- PostgreSQL and Redis-backed local development stack.
+- React admin dashboard with store, model, relationship, graph, access, and audit workflows.
 
----
+## Architecture
 
-## ✨ Key Features
+```text
+Applications
+    |
+    v
+Aegis API
+    |
+    v
+Application Services
+    |
+    v
+Authorization Engine
+    |
+    v
+PostgreSQL + Redis
+```
 
-- 🔐 **ReBAC (Primary)** — Fine-grained permissions via tuple model
-- 👥 **RBAC** — Role-based fallback for coarse-grained access
-- 🧩 **ABAC** — Attribute-driven policy evaluation
-- 🏢 **Multi-Tenancy** — Strict tenant isolation
-- 🔍 **Explainability** — Full decision tracing (`/explain`)
-- 📜 **Audit Logs** — Compliance-ready tracking
-- 🌐 **RESTful API** — Simple and predictable endpoints
+Repository layout:
 
----
+```text
+src/
+  Aegis.Api              HTTP API, middleware, auth, health, metrics
+  Aegis.Application      Use cases and service interfaces
+  Aegis.Authorization    Authorization engine, ReBAC, RBAC, ABAC, cache
+  Aegis.Contracts        Request/response contracts
+  Aegis.Domain           Domain entities and value objects
+  Aegis.Infrastructure   PostgreSQL, Redis, outbox, seed data
+  Aegis.SharedKernel     Shared primitives and configuration
 
-## ❓ Why Aegis?
+frontend/
+  apps/admin-dashboard   React admin dashboard
+  packages/api-client    TypeScript API client
+  packages/types         Shared frontend contracts
+  packages/ui            Shared UI package
 
-- Combines **ReBAC + RBAC + ABAC** in a single engine
-- **Deterministic evaluation** — same input, same result
-- Built-in **decision explainability** for debugging and audits
-- Clean separation between **authorization engine and API layer**
-- Designed for **multi-tenant SaaS systems from day one**
+docs/                    Product, user, API, operations, and architecture docs
+tests/                   Unit and integration tests
+docker/                  Local development containers
+```
 
----
-
-## ⚡ Quick Start
+## Quick Start
 
 ### Prerequisites
 
 - .NET 8 SDK
-- PostgreSQL (or Docker)
+- Node.js 20+
+- pnpm 9+
+- Docker Desktop
 
-### Run locally
+### 1. Configure local secrets
 
-```bash
- $env:JWT_SECRET = "your-local-dev-secret"
+PowerShell:
+
+```powershell
+$env:POSTGRES_PASSWORD = "aegis-local-postgres"
+$env:JWT_SECRET = "aegis-local-jwt-secret-change-me"
+$env:AEGIS_DEMO_ADMIN_PASSWORD = "admin123"
+$env:AEGIS_DEMO_DEV_PASSWORD = "dev123"
+```
+
+### 2. Start backend dependencies and API
+
+```powershell
 docker compose -f docker/docker-compose.yml -f docker/docker-compose.development.yml up --build
 ```
 
-This starts Postgres, Redis, runs the one-shot migration container, and then starts the API.
+The API is exposed at:
 
-### Test
-
-```bash
-curl -X POST http://localhost:5000/api/v1/check \
-  -H "X-Tenant-Id: my-tenant" \
-  -d '{"subject":"user:alice","relation":"editor","object":"document:x"}'
+```text
+http://localhost:5271
 ```
 
-**Expected response:**
+### 3. Start the dashboard
+
+```powershell
+pnpm --dir frontend install
+pnpm --dir frontend --filter @aegis/admin-dashboard dev
+```
+
+The dashboard runs at:
+
+```text
+http://localhost:5173
+```
+
+### 4. Login
+
+Use the seeded demo account:
+
+```text
+username: admin
+password: admin123
+tenant: default
+```
+
+There is also a development tenant account:
+
+```text
+username: dev
+password: dev123
+tenant: tenant-dev
+```
+
+## First API Call
+
+Login:
+
+```powershell
+curl -X POST http://localhost:5271/api/v1/auth/login `
+  -H "Content-Type: application/json" `
+  -d "{\"username\":\"admin\",\"password\":\"admin123\"}"
+```
+
+Use the returned access token as a bearer token, then run a store-scoped check:
+
+```powershell
+curl -X POST http://localhost:5271/api/v1/stores/store-docs-default/check `
+  -H "Authorization: Bearer <access-token>" `
+  -H "Content-Type: application/json" `
+  -d "{\"user\":\"user:anne\",\"relation\":\"viewer\",\"object\":\"document:roadmap\",\"consistency\":\"fully_consistent\"}"
+```
+
+Expected result:
 
 ```json
-{ "allowed": true }
+{
+  "success": true,
+  "data": {
+    "allowed": true,
+    "decision": "ALLOW",
+    "reasonCode": "ALLOW_REBAC_DIRECT"
+  },
+  "error": null
+}
 ```
 
-### Initial Orientation: Verify ReBAC, RBAC, ABAC
+## Demo Data
 
-Use one tenant (example: `tenant-a`) and run these in order to confirm a fresh setup behaves correctly.
+Development seeding creates useful stores and relationships:
 
-1) Create an authorization model for ReBAC rewrite:
+| Store | Tenant | Example |
+| --- | --- | --- |
+| `store-docs-default` | `default` | `user:anne viewer document:roadmap` |
+| `store-support-default` | `default` | `user:agent1 viewer ticket:INC-1001` |
+| `store-billing-default` | `default` | `user:finance viewer account:acme` |
+| `store-lab-tenant-dev` | `tenant-dev` | `user:intern viewer project:aegis-lab` |
+| `store-analytics-tenant-dev` | `tenant-dev` | `user:intern viewer dashboard:quality` |
 
-```bash
-curl -X POST http://localhost:5000/api/v1/stores/tenant-a/authorization-models \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: tenant-a" \
-  -d '{
-    "schemaVersion":"1.1",
-    "model":"type document\n  define viewer: viewer from parent\ntype folder\n  define viewer: this"
-  }'
-```
+See [Demo Data Guide](docs/reference/demo-data.md) for more examples.
 
-2) Seed ReBAC tuples (document parent folder, and user viewer on folder):
+## Documentation
 
-```bash
-curl -X POST http://localhost:5000/api/v1/relationships \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: tenant-a" \
-  -d '{"subject":"folder:eng","relation":"parent","object":"document:rebac-1","effect":"allow"}'
+- [Documentation Home](docs/README.md)
+- [Product Overview](docs/product/product-overview.md)
+- [User Guide](docs/guides/user-guide.md)
+- [Core Concepts](docs/concepts/core-concepts-tuple-model.md)
+- [API Reference](docs/reference/api-reference.md)
+- [Quick Reference](docs/reference/quick-reference.md)
+- [Development Setup](docs/guides/getting-started-development.md)
+- [Deployment Operations Guide](docs/guides/deployment-operations-guide.md)
+- [Architecture Overview](docs/architecture/README.md)
+- [Documentation Strategy](docs/guides/documentation-strategy.md)
 
-curl -X POST http://localhost:5000/api/v1/relationships \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: tenant-a" \
-  -d '{"subject":"user:bob","relation":"viewer","object":"folder:eng","effect":"allow"}'
-```
+## Common Workflows
 
-3) Seed RBAC permission and assignment:
+### Run tests
 
-```bash
-curl -X POST http://localhost:5000/api/v1/tenants/tenant-a/roles \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: tenant-a" \
-  -d '{"name":"reader","description":"Default reader role"}'
-
-curl -X POST http://localhost:5000/api/v1/tenants/tenant-a/permissions \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: tenant-a" \
-  -d '{"relation":"viewer","object":"document:rbac-1"}'
-
-curl -X POST http://localhost:5000/api/v1/tenants/tenant-a/permissions/assign-to-role \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: tenant-a" \
-  -d '{"roleName":"reader","relation":"viewer","object":"document:rbac-1"}'
-```
-
-4) Seed ABAC-conditioned RBAC permission:
-
-```bash
-curl -X POST http://localhost:5000/api/v1/tenants/tenant-a/permissions \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: tenant-a" \
-  -d '{"relation":"viewer","object":"document:abac-1","conditionName":"feature_enabled"}'
-
-curl -X POST http://localhost:5000/api/v1/tenants/tenant-a/permissions/assign-to-role \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: tenant-a" \
-  -d '{"roleName":"reader","relation":"viewer","object":"document:abac-1","conditionName":"feature_enabled"}'
-```
-
-5) Run checks:
-
-```bash
-# ReBAC rewrite allow (user:bob -> folder:eng -> document:rebac-1)
-curl -X POST "http://localhost:5000/api/v1/check?tenantId=tenant-a" \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: tenant-a" \
-  -d '{"subject":"user:bob","relation":"viewer","object":"document:rebac-1"}'
-
-# RBAC fallback allow
-curl -X POST "http://localhost:5000/api/v1/check?tenantId=tenant-a" \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: tenant-a" \
-  -d '{"subject":"user:alice","relation":"viewer","object":"document:rbac-1"}'
-
-# ABAC condition false -> deny
-curl -X POST "http://localhost:5000/api/v1/check?tenantId=tenant-a" \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: tenant-a" \
-  -d '{"subject":"user:alice","relation":"viewer","object":"document:abac-1","context":{"feature_enabled":false}}'
-
-# ABAC condition true -> allow
-curl -X POST "http://localhost:5000/api/v1/check?tenantId=tenant-a" \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: tenant-a" \
-  -d '{"subject":"user:alice","relation":"viewer","object":"document:abac-1","context":{"feature_enabled":true}}'
-```
-
----
-
-## 🧠 Authorization Model
-
-### ReBAC (Primary)
-
-```text
-(user:alice, owner, document:report)
-(team:engineering, member, user:bob)
-```
-
-### RBAC (Fallback)
-
-```text
-user:admin → role:admin → document:delete
-```
-
-### ABAC (Attributes)
-
-```text
-user.department == "finance" AND resource.type == "invoice"
-```
-
-### Evaluation Logic
-
-```text
-DENY > ReBAC ALLOW > RBAC ALLOW > ABAC > DEFAULT DENY
-```
-
----
-
-## 🏗️ Architecture
-
-Layered + DDD design:
-
-```text
-API → Application → Authorization Engine → Domain → Infrastructure
-```
-
-**Highlights:**
-
-- Authorization Engine is **pure domain logic** (no HTTP / EF)
-- Deterministic and testable evaluation
-- Clear separation of concerns across layers
-
----
-
-## 📡 API Overview
-
-| Endpoint         | Purpose              |
-| ---------------- | -------------------- |
-| `/check`         | Permission check     |
-| `/explain`       | Debug authorization  |
-| `/relationships` | Manage ReBAC tuples  |
-| `/roles`         | RBAC role management |
-| `/audit-logs`    | Audit trail          |
-
-📚 Full documentation: `docs/`
-
----
-
-## 🎯 Use Cases
-
-- **SaaS Multi-Tenant Systems** — Tenant-isolated authorization
-- **Document Collaboration** — Fine-grained sharing & ownership
-- **Microservices Architecture** — Centralized access control
-- **Audit & Compliance** — Traceable decision logs
-
----
-
-## 🧪 Testing
-
-```bash
+```powershell
 dotnet test
-dotnet test /p:CollectCoverage=true
 ```
 
----
+### Build backend
 
-## 🚢 Deployment
-
-```bash
-docker build -t aegis .
-docker run -e DB_CONNECTION_STRING="..." aegis
+```powershell
+dotnet build Aegis.sln
 ```
 
-Supports:
+### Typecheck dashboard
 
-- Docker
-- Kubernetes (Helm)
-- AWS / Azure / GCP
+```powershell
+pnpm --dir frontend --filter @aegis/admin-dashboard typecheck
+```
 
----
+### Build dashboard
 
-## 📚 Documentation
+```powershell
+pnpm --dir frontend --filter @aegis/admin-dashboard build
+```
 
-- `docs/product/` — Overview & use cases
-- `docs/concepts/` — Authorization models
-- `docs/reference/` — API reference
-- `docs/guides/` — Setup & deployment
+## Roadmap
 
----
+See [Aegis Roadmap](docs/product/roadmap.md) for the public roadmap.
 
-## 🤝 Contributing
+High-level priorities:
 
-Contributions are welcome! See `CONTRIBUTING.md`.
+- Model lifecycle, publishing, rollback, and assertion runner.
+- Relationship revisions, idempotency, bulk import/export, and change streams.
+- Enterprise auth, organizations, service accounts, and API keys.
+- Audit, compliance, webhooks, quotas, and observability.
+- API hardening and documentation-site readiness.
 
----
+## Contributing
 
-## 📄 License
+Contributions are welcome. Start with:
 
-MIT License
+- [Contributing Guide](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md)
+- [Architecture Docs](docs/architecture/README.md)
 
----
+## License
 
-## 👉 Get Started
-
-- Product overview → `docs/product/product-overview.md`
-- Development guide → `docs/guides/getting-started-development.md`
+Aegis is released under the [MIT License](LICENSE).

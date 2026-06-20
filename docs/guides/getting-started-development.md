@@ -1,542 +1,235 @@
-# Getting Started Aegis Development Setup
+# Getting Started: Aegis Development
 
----
+This guide gets the backend API and admin dashboard running locally.
 
-## Quick Start (5 minutes)
+## Prerequisites
 
-### Prerequisites
+- .NET 8 SDK
+- Node.js 20 or newer
+- pnpm 9 or newer
+- Docker Desktop
+- PowerShell
 
-- **.NET 8 SDK** ([download](https://dotnet.microsoft.com/download/dotnet/8.0))
-- **Visual Studio 2022** or **VS Code**
-- **PostgreSQL 14+** (or use Docker)
+## Repository
 
----
-
-### Step 1: Clone & Navigate
-
-```bash
+```powershell
 cd D:\Workspace\Aegis
-git clone <repo-url>
-cd Aegis
 ```
 
----
+## Configure Local Environment
 
-### Step 2: Start PostgreSQL
+The Docker stack requires a few environment variables.
 
-**Option A: Using Docker**
-
-```bash
-docker run --name aegis-postgres \
-  -e POSTGRES_USER=aegis \
-  -e POSTGRES_PASSWORD=aegis123 \
-  -e POSTGRES_DB=aegis_dev \
-  -p 5432:5432 \
-  -d postgres:15
+```powershell
+$env:POSTGRES_PASSWORD = "aegis-local-postgres"
+$env:JWT_SECRET = "aegis-local-jwt-secret-change-me"
+$env:AEGIS_DEMO_ADMIN_PASSWORD = "admin123"
+$env:AEGIS_DEMO_DEV_PASSWORD = "dev123"
 ```
 
-This creates the `aegis_dev` database automatically when the container starts.
+These values are for local development only.
 
-**Option B: Local PostgreSQL**
+## Start the Backend
 
-Create database:
-
-```sql
-CREATE DATABASE aegis_dev;
+```powershell
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.development.yml up --build
 ```
 
----
+This starts:
 
-### Step 3: Configure Connection String
+- PostgreSQL
+- Redis
+- Migration container
+- Aegis API
 
-Edit `src/Aegis.Api/appsettings.Development.json`:
+The API is available at:
 
-```json
-{
-    "ConnectionStrings": {
-    "Aegis": "Host=localhost;Port=5432;Database=aegis_dev;Username=aegis;Password=aegis123"
-    }
-}
+```text
+http://localhost:5271
 ```
 
-Before running Docker, set `JWT_SECRET` in your shell or in an ignored local `.env` file.
+## Start the Frontend
 
----
+In another terminal:
 
-### Step 4: Apply Migrations
-
-```bash
-docker compose -f docker/docker-compose.yml -f docker/docker-compose.development.yml up --build migrate
+```powershell
+pnpm --dir frontend install
+pnpm --dir frontend --filter @aegis/admin-dashboard dev
 ```
 
-That one-shot container starts Postgres, creates the database, and applies the schema before the API serves traffic.
+The dashboard is available at:
 
----
-
-### Step 5: Run the API
-
-```bash
-docker compose -f docker/docker-compose.yml -f docker/docker-compose.development.yml up --build api
+```text
+http://localhost:5173
 ```
 
-**Expected output:**
+## Login
 
-```
-info: Microsoft.Hosting.Lifetime[14]
-      Now listening on: http://localhost:5000
-```
+Default tenant:
 
----
-
-### Step 6: Test the API
-
-```bash
-# Open browser or use curl
-curl -X POST http://localhost:5000/api/v1/check \
-  -H "X-Tenant-Id: tenant-test" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "subject": "user:alice",
-    "relation": "viewer",
-    "object": "document:test"
-  }'
-
-# Response
-{
-  "allowed": false,
-  "decision": "DENY",
-  "reasonCode": "DENY_NOT_FOUND"
-}
+```text
+username: admin
+password: admin123
+tenant: default
 ```
 
----
+Development tenant:
 
-## Project Structure
-
-```
-D:\Workspace\Aegis\
- src/
-    Aegis.SharedKernel/       Primitives (Entity, ValueObject, AggregateRoot)
-    Aegis.Contracts/          DTOs and API contracts
-    Aegis.Domain/             Entities (Relationship, Store, AuthorizationModel)
-    Aegis.Authorization/      ReBAC + RBAC engine (NO EF, NO HTTP)
-    Aegis.Application/        Use cases, orchestration
-    Aegis.Infrastructure/     DbContext, Repository implementations
-    Aegis.Api/                HTTP controllers, middleware
-
- tests/
-    Aegis.UnitTests/          Domain, Authorization logic tests
-    Aegis.IntegrationTests/   API endpoint, persistence tests
-
- docs/
-    ../product/product-overview.md       What is Aegis
-    ../concepts/core-concepts-tuple-model.md   Tuple model deep dive
-    ../reference/api-reference.md          Endpoint documentation
-    architecture/             Technical architecture
-
- README.md
+```text
+username: dev
+password: dev123
+tenant: tenant-dev
 ```
 
----
+## Verify the API
 
-## Development Workflow
+Login:
 
-### 1. Running Tests
-
-**Unit tests only:**
-
-```bash
-dotnet test tests/Aegis.UnitTests
+```powershell
+curl -X POST http://localhost:5271/api/v1/auth/login `
+  -H "Content-Type: application/json" `
+  -d "{\"username\":\"admin\",\"password\":\"admin123\"}"
 ```
 
-**Integration tests:**
+Copy the access token from the response.
 
-```bash
-dotnet test tests/Aegis.IntegrationTests
+Run a check:
+
+```powershell
+curl -X POST http://localhost:5271/api/v1/stores/store-docs-default/check `
+  -H "Authorization: Bearer <access-token>" `
+  -H "Content-Type: application/json" `
+  -d "{\"user\":\"user:anne\",\"relation\":\"viewer\",\"object\":\"document:roadmap\",\"consistency\":\"fully_consistent\"}"
 ```
 
-**All tests:**
+Run explain:
 
-```bash
-dotnet test
+```powershell
+curl -X POST http://localhost:5271/api/v1/stores/store-docs-default/explain `
+  -H "Authorization: Bearer <access-token>" `
+  -H "Content-Type: application/json" `
+  -d "{\"user\":\"user:anne\",\"relation\":\"viewer\",\"object\":\"document:roadmap\",\"consistency\":\"fully_consistent\"}"
 ```
 
-**With coverage:**
+## Demo Stores
 
-```bash
-dotnet test /p:CollectCoverage=true
+Seed data creates stores that are useful for testing:
+
+| Store | Tenant | Try |
+| --- | --- | --- |
+| `store-docs-default` | `default` | `user:anne viewer document:roadmap` |
+| `store-support-default` | `default` | `user:agent1 viewer ticket:INC-1001` |
+| `store-billing-default` | `default` | `user:finance viewer account:acme` |
+| `store-lab-tenant-dev` | `tenant-dev` | `user:intern viewer project:aegis-lab` |
+| `store-analytics-tenant-dev` | `tenant-dev` | `user:intern viewer dashboard:quality` |
+
+See [Demo Data Guide](../reference/demo-data.md).
+
+## Useful Commands
+
+### Build Backend
+
+```powershell
+dotnet build Aegis.sln
 ```
-
----
-
-### 2. Adding a New Feature
-
-**Example: Add "approver" relation support**
-
-1. **Domain Layer** Add validation to `RelationName` ValueObject
-
-    ```csharp
-    // src/Aegis.Domain/ValueObjects/RelationName.cs
-    public static bool IsValid(string relation) => relation switch {
-        "owner" or "editor" or "viewer" or "approver" => true,
-        _ => false
-    };
-    ```
-
-2. **Application Layer** Add use case
-
-    ```csharp
-    // src/Aegis.Application/Features/Relationships/Commands
-    public class CreateApprovalRelationshipCommand : IRequest<CreateApprovalResponse>
-    {
-        public string Subject { get; set; }
-        public string Object { get; set; }
-        // ...
-    }
-    ```
-
-3. **Infrastructure** No changes (generic repository handles it)
-
-4. **API** Add controller endpoint
-
-    ```csharp
-    // src/Aegis.Api/Controllers/RelationshipsController.cs
-    [HttpPost("approvals")]
-    public async Task<IActionResult> CreateApproval([FromBody] CreateApprovalRequest req)
-    {
-        // ...
-    }
-    ```
-
-5. **Test** Add unit + integration tests
-    ```csharp
-    // tests/Aegis.UnitTests/RelationshipTests.cs
-    [Fact]
-    public void Approver_Relation_Should_Be_Valid()
-    {
-        var valid = RelationName.TryCreate("approver", out _);
-        Assert.True(valid);
-    }
-    ```
-
----
-
-### 3. Code Style & Format
-
-**Format code:**
-
-```bash
-# Using Roslyn (built-in)
-dotnet format
-```
-
-**Lint with StyleCop (recommended):**
-
-```bash
-# Installed via NuGet
-dotnet build --format errors-as-warnings
-```
-
----
-
-### 4. Database Migrations
-
-**Create migration:**
-
-```bash
-cd src/Aegis.Infrastructure
-dotnet ef migrations add <MigrationName> -p ../Aegis.Api --startup-project ../Aegis.Api
-```
-
-**Review generated migration** (in `Migrations/` folder)
-
-**Apply migration:**
-
-```bash
-dotnet ef database update -p ../Aegis.Api
-```
-
-**Rollback:**
-
-```bash
-dotnet ef database update <PreviousMigrationName>
-```
-
----
-
-## Common Tasks
-
-### Task 1: Create a New Tenant
-
-```bash
-curl -X POST http://localhost:5000/api/v1/tenants \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "acme-corp"
-  }'
-```
-
----
-
-### Task 2: Set Up Initial Authorization Store
-
-```bash
-curl -X POST http://localhost:5000/api/v1/stores \
-  -H "X-Tenant-Id: tenant-123" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "document-service-store"
-  }'
-```
-
----
-
-### Task 3: Create Sample Relationships
-
-```bash
-# Create relationships
-curl -X POST http://localhost:5000/api/v1/relationships \
-  -H "X-Tenant-Id: tenant-123" \
-  -d '{
-    "subject": "user:alice",
-    "relation": "owner",
-    "object": "document:report-2024"
-  }'
-
-curl -X POST http://localhost:5000/api/v1/relationships \
-  -H "X-Tenant-Id: tenant-123" \
-  -d '{
-    "subject": "user:bob",
-    "relation": "editor",
-    "object": "document:report-2024"
-  }'
-```
-
----
-
-### Task 4: Run Permission Check
-
-```bash
-curl -X POST http://localhost:5000/api/v1/check \
-  -H "X-Tenant-Id: tenant-123" \
-  -d '{
-    "subject": "user:alice",
-    "relation": "owner",
-    "object": "document:report-2024"
-  }'
-
-# Response
-{
-  "allowed": true,
-  "decision": "ALLOW",
-  "reasonCode": "ALLOW_REBAC_DIRECT"
-}
-```
-
----
-
-### Task 5: Debug with Explain API
-
-```bash
-curl -X POST http://localhost:5000/api/v1/explain \
-  -H "X-Tenant-Id: tenant-123" \
-  -d '{
-    "subject": "user:charlie",
-    "relation": "viewer",
-    "object": "document:report-2024"
-  }'
-
-# Response with full trace
-{
-  "allowed": false,
-  "trace": [
-    { "step": "DENY_POLICY", "result": "NOT_MATCHED" },
-    { "step": "REBAC_DIRECT", "result": "NOT_MATCHED" },
-    { "step": "RBAC", "result": "NOT_MATCHED" },
-    { "step": "FINAL", "result": "DENY_NOT_FOUND" }
-  ]
-}
-```
-
----
-
-## IDEs & Tools
-
-### Visual Studio 2022
-
-1. Open `Aegis.sln`
-2. Right-click solution **Manage NuGet Packages** Restore
-3. **Build** **Build Solution** (Ctrl+Shift+B)
-4. **Debug** **Start Debugging** (F5)
-
-### VS Code
-
-1. Install extensions:
-    - C# Dev Kit
-    - REST Client
-    - SQLTools (for database exploration)
-
-2. Open folder:
-
-    ```bash
-    code D:\Workspace\Aegis
-    ```
-
-3. Run tasks from Command Palette:
-    - `Tasks: Run Task` `.NET: Build`
-    - Select `Aegis.Api`
-
-4. Test API using `.http` files:
-
-    ```http
-    @tenantId = tenant-123
-    @apiUrl = http://localhost:5000/api/v1
-
-    ### Check permission
-    POST {{apiUrl}}/check
-    X-Tenant-Id: {{tenantId}}
-    Content-Type: application/json
-
-    {
-      "subject": "user:alice",
-      "relation": "owner",
-      "object": "document:report"
-    }
-    ```
-
----
-
-## Useful Scripts
 
 ### Run All Tests
 
-```bash
-#!/bin/bash
-dotnet test --configuration Release --no-build --verbosity normal
-```
-
-### Build & Test
-
-```bash
-#!/bin/bash
-dotnet build
+```powershell
 dotnet test
 ```
 
-### Reset Database
+### Run Unit Tests
 
-```bash
-#!/bin/bash
-cd src/Aegis.Api
-dotnet ef database drop --force
-dotnet ef database update
+```powershell
+dotnet test tests\Aegis.UnitTests\Aegis.UnitTests.csproj
 ```
 
----
+### Run Integration Tests
+
+```powershell
+dotnet test tests\Aegis.IntegrationTests\Aegis.IntegrationTests.csproj
+```
+
+### Typecheck Dashboard
+
+```powershell
+pnpm --dir frontend --filter @aegis/admin-dashboard typecheck
+```
+
+### Build Dashboard
+
+```powershell
+pnpm --dir frontend --filter @aegis/admin-dashboard build
+```
+
+## Project Structure
+
+```text
+src/
+  Aegis.Api              HTTP API and middleware
+  Aegis.Application      Use cases and interfaces
+  Aegis.Authorization    Authorization engine
+  Aegis.Contracts        API contracts
+  Aegis.Domain           Domain entities
+  Aegis.Infrastructure   Persistence, cache, seed data
+  Aegis.SharedKernel     Shared primitives
+
+frontend/
+  apps/admin-dashboard   React dashboard
+  packages/api-client    TypeScript API client
+  packages/types         Shared frontend types
+  packages/ui            Shared UI primitives
+
+tests/
+  Aegis.UnitTests
+  Aegis.IntegrationTests
+```
 
 ## Debugging Tips
 
-### 1. Enable Detailed Logging
+### API is not reachable
 
-Edit `appsettings.Development.json`:
+Check containers:
 
-```json
-{
-    "Logging": {
-        "LogLevel": {
-            "Default": "Debug",
-            "Microsoft.EntityFrameworkCore": "Information",
-            "Aegis.Authorization": "Debug"
-        }
-    }
-}
+```powershell
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.development.yml ps
 ```
 
-### 2. Use Explain API
+Check logs:
 
-Always use `/explain` instead of guessing:
-
-```bash
-curl -X POST http://localhost:5000/api/v1/explain \
-  -H "X-Tenant-Id: your-tenant" \
-  -d '{ "subject": "...", "relation": "...", "object": "..." }'
+```powershell
+docker logs aegis-api
 ```
 
-### 3. Check Audit Logs
+### Check returns deny
 
-```bash
-curl http://localhost:5000/api/v1/audit-logs \
-  -H "X-Tenant-Id: your-tenant"
-```
+Use this sequence:
 
-### 4. Inspect Database Directly
+1. Confirm the active store.
+2. Confirm the object type exists in that store's model.
+3. Confirm the relation exists in the model.
+4. Confirm the tuple exists.
+5. Run explain.
+6. Check audit events.
 
-Using SQLTools in VS Code:
+### Graph query returns `type_not_found`
 
-```sql
-SELECT * FROM relationships WHERE tenant_id = 'tenant-123';
-SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 10;
-```
+The object type in the request does not exist in the active store's authorization model. For example, `document:roadmap` is valid in the docs store, but not in the support store.
 
----
+### Frontend cannot call backend
 
-## Common Issues & Fixes
+Confirm:
 
-### Issue: "Connection refused" on Port 5000
-
-**Solution:**
-
-```bash
-# Check if port is in use
-netstat -ano | findstr :5000
-
-# If occupied, either:
-# 1. Kill the process
-# 2. Change port in appsettings.Development.json:
-{
-  "Kestrel": {
-    "Endpoints": {
-      "Http": {
-        "Url": "http://localhost:5001"
-      }
-    }
-  }
-}
-```
-
----
-
-### Issue: "Database connection failed"
-
-**Solution:**
-
-1. Check PostgreSQL is running
-2. Verify connection string in `appsettings.Development.json`
-3. Run migrations: `dotnet ef database update`
-
----
-
-### Issue: "EF Core migration conflicts"
-
-**Solution:**
-
-```bash
-# Remove last migration
-dotnet ef migrations remove -p ../Aegis.Infrastructure
-
-# Recreate
-dotnet ef migrations add <NewName> -p ../Aegis.Infrastructure
-```
-
----
+- API is running at `http://localhost:5271`.
+- Dashboard is running at `http://localhost:5173`.
+- CORS allows `http://localhost:5173`.
+- You are logged in and the token is not expired.
 
 ## Next Steps
 
-- Read [Core Concepts](../concepts/core-concepts-tuple-model.md)
-- Review [API Reference](../reference/api-reference.md)
-- Explore [Architecture Guide](architecture/project-structure.md)
-- Deploy to [Production](deployment-operations-guide.md)
+- Read [User Guide](user-guide.md).
+- Read [Core Concepts](../concepts/core-concepts-tuple-model.md).
+- Read [API Reference](../reference/api-reference.md).
+- Explore [Demo Data](../reference/demo-data.md).
 
----
-
-**Happy coding! Questions?** Check the project GitHub Discussions or Issues.

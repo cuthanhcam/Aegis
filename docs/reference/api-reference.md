@@ -7,7 +7,7 @@ This reference reflects the live ASP.NET API surface under `/api/v1`.
 Base URL:
 
 ```text
-http://localhost:5000/api/v1
+http://localhost:5271/api/v1
 ```
 
 Most Aegis-native endpoints return a standard envelope:
@@ -349,7 +349,7 @@ Returns one model version.
 ```json
 {
   "schemaVersion": "1.1",
-  "dsl": "type user\ntype document\n  define viewer: [user]"
+  "model": "type user\ntype document\n  define viewer: [user]"
 }
 ```
 
@@ -360,7 +360,7 @@ Validates model DSL without creating a model.
 ```json
 {
   "schemaVersion": "1.1",
-  "dsl": "type user\ntype document\n  define viewer: [user]"
+  "model": "type user\ntype document\n  define viewer: [user]"
 }
 ```
 
@@ -682,5 +682,5 @@ The admin dashboard currently exposes:
 Swagger is available in development at:
 
 ```text
-http://localhost:5000/swagger
+http://localhost:5271/swagger
 ```

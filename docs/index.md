@@ -1,19 +1,28 @@
 # Aegis Documentation Index
 
-This index helps you navigate Aegis documentation by role and task.
+This index helps you navigate Aegis documentation by role and task. For the concise documentation home, start with [docs/README.md](README.md).
 
 ## Start Here
 
 If you are new to Aegis:
 
-- Read [Overview](Overview.md)
+- Read [Documentation Home](README.md)
 - Read [Product Overview](product/product-overview.md)
+- Read [User Guide](guides/user-guide.md)
+- Read [Core Concepts](concepts/core-concepts-tuple-model.md)
 
 If you need implementation details quickly:
 
 - Read [Getting Started](guides/getting-started-development.md)
 - Read [API Reference](reference/api-reference.md)
 - Use [Quick Reference](reference/quick-reference.md)
+- Use [Demo Data Guide](reference/demo-data.md)
+
+If you are preparing public docs or embedded dashboard docs:
+
+- Read [Documentation Strategy](guides/documentation-strategy.md)
+- Read [User Guide](guides/user-guide.md)
+- Read [Demo Data Guide](reference/demo-data.md)
 
 If you are improving Aegis as an OSS authorization platform:
 
@@ -27,17 +36,22 @@ If you are improving Aegis as an OSS authorization platform:
 
 ```text
 docs/
+|-- README.md
 |-- index.md
-|-- Overview.md
+|-- Overview.md                         Legacy broad overview, kept for historical context
 |-- product/
-|   `-- product-overview.md
+|   |-- product-overview.md
+|   `-- roadmap.md
 |-- concepts/
 |   `-- core-concepts-tuple-model.md
 |-- reference/
 |   |-- api-reference.md
+|   |-- demo-data.md
 |   `-- quick-reference.md
 |-- guides/
+|   |-- user-guide.md
 |   |-- getting-started-development.md
+|   |-- documentation-strategy.md
 |   `-- deployment-operations-guide.md
 |-- operations/
 |   `-- database-migrations-and-docker.md
@@ -66,16 +80,19 @@ docs/
 
 ### Product and Business
 
+- [Documentation Home](README.md)
 - [Product Overview](product/product-overview.md)
-- [Overview](Overview.md)
+- [Roadmap](product/roadmap.md)
+- [User Guide](guides/user-guide.md)
 
 ### Developers
 
-- [Overview](Overview.md)
+- [User Guide](guides/user-guide.md)
 - [Getting Started](guides/getting-started-development.md)
 - [Core Concepts](concepts/core-concepts-tuple-model.md)
 - [API Reference](reference/api-reference.md)
 - [Quick Reference](reference/quick-reference.md)
+- [Demo Data Guide](reference/demo-data.md)
 
 ### DevOps and SRE
 
@@ -99,6 +116,7 @@ docs/
 
 ### OSS Contributors
 
+- [Documentation Strategy](guides/documentation-strategy.md)
 - [ADR 0001: ReBAC Is Primary](adr/0001-rebac-is-primary.md)
 - [ADR 0002: Tenant and Store Boundary](adr/0002-tenant-and-store-boundary.md)
 - [ADR 0003: PostgreSQL Source of Truth](adr/0003-postgresql-source-of-truth.md)
@@ -113,15 +131,24 @@ docs/
 
 ### Understand Aegis in 30 minutes
 
-1. [Overview](Overview.md)
+1. [Documentation Home](README.md)
 2. [Product Overview](product/product-overview.md)
 3. [Core Concepts](concepts/core-concepts-tuple-model.md)
+4. [User Guide](guides/user-guide.md)
 
 ### Build or integrate quickly
 
 1. [Getting Started](guides/getting-started-development.md)
 2. [API Reference](reference/api-reference.md)
 3. [Quick Reference](reference/quick-reference.md)
+4. [Demo Data Guide](reference/demo-data.md)
+
+### Build public or embedded docs
+
+1. [Documentation Strategy](guides/documentation-strategy.md)
+2. [Documentation Home](README.md)
+3. [User Guide](guides/user-guide.md)
+4. [API Reference](reference/api-reference.md)
 
 ### Deploy and operate
 
@@ -142,6 +169,8 @@ docs/
 
 - Permission check endpoint: [API Reference](reference/api-reference.md)
 - Decision debugging flow: [Quick Reference](reference/quick-reference.md)
+- Seeded examples: [Demo Data Guide](reference/demo-data.md)
+- Dashboard usage: [User Guide](guides/user-guide.md)
 - Tuple model and ReBAC/RBAC: [Core Concepts](concepts/core-concepts-tuple-model.md)
 - Layering and dependency rules: [Project Structure](architecture/project-structure.md)
 - Local database and migrations: [Database, Migrations, and Docker](operations/database-migrations-and-docker.md)

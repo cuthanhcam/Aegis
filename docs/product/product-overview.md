@@ -1,415 +1,234 @@
-# Aegis Authorization Platform
+# Aegis Product Overview
 
-**Tagline:** _Guarding access with a practical authorization engine._
+Aegis is a centralized authorization platform for modern applications. It helps teams model access, answer permission questions, debug decisions, and audit authorization behavior across services.
 
----
+## The Problem
 
-## 1. Vision & Purpose
-
-**Aegis** is a **centralized authorization platform** that solves a critical problem in modern application architecture:
-
-> **How do you manage permissions at scale across multiple services while maintaining consistency, auditability, and clear ownership?**
-
-Aegis decouples authorization logic from application code by providing:
-
-- **Deterministic permission decisions** through a dedicated authorization engine
-- **Hybrid authorization models** that support both relationship-based (ReBAC) and role-based (RBAC) access control
-- **Explainability** so teams can debug access issues quickly
-- **Multi-tenancy** for hosting multiple authorization contexts in a single deployment
-- **Auditability** through immutable audit trails
-
----
-
-## 2. The Problem Aegis Solves
-
-### Traditional Approach (Monolithic Authorization)
+In many systems, authorization logic is scattered:
 
 ```text
-Application 1  Authorization logic embedded in code
-Application 2  Authorization logic embedded in code
-Application 3  Authorization logic embedded in code
-
-Result: Scattered logic, inconsistent decisions, hard to maintain
+Controller checks one rule
+Database query checks another rule
+Background job checks a third rule
+Frontend hides a button with its own rule
 ```
 
-### Aegis Approach (Centralized Authorization)
+Over time this creates drift:
+
+- Different services answer the same access question differently.
+- Permission changes are hard to review.
+- Support teams cannot explain why access was denied.
+- Auditors cannot easily reconstruct who had access to what.
+- Product teams avoid fine-grained permissions because they are too expensive to maintain.
+
+## The Aegis Approach
+
+Aegis gives applications one place to ask authorization questions:
 
 ```text
-Application 1
-                 Aegis Authorization Engine
-Application 2     (centralized, reusable, auditable)
-
-Application 3
+Can user:anne view document:roadmap?
+Can user:agent1 view ticket:INC-1001?
+Can user:finance view account:acme?
 ```
 
-**Benefits:**
+Applications call Aegis at runtime. Aegis evaluates the request using authorization models, relationship tuples, role assignments, and optional context. It returns a deterministic allow or deny decision.
 
-- Single source of truth for authorization
-- Consistent permission decisions across all applications
-- Easy to audit and debug (complete trace available)
-- Reduced code duplication
-- Scaling authorization independently from application logic
+## Core Capabilities
 
----
+### Stores
 
-## 3. Core Capabilities
+A store is an isolated authorization workspace. Use stores to separate applications, environments, product domains, or tenants.
 
-### 3.1 Permission Check API
+Examples:
 
-Evaluate permissions in real-time:
+```text
+store-docs-default
+store-support-default
+store-billing-default
+```
+
+### Authorization Models
+
+Authorization models define object types and relations.
+
+Example:
+
+```text
+type user
+type document
+  define owner: [user]
+  define editor: [user] or owner
+  define viewer: [user] or editor
+```
+
+This model says owners are editors, and editors are viewers.
+
+### Relationships
+
+Relationships are concrete authorization facts:
+
+```text
+user:anne editor document:roadmap
+user:agent1 assignee ticket:INC-1001
+user:finance analyst account:acme
+```
+
+### Checks
+
+Checks answer access questions:
 
 ```http
-POST /api/v1/check
-{
-  "subject": "user:alice",
-  "relation": "editor",
-  "object": "document:report-2024"
-}
+POST /api/v1/stores/{storeId}/check
 ```
-
-**Response:**
 
 ```json
 {
-    "allowed": true,
-    "decision": "ALLOW",
-    "reasonCode": "ALLOW_REBAC_DIRECT"
-}
-```
-
-### 3.2 Explanation API
-
-Understand **why** a decision was made:
-
-```http
-POST /api/v1/explain
-{
-  "subject": "user:alice",
-  "relation": "editor",
-  "object": "document:report-2024"
-}
-```
-
-**Response:**
-
-```json
-{
-    "allowed": true,
-    "trace": [
-        { "step": "DENY_POLICY", "result": "NOT_MATCHED" },
-        {
-            "step": "REBAC_DIRECT",
-            "result": "MATCHED",
-            "tuple": "(user:alice, editor, document:report-2024)"
-        },
-        { "step": "FINAL", "result": "ALLOW" }
-    ]
-}
-```
-
-### 3.3 Relationship Management
-
-Create and manage permission tuples:
-
-```http
-POST /api/v1/relationships
-{
-  "subject": "team:engineering",
-  "relation": "owner",
-  "object": "repo:aegis",
-  "effect": "allow"
-}
-```
-
-Supports both `allow` and explicit `deny` effects.
-
-### 3.4 ReBAC (Relationship-Based Access Control)
-
-Define permissions through relationships:
-
-```text
-Tuple Format: (subject, relation, object)
-
-Examples:
- (user:alice, owner, document:report)      Alice owns this document
- (team:dev, member, user:bob)              Bob is a member of dev team
- (team:dev, owner, repo:code)              Dev team owns the code repository
-```
-
-**Use cases:**
-
-- Resource-level access (who can edit which document)
-- Team/group membership
-- Hierarchical relationships
-
-### 3.5 RBAC (Role-Based Access Control)
-
-Fallback model for coarse-grained permissions:
-
-```text
-Model: user  role  permission
-
-Examples:
- user:admin  role:admin  permission:document:delete
- user:viewer  role:viewer  permission:document:read
-```
-
-**Use cases:**
-
-- System-level permissions
-- Default fallback when no ReBAC tuple matches
-
-### 3.6 Hybrid Evaluation
-
-Aegis resolves permissions through a deterministic flow:
-
-```text
-1. Check explicit DENY rules  if matched, return DENY
-2. Check ReBAC ALLOW rules  if matched, return ALLOW
-3. Check RBAC ALLOW rules  if matched, return ALLOW
-4. Default  return DENY
-
-Key Principle: DENY always overrides ALLOW (explicit deny wins)
-```
-
----
-
-## 4. Multi-Tenant Isolation
-
-Every permission check is **scoped by tenant**:
-
-```http
-POST /api/v1/check
-X-Tenant-Id: tenant-123
-
-{
-  "subject": "user:1",
+  "user": "user:anne",
   "relation": "viewer",
-  "object": "document:10"
+  "object": "document:roadmap"
 }
 ```
 
-All relationships, users, roles, and permissions are **strictly isolated** per tenant.
+### Explain
 
----
-
-## 5. Multi-Store Support
-
-Aegis can manage multiple **authorization stores**, enabling:
-
-- **Per-application stores** (each microservice has its own authorization context)
-- **Per-tenant stores** (each customer has isolated authorization)
-- **Per-environment stores** (dev, staging, production)
-
-```text
-Store 1: "payment-service"     manages payment authorization rules
-Store 2: "document-service"    manages document authorization rules
-Store 3: "admin-service"       manages admin authorization rules
-```
-
----
-
-## 6. Auditability
-
-Every permission decision is **traceable and auditable**:
-
-- **Audit logs** record all relationship changes (who created/deleted what, when)
-- **Decision logs** record all permission checks (who checked what, when, result)
-- **Explain API** provides forensic trace of decision logic
-
-Example audit entry:
-
-```json
-{
-    "timestamp": "2026-04-07T10:30:00Z",
-    "action": "RELATIONSHIP_CREATED",
-    "subject": "user:alice",
-    "relation": "editor",
-    "object": "document:report",
-    "createdBy": "admin:system",
-    "tenantId": "tenant-123"
-}
-```
-
----
-
-## 7. Authentication Integration (Optional)
-
-Aegis supports **JWT-based authentication** for API access:
+Explain returns the decision trace so developers and support teams can understand why a request was allowed or denied.
 
 ```http
-POST /api/v1/auth/login
-{
-  "username": "user",
-  "password": "password"
-}
-
-Response:
-{
-  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-  "refreshToken": "...",
-  "expiresIn": 3600
-}
+POST /api/v1/stores/{storeId}/explain
 ```
 
----
+### Graph Queries
 
-## 8. Domain Model Overview
+Graph APIs answer broader relationship questions:
 
-### Core Entities
-
-| Entity                 | Purpose                                        |
-| ---------------------- | ---------------------------------------------- |
-| **Tenant**             | Isolation boundary for multi-tenancy           |
-| **Store**              | Authorization context (per app, per env, etc.) |
-| **Relationship**       | A single tuple in the authorization system     |
-| **AuthorizationModel** | Schema/configuration for a store               |
-| **User**               | Identity in the system                         |
-| **Role**               | Collections of permissions (RBAC)              |
-| **Permission**         | A grantable capability                         |
-
-### Value Objects
-
-| Object           | Purpose                                                         |
-| ---------------- | --------------------------------------------------------------- |
-| **SubjectId**    | Typed identifier: `<type>:<id>` (e.g., `user:1`, `team:dev`)    |
-| **ObjectId**     | Typed identifier: `<type>:<id>` (e.g., `document:10`)           |
-| **RelationName** | Named relationship: `owner`, `editor`, `viewer`, `member`, etc. |
-
----
-
-## 9. Key Design Principles
-
-### 9.1 Deterministic Decisions
-
-Every permission check produces the **same result** given the same input and state. No randomness, no ordering issues.
-
-### 9.2 Explicit Deny Precedence
-
-Denial always wins. This follows the **principle of least privilege**:
-
-```
-DENY > ALLOW (regardless of where ALLOW came from)
-```
-
-### 9.3 Tenant Isolation
-
-Multi-tenancy is **not optional**. Every data access path checks tenant context.
-
-### 9.4 Engine/Application Separation
-
-The authorization engine is **decoupled** from transport, persistence, and application logic. Swap implementations without affecting decision logic.
-
-### 9.5 Explainability First
-
-Every decision must be traceable for:
-
-- Support debugging
-- Security incident investigation
-- Compliance audits
-
-### 9.6 ReBAC Primary, RBAC Fallback
-
-**ReBAC is the recommended model** for modern applicationsit's more expressive. RBAC is a fallback for legacy systems or simple role-based schemes.
-
----
-
-## 10. Architectural Layers
-
-Aegis is structured as a **layered, DDD-driven architecture**:
+- Which users can access this object?
+- Which objects can this user access?
+- What does the relationship tree look like?
 
 ```text
-
-   API Layer (HTTP)             /check, /explain, /relationships
-
-  Application Layer             Use cases, orchestration
-
-  Authorization Engine          Core decision logic (ReBAC + RBAC)
-
-  Domain Model                  Entities, ValueObjects, Events
-
-  Infrastructure Layer          DB, persistence, adapters
-
+POST /api/v1/stores/{storeId}/graph/list-users
+POST /api/v1/stores/{storeId}/graph/list-objects
+POST /api/v1/stores/{storeId}/graph/expand
 ```
 
-**Benefit:** Clear boundaries make the system testable, scalable, and maintainable.
+### RBAC Administration
 
----
+Aegis includes role and permission management for coarse-grained access:
 
-## 11. Technology Stack
+- Roles
+- Permissions
+- Users
+- Role assignments
+- Store-scoped role permissions
 
-- **.NET 8** Modern, performant, cross-platform runtime
-- **ASP.NET Core** Web API framework with minimal hosting
-- **Entity Framework Core** ORM for data access
-- **PostgreSQL** Primary data store (recommended for production)
-- **xUnit + Testcontainers** Comprehensive testing strategy
+### Audit
 
----
+Aegis records authorization decisions and administrative activity so teams can investigate access behavior over time.
 
-## 12. Use Cases
+## Evaluation Model
 
-### Use Case 1: Document Collaboration Platform
+Aegis is designed around deterministic evaluation:
 
 ```text
-One user creates a document  grants editor role to team members
- Aegis checks permission before allowing edits
- Audit log records all permission changes
+1. Explicit deny
+2. Relationship-based allow
+3. Role-based allow
+4. Conditional/context-aware checks
+5. Default deny
 ```
 
-### Use Case 2: SaaS Multi-Tenant System
+The exact behavior depends on the active model, tuples, RBAC data, and request context.
+
+## Example Use Cases
+
+### Document Collaboration
+
+Model document owners, editors, viewers, teams, and parent folders.
+
+Example question:
 
 ```text
-Each customer has isolated Store and relationships
- Customer A's staff can only access Customer A's data
- Authorization rules are customer-specific
+Can user:anne edit document:roadmap?
 ```
 
-### Use Case 3: Microservices Authorization
+### Support Platform
+
+Model support tickets, assigned agents, queues, and managers.
+
+Example question:
 
 ```text
-Payment Service  calls Aegis /check before processing refund
-Reporting Service  calls Aegis /check before generating report
-Admin Service  calls Aegis /check before user management
- All authorization decisions go through Aegis
+Can user:agent1 view ticket:INC-1001?
 ```
 
-### Use Case 4: Compliance & Auditability
+### Billing Console
+
+Model account admins, analysts, and account viewers.
+
+Example question:
 
 ```text
-Auditor queries Aegis audit logs to prove:
-- Who had access to what resource
-- When permissions were granted/revoked
-- Why a permission decision was made (via /explain)
+Can user:finance view account:acme?
 ```
 
----
+### SaaS Administration
 
-## 13. What Aegis Does NOT Do
+Model tenant-specific stores and administrative roles.
 
-Aegis is **pure authorization**. It does NOT:
+Example question:
 
-- Authenticate users (you bring JWT tokens)
-- Manage API keys (you implement key management separately)
-- Encrypt data (at-rest encryption is your responsibility)
-- Validate business logic (it only checks permissions)
+```text
+Can user:admin manage roles in store-docs-default?
+```
 
----
+## Who Uses Aegis?
 
-## 14. Next Steps
+### Application Developers
 
-1. **Understand the Tuple Model** Read `../concepts/core-concepts-tuple-model.md`
-2. **Learn the API** Read `../reference/api-reference.md`
-3. **Set Up Locally** Follow `../guides/getting-started-development.md`
-4. **Deploy to Production** Follow `../guides/deployment-operations-guide.md`
+Use Aegis APIs to make permission checks and write relationship data.
 
----
+### Platform Teams
 
-## 15. Support & Contribution
+Define store boundaries, standard authorization models, and integration patterns.
 
-- **Questions?** Open a GitHub Discussion
-- **Found a bug?** Open a GitHub Issue
-- **Want to contribute?** See `CONTRIBUTING.md`
+### Support Teams
 
----
+Use explain traces and audit logs to investigate access issues.
 
-**Aegis: Where authorization is clear, auditable, and decoupled.**
+### Security and Compliance Teams
+
+Use audit records to understand access behavior and administrative changes.
+
+## What Aegis Is Not
+
+Aegis is focused on authorization.
+
+It is not:
+
+- A user identity provider.
+- A replacement for your login system.
+- A database encryption product.
+- A business workflow engine.
+
+It can integrate with identity providers and product systems, but its job is to decide access.
+
+## Current Maturity
+
+Aegis is under active development. It currently supports local development and realistic demos with:
+
+- PostgreSQL and Redis.
+- Development seed data.
+- API and dashboard workflows.
+- Unit and integration tests.
+- Store-scoped authorization APIs.
+
+See [Roadmap](roadmap.md) for planned platform improvements.
+
+## Next Steps
+
+- Learn the [Core Concepts](../concepts/core-concepts-tuple-model.md).
+- Follow the [User Guide](../guides/user-guide.md).
+- Run the [Development Setup](../guides/getting-started-development.md).
+- Try the [Demo Data](../reference/demo-data.md).
+- Explore the [API Reference](../reference/api-reference.md).
+
