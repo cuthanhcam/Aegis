@@ -16,7 +16,7 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/stores" replace />} />
+        <Route index element={<Navigate to="/overview" replace />} />
         {protectedRoutes.map(({ Component, path }) => (
           <Route
             key={path}
@@ -29,7 +29,7 @@ export function AppRoutes() {
           />
         ))}
       </Route>
-      <Route path="*" element={<Navigate to="/stores" replace />} />
+      <Route path="*" element={<Navigate to="/overview" replace />} />
     </Routes>
   );
 }

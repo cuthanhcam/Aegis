@@ -186,6 +186,16 @@ export class AegisApiClient {
     return (await response.json()) as T;
   }
 
+  private async requestText(path: string, init?: RequestInit): Promise<string> {
+    const response = await this.execute(path, init);
+
+    if (!response.ok) {
+      throw await this.toError(response);
+    }
+
+    return response.text();
+  }
+
   async login(username: string, password: string): Promise<LoginResponse> {
     return this.request<LoginResponse>('/auth/login', {
       method: 'POST',
@@ -216,6 +226,15 @@ export class AegisApiClient {
 
   async getProfile(): Promise<UserProfile> {
     return this.request<UserProfile>('/auth/me');
+  }
+
+  async getAuthorizationMetrics(): Promise<string> {
+    return this.requestText('/metrics/authorization', {
+      method: 'GET',
+      headers: {
+        Accept: 'text/plain',
+      },
+    });
   }
 
   async listStores(): Promise<Store[]> {
