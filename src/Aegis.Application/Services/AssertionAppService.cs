@@ -1,7 +1,11 @@
+using Aegis.Application.Features.Permissions;
 using Aegis.Application.Interfaces;
 using Aegis.Contracts.Administration;
+using Aegis.Contracts.Common;
 using Aegis.Contracts.Compatibility;
+using Aegis.Contracts.Permissions;
 using Aegis.Domain.ValueObjects;
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 
 namespace Aegis.Application.Services
@@ -9,14 +13,26 @@ namespace Aegis.Application.Services
     public sealed class AssertionAppService : IAssertionAppService
     {
         private static readonly ConcurrentDictionary<string, IReadOnlyList<AegisCompatAssertionDto>> AssertionsByModel = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly ConcurrentDictionary<string, AegisAssertionRunRecordDto> RunsById = new(StringComparer.OrdinalIgnoreCase);
         private const int MaxAssertionsPerModel = 100;
         private readonly IStoreRegistry _storeRegistry;
         private readonly IAuthorizationModelRegistry _authorizationModelRegistry;
+        private readonly CheckPermissionUseCase? _checkPermissionUseCase;
 
         public AssertionAppService(IStoreRegistry storeRegistry, IAuthorizationModelRegistry authorizationModelRegistry)
         {
             _storeRegistry = storeRegistry;
             _authorizationModelRegistry = authorizationModelRegistry;
+        }
+
+        [ActivatorUtilitiesConstructor]
+        public AssertionAppService(
+            IStoreRegistry storeRegistry,
+            IAuthorizationModelRegistry authorizationModelRegistry,
+            CheckPermissionUseCase checkPermissionUseCase)
+            : this(storeRegistry, authorizationModelRegistry)
+        {
+            _checkPermissionUseCase = checkPermissionUseCase;
         }
 
         public async Task<AegisCompatReadAssertionsResponseDto> ReadAsync(
@@ -74,6 +90,90 @@ namespace Aegis.Application.Services
             AssertionsByModel[BuildKey(storeId, authorizationModelId)] = request.Assertions.ToList();
         }
 
+        public async Task<AegisAssertionRunRecordDto> RunAsync(
+            string storeId,
+            string authorizationModelId,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureStoreExists(storeId, cancellationToken);
+            if (_checkPermissionUseCase is null)
+            {
+                throw new InvalidOperationException("Assertion runner is unavailable because permission checks are not registered.");
+            }
+
+            var model = await EnsureModelExists(storeId, authorizationModelId, cancellationToken);
+            AssertionsByModel.TryGetValue(BuildKey(storeId, authorizationModelId), out var assertions);
+            assertions ??= [];
+            var startedAt = DateTimeOffset.UtcNow;
+            var results = new List<AegisAssertionRunResultItemDto>();
+
+            foreach (var assertion in assertions)
+            {
+                var response = await _checkPermissionUseCase.ExecuteAsync(
+                    storeId,
+                    new CheckRequestDto(
+                        assertion.TupleKey.User,
+                        assertion.TupleKey.Relation,
+                        assertion.TupleKey.Object,
+                        assertion.ContextualTuples?.TupleKeys.Select(tuple => new ContextualTupleDto(tuple.User, tuple.Relation, tuple.Object)).ToList(),
+                        null,
+                        model.Id),
+                    includeTrace: true,
+                    cancellationToken,
+                    storeId);
+
+                var passed = response.Allowed == assertion.Expectation;
+                results.Add(new AegisAssertionRunResultItemDto(
+                    assertion.TupleKey,
+                    assertion.Expectation,
+                    response.Allowed,
+                    passed,
+                    response.Decision,
+                    response.ReasonCode,
+                    response.Trace is { Count: > 0 } ? NewUlidLikeId() : null));
+            }
+
+            var summary = new AegisAssertionRunSummaryDto(results.Count, results.Count(x => x.Passed), results.Count(x => !x.Passed));
+            var record = new AegisAssertionRunRecordDto(
+                NewUlidLikeId(),
+                storeId,
+                authorizationModelId,
+                startedAt,
+                DateTimeOffset.UtcNow,
+                summary,
+                results);
+
+            RunsById[BuildRunKey(storeId, record.RunId)] = record;
+            return record;
+        }
+
+        public async Task<AegisAssertionRunListResponseDto> ListRunsAsync(
+            string storeId,
+            string authorizationModelId,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureStoreExists(storeId, cancellationToken);
+            await EnsureModelExists(storeId, authorizationModelId, cancellationToken);
+            var runs = RunsById.Values
+                .Where(x => x.StoreId.Equals(storeId, StringComparison.OrdinalIgnoreCase)
+                    && x.AuthorizationModelId.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x.StartedAt)
+                .Take(25)
+                .ToList();
+
+            return new AegisAssertionRunListResponseDto(runs);
+        }
+
+        public async Task<AegisAssertionRunRecordDto?> GetRunAsync(
+            string storeId,
+            string runId,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureStoreExists(storeId, cancellationToken);
+            RunsById.TryGetValue(BuildRunKey(storeId, runId), out var run);
+            return run;
+        }
+
         public Task PurgeStoreAsync(string storeId, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(storeId))
@@ -86,6 +186,13 @@ namespace Aegis.Application.Services
                          .ToArray())
             {
                 AssertionsByModel.TryRemove(key, out _);
+            }
+
+            foreach (var key in RunsById.Keys
+                         .Where(x => x.StartsWith($"{storeId}:", StringComparison.OrdinalIgnoreCase))
+                         .ToArray())
+            {
+                RunsById.TryRemove(key, out _);
             }
 
             return Task.CompletedTask;
@@ -213,5 +320,13 @@ namespace Aegis.Application.Services
 
         private static string BuildKey(string storeId, string authorizationModelId)
             => $"{storeId}:{authorizationModelId}";
+
+        private static string BuildRunKey(string storeId, string runId)
+            => $"{storeId}:{runId}";
+
+        private static string NewUlidLikeId()
+        {
+            return Convert.ToBase64String(Guid.NewGuid().ToByteArray()).Replace("=", string.Empty).Replace("+", "A").Replace("/", "B");
+        }
     }
 }

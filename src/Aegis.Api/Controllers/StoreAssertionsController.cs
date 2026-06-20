@@ -58,5 +58,62 @@ namespace Aegis.Api.Controllers
             await _assertionAppService.WriteAsync(storeId, authorizationModelId, request, cancellationToken);
             return this.OkResponse("written");
         }
+
+        [HttpPost("{authorizationModelId}/run")]
+        [ProducesResponseType(typeof(ApiResponse<AegisAssertionRunRecordDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<ApiResponse<AegisAssertionRunRecordDto>>> Run(
+            [FromRoute] string storeId,
+            [FromRoute] string authorizationModelId,
+            CancellationToken cancellationToken)
+        {
+            var storeAccess = await TenantAccessGuard.ValidateStoreTenantAsync<AegisAssertionRunRecordDto>(this, _storeRegistry, storeId, cancellationToken);
+            if (storeAccess is not null)
+            {
+                return storeAccess;
+            }
+
+            var result = await _assertionAppService.RunAsync(storeId, authorizationModelId, cancellationToken);
+            return this.OkResponse(result);
+        }
+
+        [HttpGet("{authorizationModelId}/runs")]
+        [ProducesResponseType(typeof(ApiResponse<AegisAssertionRunListResponseDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<ApiResponse<AegisAssertionRunListResponseDto>>> ListRuns(
+            [FromRoute] string storeId,
+            [FromRoute] string authorizationModelId,
+            CancellationToken cancellationToken)
+        {
+            var storeAccess = await TenantAccessGuard.ValidateStoreTenantAsync<AegisAssertionRunListResponseDto>(this, _storeRegistry, storeId, cancellationToken);
+            if (storeAccess is not null)
+            {
+                return storeAccess;
+            }
+
+            var result = await _assertionAppService.ListRunsAsync(storeId, authorizationModelId, cancellationToken);
+            return this.OkResponse(result);
+        }
+
+        [HttpGet("runs/{runId}")]
+        [ProducesResponseType(typeof(ApiResponse<AegisAssertionRunRecordDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<AegisAssertionRunRecordDto>), StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ApiResponse<AegisAssertionRunRecordDto>>> GetRun(
+            [FromRoute] string storeId,
+            [FromRoute] string runId,
+            CancellationToken cancellationToken)
+        {
+            var storeAccess = await TenantAccessGuard.ValidateStoreTenantAsync<AegisAssertionRunRecordDto>(this, _storeRegistry, storeId, cancellationToken);
+            if (storeAccess is not null)
+            {
+                return storeAccess;
+            }
+
+            var result = await _assertionAppService.GetRunAsync(storeId, runId, cancellationToken);
+            if (result is null)
+            {
+                return this.NotFoundResponse<AegisAssertionRunRecordDto>("ASSERTION_RUN_NOT_FOUND", $"Assertion run '{runId}' was not found.");
+            }
+
+            return this.OkResponse(result);
+        }
     }
 }
