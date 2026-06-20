@@ -1,9 +1,11 @@
 ﻿import { useMemo, useState } from 'react';
 import { Alert, Button, Card, Input, Popconfirm, Select, Space, Table, Tabs, Typography } from 'antd';
-import { TableSkeleton, TableEmptyState } from '@/shared/ui';
+import { useActiveStore } from '@/app/providers/useActiveStore';
+import { AccessGate, TableSkeleton, TableEmptyState } from '@/shared/ui';
 import { useAccessMutations, useAccessQueries } from '@/features/access/api/useAccessApi';
 
 export function AccessManagementPage() {
+  const { activeStoreId } = useActiveStore();
   const [roleName, setRoleName] = useState('');
   const [roleDescription, setRoleDescription] = useState('');
 
@@ -23,7 +25,7 @@ export function AccessManagementPage() {
   const [userSearch, setUserSearch] = useState('');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
-  const { rolesQuery, permissionsQuery, usersQuery, userRolesQuery } = useAccessQueries(selectedUserId);
+  const { rolesQuery, permissionsQuery, usersQuery, userRolesQuery } = useAccessQueries(activeStoreId, selectedUserId);
   const {
     createRoleMutation,
     createPermissionMutation,
@@ -32,7 +34,7 @@ export function AccessManagementPage() {
     createUserMutation,
     updateUserMutation,
     deleteUserMutation,
-  } = useAccessMutations(selectedUserId);
+  } = useAccessMutations(activeStoreId, selectedUserId);
 
   const roleOptions = useMemo(
     () => (rolesQuery.data ?? []).map((role) => ({ value: role.name, label: role.name })),
@@ -53,15 +55,19 @@ export function AccessManagementPage() {
     );
   }, [userSearch, usersQuery.data]);
 
+  if (!activeStoreId) {
+    return <AccessGate title="Access Management" message="Set an active store first." />;
+  }
+
   return (
     <Card>
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         <div>
           <Typography.Title level={4} style={{ marginBottom: 4 }}>
-            Tenant Access Management
+            Store Access Management
           </Typography.Title>
           <Typography.Text type="secondary">
-            Manage roles, permissions, and users for the current tenant.
+            Manage roles, permissions, and user assignments for the active store. Users remain tenant-scoped.
           </Typography.Text>
         </div>
 
@@ -429,6 +435,5 @@ export function AccessManagementPage() {
     </Card>
   );
 }
-
 
 
