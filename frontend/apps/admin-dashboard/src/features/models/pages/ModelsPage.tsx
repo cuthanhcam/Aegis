@@ -1,7 +1,9 @@
 ﻿import { useState } from 'react';
 import Editor from '@monaco-editor/react';
-import { Button, Card, Drawer, Input, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message } from 'antd';
+import { useMemo } from 'react';
+import { Alert, Button, Card, Col, Drawer, Input, Popconfirm, Row, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { AuthorizationModelValidationResult } from '@aegis/types/src/model';
 import { useAuth } from '@/app/providers/useAuth';
 import { useActiveStore } from '@/app/providers/useActiveStore';
 import { apiClient } from '@/shared/api';
@@ -34,6 +36,26 @@ type repo
     define parent: [org]
     define reader: [user, org#member]
     define writer: [user, org#admin]`,
+  'folder-inheritance': `type user
+
+type folder
+  relations
+    define viewer: [user]
+    define editor: [user]
+
+type document
+  relations
+    define parent: [folder]
+    define viewer: [user] or viewer from parent
+    define editor: [user] or editor from parent`,
+  'approval-gate': `type user
+
+type document
+  relations
+    define viewer: [user]
+    define allowed: [user]
+    define blocked: [user]
+    define can_view: viewer and allowed but not blocked`,
 };
 
 export function ModelsPage() {
@@ -49,6 +71,7 @@ export function ModelsPage() {
   const [editingModelId, setEditingModelId] = useState('');
   const [editSchemaVersion, setEditSchemaVersion] = useState('1.1');
   const [editModelDsl, setEditModelDsl] = useState('');
+  const [validationResult, setValidationResult] = useState<AuthorizationModelValidationResult | null>(null);
 
   const modelsQuery = useQuery({
     queryKey: ['models', activeStoreId],
@@ -64,6 +87,25 @@ export function ModelsPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['models', activeStoreId] });
+    },
+  });
+
+  const validateModelMutation = useMutation({
+    mutationFn: () =>
+      apiClient.validateAuthorizationModel(activeStoreId, {
+        schemaVersion,
+        model: modelDsl,
+      }),
+    onSuccess: (result) => {
+      setValidationResult(result);
+      if (result.valid) {
+        message.success('Model validation passed');
+      } else {
+        message.warning('Model validation found errors');
+      }
+    },
+    onError: (error: unknown) => {
+      message.error(error instanceof Error ? error.message : 'Failed to validate model');
     },
   });
 
@@ -94,6 +136,32 @@ export function ModelsPage() {
       message.error(error instanceof Error ? error.message : 'Failed to delete model');
     },
   });
+
+  const modelDiagnostics = useMemo(() => {
+    const types = [...modelDsl.matchAll(/^\s*type\s+([A-Za-z0-9_]+)/gm)].map((match) => match[1]);
+    const relations = [...modelDsl.matchAll(/^\s*define\s+([A-Za-z0-9_]+)/gm)].map((match) => match[1]);
+    const directRelations = [...modelDsl.matchAll(/^\s*define\s+[A-Za-z0-9_]+:\s*\[/gm)].length;
+    const hasUnion = /\sor\s/.test(modelDsl);
+    const hasIntersection = /\sand\s/.test(modelDsl);
+    const hasExclusion = /\sbut not\s/.test(modelDsl);
+    const hasInheritance = /\sfrom\s+[A-Za-z0-9_]+/.test(modelDsl);
+    const warnings = [
+      types.length === 0 ? 'Add at least one type definition.' : '',
+      relations.length === 0 ? 'Add relations before publishing the model.' : '',
+      directRelations === 0 ? 'At least one direct assignable relation is recommended for tuple writes.' : '',
+    ].filter(Boolean);
+
+    return {
+      typeCount: new Set(types).size,
+      relationCount: relations.length,
+      directRelations,
+      hasUnion,
+      hasIntersection,
+      hasExclusion,
+      hasInheritance,
+      warnings,
+    };
+  }, [modelDsl]);
 
   if (!isAuthenticated) {
     return <AccessGate title="Authorization Models" message="Login first to manage models." />;
@@ -154,10 +222,13 @@ export function ModelsPage() {
               { value: 'document-viewer', label: 'Template: Document Viewer' },
               { value: 'document-editor', label: 'Template: Document Editor' },
               { value: 'org-repo', label: 'Template: Org + Repo' },
+              { value: 'folder-inheritance', label: 'Template: Folder Inheritance' },
+              { value: 'approval-gate', label: 'Template: Approval Gate' },
             ]}
             onChange={(value) => {
               setSelectedTemplate(value);
               setModelDsl(MODEL_TEMPLATES[value]);
+              setValidationResult(null);
             }}
           />
           <Button
@@ -167,7 +238,87 @@ export function ModelsPage() {
           >
             Copy DSL
           </Button>
+          <Button
+            onClick={() => validateModelMutation.mutate()}
+            loading={validateModelMutation.isPending}
+            disabled={!schemaVersion.trim() || !modelDsl.trim()}
+          >
+            Validate Model
+          </Button>
         </Space>
+
+        <Row gutter={[12, 12]}>
+          <Col xs={12} lg={6}>
+            <Card size="small">
+              <Statistic title="Types" value={modelDiagnostics.typeCount} />
+            </Card>
+          </Col>
+          <Col xs={12} lg={6}>
+            <Card size="small">
+              <Statistic title="Relations" value={modelDiagnostics.relationCount} />
+            </Card>
+          </Col>
+          <Col xs={12} lg={6}>
+            <Card size="small">
+              <Statistic title="Direct writes" value={modelDiagnostics.directRelations} />
+            </Card>
+          </Col>
+          <Col xs={12} lg={6}>
+            <Card size="small">
+              <Space wrap size={[6, 6]}>
+                {modelDiagnostics.hasUnion ? <Tag color="processing">union</Tag> : null}
+                {modelDiagnostics.hasIntersection ? <Tag color="processing">intersection</Tag> : null}
+                {modelDiagnostics.hasExclusion ? <Tag color="processing">exclusion</Tag> : null}
+                {modelDiagnostics.hasInheritance ? <Tag color="processing">inheritance</Tag> : null}
+                {!modelDiagnostics.hasUnion
+                  && !modelDiagnostics.hasIntersection
+                  && !modelDiagnostics.hasExclusion
+                  && !modelDiagnostics.hasInheritance ? <Tag>direct only</Tag> : null}
+              </Space>
+            </Card>
+          </Col>
+        </Row>
+
+        {modelDiagnostics.warnings.length > 0 ? (
+          <Alert
+            type="warning"
+            showIcon
+            message="Model readiness checks"
+            description={modelDiagnostics.warnings.join(' ')}
+          />
+        ) : (
+          <Alert
+            type="success"
+            showIcon
+            message="Model has publishable structure"
+            description="The DSL includes types, relations, and at least one direct assignable relation for tuple writes."
+          />
+        )}
+
+        {validationResult ? (
+          <Alert
+            type={validationResult.valid ? 'success' : 'error'}
+            showIcon
+            message={validationResult.valid ? 'Backend validation passed' : 'Backend validation failed'}
+            description={(
+              <Space direction="vertical" size={4}>
+                {validationResult.errors.map((issue) => (
+                  <Typography.Text key={`${issue.code}-${issue.line ?? 'root'}`} type="danger">
+                    {issue.line ? `Line ${issue.line}: ` : ''}{issue.code} - {issue.message}
+                  </Typography.Text>
+                ))}
+                {validationResult.warnings.map((issue) => (
+                  <Typography.Text key={`${issue.code}-${issue.line ?? 'root'}`} type="secondary">
+                    {issue.line ? `Line ${issue.line}: ` : ''}{issue.code} - {issue.message}
+                  </Typography.Text>
+                ))}
+                {validationResult.errors.length === 0 && validationResult.warnings.length === 0 ? (
+                  <Typography.Text type="secondary">No errors or warnings.</Typography.Text>
+                ) : null}
+              </Space>
+            )}
+          />
+        ) : null}
 
         <div className="json-editor-wrap">
           <Editor
@@ -176,7 +327,10 @@ export function ModelsPage() {
             defaultLanguage="yaml"
             theme="vs"
             value={modelDsl}
-            onChange={(next) => setModelDsl(next ?? '')}
+            onChange={(next) => {
+              setModelDsl(next ?? '');
+              setValidationResult(null);
+            }}
             options={{
               minimap: { enabled: false },
               wordWrap: 'on',
@@ -199,7 +353,7 @@ export function ModelsPage() {
           type="primary"
           onClick={() => createModelMutation.mutate()}
           loading={createModelMutation.isPending}
-          disabled={!schemaVersion.trim() || !modelDsl.trim()}
+          disabled={!schemaVersion.trim() || !modelDsl.trim() || validationResult?.valid === false}
         >
           Create Model Version
         </Button>
@@ -403,6 +557,3 @@ export function ModelsPage() {
     </Card>
   );
 }
-
-
-

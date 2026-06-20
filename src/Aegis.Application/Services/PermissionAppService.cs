@@ -125,13 +125,23 @@ namespace Aegis.Application.Services
             AegisCompatCheckRequestDto request,
             CancellationToken cancellationToken = default)
         {
-            var resolvedAuthorizationModelId = await _resolveAuthorizationModelUseCase.ExecuteAsync(
+            return await CheckAegisCompatInStoreAsync(storeId, storeId, request, cancellationToken);
+        }
+
+        public async Task<AegisCompatCheckResponseDto> CheckAegisCompatInStoreAsync(
+            string tenantId,
+            string storeId,
+            AegisCompatCheckRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
+            var resolvedAuthorizationModelId = await _resolveAuthorizationModelUseCase.EnsureStoreAndValidateRequestedAsync(
+                tenantId,
                 storeId,
                 request.AuthorizationModelId,
                 cancellationToken);
 
             var check = await _checkPermissionUseCase.ExecuteAsync(
-                storeId,
+                tenantId,
                 new CheckRequestDto(
                     request.TupleKey.User,
                     request.TupleKey.Relation,
@@ -141,7 +151,8 @@ namespace Aegis.Application.Services
                     resolvedAuthorizationModelId,
                     request.Context),
                 includeTrace: false,
-                cancellationToken);
+                cancellationToken,
+                storeId);
 
             return new AegisCompatCheckResponseDto(check.Allowed);
         }
@@ -152,6 +163,15 @@ namespace Aegis.Application.Services
             CancellationToken cancellationToken = default)
         {
             return await _batchCheckAegisCompatUseCase.ExecuteAsync(storeId, request, cancellationToken);
+        }
+
+        public async Task<AegisCompatBatchCheckResponseDto> BatchCheckAegisCompatInStoreAsync(
+            string tenantId,
+            string storeId,
+            AegisCompatBatchCheckRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
+            return await _batchCheckAegisCompatUseCase.ExecuteAsync(tenantId, storeId, request, cancellationToken);
         }
 
         public Task<string> ResolveAuthorizationModelIdForStoreAsync(

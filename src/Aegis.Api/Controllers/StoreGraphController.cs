@@ -84,7 +84,7 @@ namespace Aegis.Api.Controllers
             [FromBody] AegisCompatListUsersRequestDto request,
             CancellationToken cancellationToken)
         {
-            var storeAccessResult = await ValidateCompatStoreTenantAsync(storeId, cancellationToken);
+            var storeAccessResult = await TenantAccessGuard.ValidateCompatStoreTenantAsync<AegisCompatListUsersResponseDto>(this, _storeRegistry, storeId, cancellationToken);
             if (storeAccessResult is not null)
             {
                 return storeAccessResult;
@@ -102,7 +102,7 @@ namespace Aegis.Api.Controllers
             [FromBody] AegisCompatListObjectsRequestDto request,
             CancellationToken cancellationToken)
         {
-            var storeAccessResult = await ValidateCompatStoreTenantAsync(storeId, cancellationToken);
+            var storeAccessResult = await TenantAccessGuard.ValidateCompatStoreTenantAsync<AegisCompatListObjectsResponseDto>(this, _storeRegistry, storeId, cancellationToken);
             if (storeAccessResult is not null)
             {
                 return storeAccessResult;
@@ -120,7 +120,7 @@ namespace Aegis.Api.Controllers
             [FromBody] AegisCompatExpandRequestDto request,
             CancellationToken cancellationToken)
         {
-            var storeAccessResult = await ValidateCompatStoreTenantAsync(storeId, cancellationToken);
+            var storeAccessResult = await TenantAccessGuard.ValidateCompatStoreTenantAsync<AegisCompatExpandResponseDto>(this, _storeRegistry, storeId, cancellationToken);
             if (storeAccessResult is not null)
             {
                 return storeAccessResult;
@@ -129,23 +129,6 @@ namespace Aegis.Api.Controllers
             var tenantId = TenantAccessGuard.ResolveTenantId(User)!;
             var result = await _authorizationQueryAppService.ExpandAegisCompatAsync(tenantId, storeId, request, cancellationToken);
             return Ok(result);
-        }
-
-        private async Task<ActionResult?> ValidateCompatStoreTenantAsync(string storeId, CancellationToken cancellationToken)
-        {
-            var tenantId = TenantAccessGuard.ResolveTenantId(User);
-            if (string.IsNullOrWhiteSpace(tenantId))
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, new AegisCompatErrorResponseDto("tenant_forbidden", "Tenant claim is required."));
-            }
-
-            var store = await _storeRegistry.GetForTenantAsync(tenantId, storeId, cancellationToken);
-            if (store is null)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, new AegisCompatErrorResponseDto("store_forbidden", "Store does not belong to the authenticated tenant."));
-            }
-
-            return null;
         }
     }
 }

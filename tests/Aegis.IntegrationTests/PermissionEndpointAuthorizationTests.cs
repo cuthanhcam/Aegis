@@ -108,6 +108,94 @@ public sealed class PermissionEndpointAuthorizationTests
     }
 
     [Fact]
+    public async Task Store_check_compat_endpoint_with_mismatched_claim_returns_403()
+    {
+        await using var factory = new TestApiFactory();
+        var seed = await SeedStoreGraphAsync(factory.AppServices);
+
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, "tenant-b");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/v1/stores/{seed.StoreId}/check/compat",
+            new
+            {
+                tuple_key = new { user = "user:anne", relation = "viewer", @object = "document:roadmap" },
+                authorization_model_id = seed.AuthorizationModelId,
+            });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.Contains("store_forbidden", content, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Store_check_compat_endpoint_returns_allowed_payload()
+    {
+        await using var factory = new TestApiFactory();
+        var seed = await SeedStoreGraphAsync(factory.AppServices);
+
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, "tenant-a");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/v1/stores/{seed.StoreId}/check/compat",
+            new
+            {
+                tuple_key = new { user = "user:anne", relation = "viewer", @object = "document:roadmap" },
+                authorization_model_id = seed.AuthorizationModelId,
+            });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<AegisCompatCheckResponseDto>(JsonOptions);
+        Assert.NotNull(payload);
+        Assert.True(payload!.Allowed);
+    }
+
+    [Fact]
+    public async Task Store_batch_check_compat_endpoint_returns_correlated_results()
+    {
+        await using var factory = new TestApiFactory();
+        var seed = await SeedStoreGraphAsync(factory.AppServices);
+
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, "tenant-a");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/v1/stores/{seed.StoreId}/batch-check/compat",
+            new
+            {
+                authorization_model_id = seed.AuthorizationModelId,
+                checks = new[]
+                {
+                    new
+                    {
+                        correlation_id = "one",
+                        tuple_key = new { user = "user:anne", relation = "viewer", @object = "document:roadmap" },
+                    },
+                    new
+                    {
+                        correlation_id = "two",
+                        tuple_key = new { user = "user:bob", relation = "viewer", @object = "document:roadmap" },
+                    },
+                },
+            });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<AegisCompatBatchCheckResponseDto>(JsonOptions);
+        Assert.NotNull(payload);
+        Assert.Equal(2, payload!.Result.Count);
+        Assert.True(payload.Result.Single(item => item.CorrelationId == "one").Allowed);
+        Assert.False(payload.Result.Single(item => item.CorrelationId == "two").Allowed);
+    }
+
+    [Fact]
     public async Task Login_with_invalid_payload_returns_400_with_standard_envelope()
     {
         await using var factory = new TestApiFactory();

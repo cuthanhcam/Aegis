@@ -15,7 +15,16 @@ import type { ReadAssertionsResponse, WriteAssertionsRequest } from '@aegis/type
 import type { LoginResponse } from '@aegis/types/src/auth';
 import type { UserProfile } from '@aegis/types/src/auth';
 import type { AuditEvent } from '@aegis/types/src/audit';
-import type { CheckResult, StoreCheckRequest } from '@aegis/types/src/check';
+import type {
+  BatchCheckItemRequest,
+  BatchCheckResponse,
+  CheckResult,
+  OpenFgaBatchCheckRequest,
+  OpenFgaBatchCheckResponse,
+  OpenFgaCheckRequest,
+  OpenFgaCheckResponse,
+  StoreCheckRequest,
+} from '@aegis/types/src/check';
 import type { ReadChangesResponse } from '@aegis/types/src/changes';
 import type {
   ExpandNode,
@@ -25,7 +34,13 @@ import type {
   ListUsersRequest,
   ListUsersResponse,
 } from '@aegis/types/src/graph';
-import type { CreateAuthorizationModelRequest, AuthorizationModel, UpdateAuthorizationModelRequest } from '@aegis/types/src/model';
+import type {
+  AuthorizationModel,
+  AuthorizationModelValidationResult,
+  CreateAuthorizationModelRequest,
+  UpdateAuthorizationModelRequest,
+  ValidateAuthorizationModelRequest,
+} from '@aegis/types/src/model';
 import type { DeletePresetRequest, PresetItem, PresetMeta, PresetSource, UpsertPresetRequest } from '@aegis/types/src/preset';
 import type {
   RelationshipDeleteRequest,
@@ -176,7 +191,7 @@ export class AegisApiClient {
     return payload.data as T;
   }
 
-  private async requestDirect<T>(path: string, init?: RequestInit): Promise<T> {
+  private async requestRaw<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await this.execute(path, init);
 
     if (!response.ok) {
@@ -184,6 +199,16 @@ export class AegisApiClient {
     }
 
     return (await response.json()) as T;
+  }
+
+  private async requestText(path: string, init?: RequestInit): Promise<string> {
+    const response = await this.execute(path, init);
+
+    if (!response.ok) {
+      throw await this.toError(response);
+    }
+
+    return response.text();
   }
 
   async login(username: string, password: string): Promise<LoginResponse> {
@@ -218,6 +243,15 @@ export class AegisApiClient {
     return this.request<UserProfile>('/auth/me');
   }
 
+  async getAuthorizationMetrics(): Promise<string> {
+    return this.requestText('/metrics/authorization', {
+      method: 'GET',
+      headers: {
+        Accept: 'text/plain',
+      },
+    });
+  }
+
   async listStores(): Promise<Store[]> {
     return this.request<Store[]>('/stores');
   }
@@ -242,6 +276,16 @@ export class AegisApiClient {
     request: CreateAuthorizationModelRequest,
   ): Promise<AuthorizationModel> {
     return this.request<AuthorizationModel>(`/stores/${storeId}/authorization-models`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  async validateAuthorizationModel(
+    storeId: string,
+    request: ValidateAuthorizationModelRequest,
+  ): Promise<AuthorizationModelValidationResult> {
+    return this.request<AuthorizationModelValidationResult>(`/stores/${storeId}/authorization-models/validate`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -324,22 +368,32 @@ export class AegisApiClient {
     });
   }
 
-  async batchCheckCompat(
+  async batchCheckInStore(
     storeId: string,
-    checks: Array<{ user: string; relation: string; object: string; correlationId: string }>,
-  ): Promise<unknown> {
-    return this.requestDirect<unknown>(`/stores/${storeId}/batch-check`, {
+    items: BatchCheckItemRequest[],
+  ): Promise<BatchCheckResponse> {
+    return this.request<BatchCheckResponse>(`/stores/${storeId}/batch-check`, {
       method: 'POST',
       body: JSON.stringify({
-        checks: checks.map((item) => ({
-          tuple_key: {
-            user: item.user,
-            relation: item.relation,
-            object: item.object,
-          },
-          correlation_id: item.correlationId,
-        })),
+        items,
       }),
+    });
+  }
+
+  async checkCompatInStore(storeId: string, request: OpenFgaCheckRequest): Promise<OpenFgaCheckResponse> {
+    return this.requestRaw<OpenFgaCheckResponse>(`/stores/${storeId}/check/compat`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  async batchCheckCompatInStore(
+    storeId: string,
+    request: OpenFgaBatchCheckRequest,
+  ): Promise<OpenFgaBatchCheckResponse> {
+    return this.requestRaw<OpenFgaBatchCheckResponse>(`/stores/${storeId}/batch-check/compat`, {
+      method: 'POST',
+      body: JSON.stringify(request),
     });
   }
 

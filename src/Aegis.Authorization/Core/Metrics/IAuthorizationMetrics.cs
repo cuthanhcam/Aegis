@@ -8,6 +8,10 @@ namespace Aegis.Authorization.Core.Metrics
         void IncrementParseCacheMiss();
         void IncrementDbQuery();
         void AddDbResultCount(int count);
+        void IncrementCheckRequest();
+        void IncrementCheckAllowed();
+        void IncrementCheckDenied();
+        void IncrementCheckError();
 
         MetricsSnapshot Snapshot();
     }
@@ -18,5 +22,9 @@ namespace Aegis.Authorization.Core.Metrics
         long ParseCacheHits,
         long ParseCacheMisses,
         long DbQueries,
-        long DbResults);
+        long DbResults,
+        long CheckRequests,
+        long CheckAllowed,
+        long CheckDenied,
+        long CheckErrors);
 }

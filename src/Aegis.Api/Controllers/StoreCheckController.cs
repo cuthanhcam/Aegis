@@ -1,6 +1,7 @@
 using Aegis.Api.Controllers.Helpers;
 using Aegis.Api.Security;
 using Aegis.Application.Interfaces;
+using Aegis.Contracts.Compatibility;
 using Aegis.Contracts.Common;
 using Aegis.Contracts.Permissions;
 using Microsoft.AspNetCore.Authorization;
@@ -96,6 +97,42 @@ namespace Aegis.Api.Controllers
             var tenantId = TenantAccessGuard.ResolveTenantId(User)!;
             var result = await _permissionAppService.BatchCheckInStoreAsync(tenantId, storeId, request, cancellationToken);
             return this.OkResponse(result);
+        }
+
+        [HttpPost("check/compat")]
+        [ProducesResponseType(typeof(AegisCompatCheckResponseDto), StatusCodes.Status200OK)]
+        public async Task<ActionResult<AegisCompatCheckResponseDto>> CheckCompat(
+            [FromRoute] string storeId,
+            [FromBody] AegisCompatCheckRequestDto request,
+            CancellationToken cancellationToken)
+        {
+            var storeAccessResult = await TenantAccessGuard.ValidateCompatStoreTenantAsync<AegisCompatCheckResponseDto>(this, _storeRegistry, storeId, cancellationToken);
+            if (storeAccessResult is not null)
+            {
+                return storeAccessResult;
+            }
+
+            var tenantId = TenantAccessGuard.ResolveTenantId(User)!;
+            var result = await _permissionAppService.CheckAegisCompatInStoreAsync(tenantId, storeId, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPost("batch-check/compat")]
+        [ProducesResponseType(typeof(AegisCompatBatchCheckResponseDto), StatusCodes.Status200OK)]
+        public async Task<ActionResult<AegisCompatBatchCheckResponseDto>> BatchCheckCompat(
+            [FromRoute] string storeId,
+            [FromBody] AegisCompatBatchCheckRequestDto request,
+            CancellationToken cancellationToken)
+        {
+            var storeAccessResult = await TenantAccessGuard.ValidateCompatStoreTenantAsync<AegisCompatBatchCheckResponseDto>(this, _storeRegistry, storeId, cancellationToken);
+            if (storeAccessResult is not null)
+            {
+                return storeAccessResult;
+            }
+
+            var tenantId = TenantAccessGuard.ResolveTenantId(User)!;
+            var result = await _permissionAppService.BatchCheckAegisCompatInStoreAsync(tenantId, storeId, request, cancellationToken);
+            return Ok(result);
         }
     }
 }

@@ -16,4 +16,40 @@ namespace Aegis.Contracts.Administration
         string SchemaVersion,
         string Model,
         DateTimeOffset CreatedAt);
+
+    /// <summary>
+    /// Validation request payload for an authorization model draft.
+    /// </summary>
+    public sealed record ValidateAuthorizationModelRequestDto(
+        string SchemaVersion,
+        string Model);
+
+    /// <summary>
+    /// One validation issue for an authorization model draft.
+    /// </summary>
+    public sealed record AuthorizationModelValidationIssueDto(
+        string Code,
+        string Message,
+        int? Line = null);
+
+    /// <summary>
+    /// Parsed model summary returned by validation.
+    /// </summary>
+    public sealed record AuthorizationModelValidationSummaryDto(
+        int TypeCount,
+        int RelationCount,
+        int DirectRelationCount,
+        bool HasUnion,
+        bool HasIntersection,
+        bool HasExclusion,
+        bool HasTupleToUserset);
+
+    /// <summary>
+    /// Validation result for an authorization model draft.
+    /// </summary>
+    public sealed record AuthorizationModelValidationResultDto(
+        bool Valid,
+        AuthorizationModelValidationSummaryDto Summary,
+        IReadOnlyList<AuthorizationModelValidationIssueDto> Errors,
+        IReadOnlyList<AuthorizationModelValidationIssueDto> Warnings);
 }

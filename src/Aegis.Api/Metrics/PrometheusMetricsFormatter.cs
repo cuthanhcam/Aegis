@@ -26,6 +26,10 @@ public static class PrometheusMetricsFormatter
         AppendCounter(builder, "aegis_authorization_parse_cache_misses_total", "Authorization model parse cache misses.", auth.ParseCacheMisses);
         AppendCounter(builder, "aegis_authorization_db_queries_total", "Authorization relationship database queries.", auth.DbQueries);
         AppendCounter(builder, "aegis_authorization_db_results_total", "Authorization relationship database rows returned.", auth.DbResults);
+        AppendCounter(builder, "aegis_authorization_checks_total", "Authorization check and explain requests evaluated.", auth.CheckRequests);
+        AppendCounter(builder, "aegis_authorization_allowed_total", "Authorization decisions that allowed access.", auth.CheckAllowed);
+        AppendCounter(builder, "aegis_authorization_denied_total", "Authorization decisions that denied access.", auth.CheckDenied);
+        AppendCounter(builder, "aegis_authorization_errors_total", "Authorization check requests that failed before returning a decision.", auth.CheckErrors);
 
         return builder.ToString();
     }

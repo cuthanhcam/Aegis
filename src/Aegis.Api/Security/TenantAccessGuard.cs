@@ -103,5 +103,30 @@ namespace Aegis.Api.Security
 
             return null;
         }
+
+        public static async Task<ActionResult<T>?> ValidateCompatStoreTenantAsync<T>(
+            ControllerBase controller,
+            IStoreRegistry storeRegistry,
+            string storeId,
+            CancellationToken cancellationToken = default)
+        {
+            var tenantId = ResolveTenantId(controller.User);
+            if (string.IsNullOrWhiteSpace(tenantId))
+            {
+                return controller.StatusCode(
+                    StatusCodes.Status403Forbidden,
+                    new AegisCompatErrorResponseDto("tenant_forbidden", "Tenant claim is required."));
+            }
+
+            var store = await storeRegistry.GetForTenantAsync(tenantId, storeId, cancellationToken);
+            if (store is null)
+            {
+                return controller.StatusCode(
+                    StatusCodes.Status403Forbidden,
+                    new AegisCompatErrorResponseDto("store_forbidden", "Store does not belong to the authenticated tenant."));
+            }
+
+            return null;
+        }
     }
 }

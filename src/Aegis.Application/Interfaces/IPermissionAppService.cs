@@ -54,7 +54,19 @@ public interface IPermissionAppService
         AegisCompatCheckRequestDto request,
         CancellationToken cancellationToken = default);
 
+    Task<AegisCompatCheckResponseDto> CheckAegisCompatInStoreAsync(
+        string tenantId,
+        string storeId,
+        AegisCompatCheckRequestDto request,
+        CancellationToken cancellationToken = default);
+
     Task<AegisCompatBatchCheckResponseDto> BatchCheckAegisCompatInStoreAsync(
+        string storeId,
+        AegisCompatBatchCheckRequestDto request,
+        CancellationToken cancellationToken = default);
+
+    Task<AegisCompatBatchCheckResponseDto> BatchCheckAegisCompatInStoreAsync(
+        string tenantId,
         string storeId,
         AegisCompatBatchCheckRequestDto request,
         CancellationToken cancellationToken = default);

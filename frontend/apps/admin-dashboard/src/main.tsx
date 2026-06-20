@@ -23,7 +23,7 @@ createRoot(document.getElementById('root')!).render(
             locale={enUS}
             theme={{
               token: {
-                colorPrimary: '#1677ff',
+                colorPrimary: '#FF3366',
                 borderRadius: 8,
                 fontFamily: APP_FONT_FAMILY,
                 fontFamilyCode: APP_CODE_FONT_FAMILY,
@@ -39,6 +39,5 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </React.StrictMode>,
 );
-
 
 

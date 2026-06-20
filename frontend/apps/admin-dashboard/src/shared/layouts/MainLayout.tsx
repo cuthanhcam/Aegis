@@ -1,5 +1,5 @@
 import { LogoutOutlined } from '@ant-design/icons';
-import { Button, Layout, Menu, Select, Space, Tag, Typography } from 'antd';
+import { Button, Layout, Menu, Select, Space, Tag, Tooltip, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { useLocation, useNavigate, Outlet } from 'react-router-dom';
@@ -30,8 +30,9 @@ export function MainLayout() {
   const navItems = getNavigationItems(profileQuery.data?.roles ?? []);
 
   const roleText = (profileQuery.data?.roles ?? []).slice(0, 2).join(', ');
-  const currentRoute = protectedRoutes.find((route) => location.pathname.startsWith(route.path));
+  const currentRoute = protectedRoutes.find((route) => location.pathname.startsWith(route.path)) ?? protectedRoutes[0];
   const stores = useMemo(() => storesQuery.data ?? [], [storesQuery.data]);
+  const activeStore = stores.find((store) => store.id === activeStoreId);
   const activeStoreIsValid = !activeStoreId || stores.some((store) => store.id === activeStoreId);
   const isValidatingActiveStore = Boolean(activeStoreId) && (!storesQuery.isSuccess || !activeStoreIsValid);
 
@@ -65,12 +66,22 @@ export function MainLayout() {
           <div className="pro-brand-mark">A</div>
           <div>
             <div className="pro-brand-title">Aegis</div>
-            <div className="pro-brand-subtitle">Authorization</div>
+            <div className="pro-brand-subtitle">Authorization Console</div>
+          </div>
+        </div>
+        <div className="pro-sider-context">
+          <span className="pro-kicker">Active store</span>
+          <Tooltip title={activeStore ? `${activeStore.name} (${activeStore.id})` : 'No active store selected'}>
+            <div className="pro-sider-store">{activeStore?.name ?? 'No store selected'}</div>
+          </Tooltip>
+          <div className="pro-sider-statline">
+            <span>{stores.length} store{stores.length === 1 ? '' : 's'}</span>
+            <span>{profileQuery.data?.tenantId ?? 'tenant pending'}</span>
           </div>
         </div>
         <Menu
           mode="inline"
-          selectedKeys={[location.pathname]}
+          selectedKeys={[currentRoute?.path ?? location.pathname]}
           items={navItems}
           onClick={(item) => navigate(String(item.key))}
           className="pro-menu"
@@ -79,8 +90,11 @@ export function MainLayout() {
       <Layout>
         <Layout.Header className="pro-header">
           <div className="pro-header-title">
-            <Typography.Text className="pro-kicker">Project</Typography.Text>
-            <Typography.Title level={4}>{currentRoute?.label ?? 'Aegis'}</Typography.Title>
+            <Typography.Text className="pro-kicker">Aegis workspace</Typography.Text>
+            <Typography.Title level={3}>{currentRoute?.label ?? 'Aegis'}</Typography.Title>
+            <Typography.Text className="pro-route-description">
+              {currentRoute?.description ?? 'Manage authorization state and evaluate access decisions.'}
+            </Typography.Text>
           </div>
           <Space size={10} wrap className="pro-header-actions">
             {profileQuery.data?.tenantId ? <Tag>Tenant: {profileQuery.data.tenantId}</Tag> : null}
@@ -100,9 +114,7 @@ export function MainLayout() {
           </Space>
         </Layout.Header>
         <Layout.Content className="pro-content">
-          <div className="pro-content-frame">
-            {isValidatingActiveStore ? <TableSkeleton rows={5} columns={4} /> : <Outlet />}
-          </div>
+          {isValidatingActiveStore ? <TableSkeleton rows={5} columns={4} /> : <Outlet />}
         </Layout.Content>
       </Layout>
     </Layout>
