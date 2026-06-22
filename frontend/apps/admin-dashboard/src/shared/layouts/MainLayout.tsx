@@ -46,6 +46,7 @@ type ProductModule = {
   description: string;
   routes: string[];
   context?: boolean;
+  children?: Array<{ label: string; path: string }>;
 };
 
 type ProductGroup = {
@@ -64,6 +65,7 @@ const moduleGroups: ProductGroup[] = [
         icon: <DashboardOutlined />,
         description: 'Executive health, readiness, and operating context.',
         routes: ['/overview'],
+        children: [{ label: 'Overview', path: '/overview' }],
       },
       {
         key: 'analytics',
@@ -73,6 +75,10 @@ const moduleGroups: ProductGroup[] = [
         description: 'Decision analytics, checks, explains, and batch diagnostics.',
         routes: ['/test-console', '/graph'],
         context: true,
+        children: [
+          { label: 'Test Console', path: '/test-console' },
+          { label: 'Graph Explorer', path: '/graph' },
+        ],
       },
       {
         key: 'agents',
@@ -82,6 +88,10 @@ const moduleGroups: ProductGroup[] = [
         description: 'Assertion suites, model safety checks, and launch presets.',
         routes: ['/assertions', '/presets'],
         context: true,
+        children: [
+          { label: 'Assertions', path: '/assertions' },
+          { label: 'Presets', path: '/presets' },
+        ],
       },
       {
         key: 'services',
@@ -91,6 +101,11 @@ const moduleGroups: ProductGroup[] = [
         description: 'Authorization models, tuple graph, and store-scoped resources.',
         routes: ['/models', '/relationships', '/stores'],
         context: true,
+        children: [
+          { label: 'Models', path: '/models' },
+          { label: 'Relationships', path: '/relationships' },
+          { label: 'Stores', path: '/stores' },
+        ],
       },
     ],
   },
@@ -104,6 +119,7 @@ const moduleGroups: ProductGroup[] = [
         icon: <LineChartOutlined />,
         description: 'Graph query surfaces and operational performance signals.',
         routes: ['/graph'],
+        children: [{ label: 'Service graph', path: '/graph' }],
       },
       {
         key: 'logs',
@@ -112,6 +128,7 @@ const moduleGroups: ProductGroup[] = [
         icon: <FileTextOutlined />,
         description: 'Audit trails, decision logs, and forensic evidence.',
         routes: ['/audit'],
+        children: [{ label: 'Audit logs', path: '/audit' }],
       },
       {
         key: 'events',
@@ -120,6 +137,7 @@ const moduleGroups: ProductGroup[] = [
         icon: <AuditOutlined />,
         description: 'Relationship changes and store activity timelines.',
         routes: ['/relationships'],
+        children: [{ label: 'Relationship events', path: '/relationships' }],
       },
       {
         key: 'alerts',
@@ -128,6 +146,7 @@ const moduleGroups: ProductGroup[] = [
         icon: <AlertOutlined />,
         description: 'Saved launch checks, readiness warnings, and guardrail views.',
         routes: ['/presets'],
+        children: [{ label: 'Guardrails', path: '/presets' }],
       },
     ],
   },
@@ -142,6 +161,10 @@ const moduleGroups: ProductGroup[] = [
         description: 'Users, roles, permissions, profile, and workspace settings.',
         routes: ['/access', '/profile'],
         context: true,
+        children: [
+          { label: 'Access management', path: '/access' },
+          { label: 'Profile', path: '/profile' },
+        ],
       },
     ],
   },
@@ -284,22 +307,11 @@ export function MainLayout() {
               <GlobalOutlined />
               {!collapsed ? (
                 <span>
-                  <strong>{profileQuery.data?.tenantId ?? 'Launch workspace'}</strong>
+                  <strong>{profileQuery.data?.tenantId ?? 'Aegis workspace'}</strong>
                   <small>{activeStore?.name ?? 'Select active store'}</small>
                 </span>
               ) : null}
             </button>
-
-            {!collapsed ? (
-              <div className="enterprise-mode-switcher" aria-label="Workspace mode">
-                <button type="button" className="is-active">
-                  <CodeOutlined /> Code
-                </button>
-                <button type="button" onClick={() => navigate('/assertions')}>
-                  <DeploymentUnitOutlined /> Agents
-                </button>
-              </div>
-            ) : null}
 
             <button type="button" className="enterprise-global-search" onClick={() => setCommandOpen(true)}>
               <SearchOutlined />
@@ -318,17 +330,33 @@ export function MainLayout() {
                   {group.modules.map((module) => {
                     const selected = module.key === currentModule.key;
                     return (
-                      <Tooltip key={module.key} title={collapsed ? module.label : undefined} placement="right">
-                        <button
-                          type="button"
-                          className={selected ? 'is-active' : ''}
-                          onClick={() => navigate(module.path)}
-                          aria-current={selected ? 'page' : undefined}
-                        >
-                          {module.icon}
-                          {!collapsed ? <span>{module.label}</span> : null}
-                        </button>
-                      </Tooltip>
+                      <div key={module.key} className="enterprise-nav-item-block">
+                        <Tooltip title={collapsed ? module.label : undefined} placement="right">
+                          <button
+                            type="button"
+                            className={selected ? 'is-active' : ''}
+                            onClick={() => navigate(module.path)}
+                            aria-current={selected ? 'page' : undefined}
+                          >
+                            {module.icon}
+                            {!collapsed ? <span>{module.label}</span> : null}
+                          </button>
+                        </Tooltip>
+                        {!collapsed && selected && module.children ? (
+                          <div className="enterprise-nav-children">
+                            {module.children.map((child) => (
+                              <button
+                                key={child.path}
+                                type="button"
+                                className={location.pathname.startsWith(child.path) ? 'is-active-child' : ''}
+                                onClick={() => navigate(child.path)}
+                              >
+                                {child.label}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
                     );
                   })}
                 </section>
@@ -337,17 +365,16 @@ export function MainLayout() {
           </div>
 
           <div className="enterprise-sidebar-footer">
-            <Tooltip title={collapsed ? 'Profile' : undefined} placement="right">
-              <button type="button" className="enterprise-user-tile" onClick={() => navigate('/profile')}>
-                <span className="enterprise-avatar">DU</span>
-                {!collapsed ? (
+            {!collapsed ? (
+              <Tooltip title="Profile" placement="right">
+                <button type="button" className="enterprise-user-tile" onClick={() => navigate('/profile')}>
                   <span>
                     <strong>{profileQuery.data?.username ?? 'Demo User'}</strong>
                     <small>{roleText || 'Operator'}</small>
                   </span>
-                ) : null}
-              </button>
-            </Tooltip>
+                </button>
+              </Tooltip>
+            ) : null}
             <div className="enterprise-footer-actions">
               <Button type="text" icon={<BellOutlined />} aria-label="Notifications" />
               <Button type="text" icon={<SettingOutlined />} onClick={() => navigate('/access')} aria-label="Settings" />
