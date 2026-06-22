@@ -11,6 +11,7 @@ import {
   DashboardOutlined,
   DatabaseOutlined,
   DeploymentUnitOutlined,
+  DownOutlined,
   FileTextOutlined,
   FilterOutlined,
   GlobalOutlined,
@@ -20,6 +21,7 @@ import {
   MenuUnfoldOutlined,
   NodeIndexOutlined,
   PlusOutlined,
+  QuestionCircleOutlined,
   SearchOutlined,
   SettingOutlined,
   StarOutlined,
@@ -50,13 +52,19 @@ type ProductModule = {
 };
 
 type ProductGroup = {
+  key: string;
   label: string;
+  icon: ReactNode;
+  defaultOpen?: boolean;
   modules: ProductModule[];
 };
 
 const moduleGroups: ProductGroup[] = [
   {
+    key: 'workspace',
     label: 'Workspace',
+    icon: <AppstoreOutlined />,
+    defaultOpen: true,
     modules: [
       {
         key: 'dashboard',
@@ -110,7 +118,10 @@ const moduleGroups: ProductGroup[] = [
     ],
   },
   {
+    key: 'telemetry',
     label: 'Telemetry',
+    icon: <LineChartOutlined />,
+    defaultOpen: true,
     modules: [
       {
         key: 'monitoring',
@@ -151,7 +162,10 @@ const moduleGroups: ProductGroup[] = [
     ],
   },
   {
+    key: 'management',
     label: 'Management',
+    icon: <SettingOutlined />,
+    defaultOpen: true,
     modules: [
       {
         key: 'settings',
@@ -198,6 +212,10 @@ export function MainLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(moduleGroups.map((group) => [group.key, group.defaultOpen ?? true])),
+  );
 
   const storesQuery = useQuery({
     queryKey: ['stores', accessToken],
@@ -239,6 +257,10 @@ export function MainLayout() {
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
+  };
+
+  const toggleGroup = (key: string) => {
+    setOpenGroups((groups) => ({ ...groups, [key]: !groups[key] }));
   };
 
   useEffect(() => {
@@ -294,13 +316,6 @@ export function MainLayout() {
                   <span>Authorization Cloud</span>
                 </div>
               ) : null}
-              <Button
-                type="text"
-                size="small"
-                icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                onClick={() => setCollapsed((value) => !value)}
-                aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-              />
             </div>
 
             <button type="button" className="enterprise-workspace-switcher" onClick={() => setCommandOpen(true)}>
@@ -325,13 +340,24 @@ export function MainLayout() {
 
             <nav className="enterprise-primary-nav" aria-label="Product modules">
               {moduleGroups.map((group) => (
-                <section key={group.label}>
-                  {!collapsed ? <div className="enterprise-nav-group-label">{group.label}</div> : null}
-                  {group.modules.map((module) => {
-                    const selected = module.key === currentModule.key;
-                    return (
-                      <div key={module.key} className="enterprise-nav-item-block">
-                        <Tooltip title={collapsed ? module.label : undefined} placement="right">
+                <section key={group.key} className="enterprise-nav-group">
+                  {collapsed ? null : (
+                    <button
+                      type="button"
+                      className="enterprise-nav-group-trigger"
+                      aria-expanded={openGroups[group.key]}
+                      onClick={() => toggleGroup(group.key)}
+                    >
+                      {group.icon}
+                      <span>{group.label}</span>
+                      <DownOutlined />
+                    </button>
+                  )}
+                  <div className={collapsed || openGroups[group.key] ? 'enterprise-nav-group-items is-open' : 'enterprise-nav-group-items'}>
+                    {group.modules.map((module) => {
+                      const selected = module.key === currentModule.key;
+                      return (
+                        <Tooltip key={module.key} title={collapsed ? module.label : undefined} placement="right">
                           <button
                             type="button"
                             className={selected ? 'is-active' : ''}
@@ -342,23 +368,9 @@ export function MainLayout() {
                             {!collapsed ? <span>{module.label}</span> : null}
                           </button>
                         </Tooltip>
-                        {!collapsed && selected && module.children ? (
-                          <div className="enterprise-nav-children">
-                            {module.children.map((child) => (
-                              <button
-                                key={child.path}
-                                type="button"
-                                className={location.pathname.startsWith(child.path) ? 'is-active-child' : ''}
-                                onClick={() => navigate(child.path)}
-                              >
-                                {child.label}
-                              </button>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </section>
               ))}
             </nav>
@@ -375,10 +387,39 @@ export function MainLayout() {
                 </button>
               </Tooltip>
             ) : null}
+            {!collapsed && supportOpen ? (
+              <div className="enterprise-support-menu">
+                <button type="button" onClick={() => setCommandOpen(true)}>
+                  <SearchOutlined />
+                  Command palette
+                </button>
+                <button type="button" onClick={() => navigate('/overview')}>
+                  <DashboardOutlined />
+                  Workspace guide
+                </button>
+                <button type="button" onClick={() => navigate('/profile')}>
+                  <UserOutlined />
+                  Account details
+                </button>
+              </div>
+            ) : null}
             <div className="enterprise-footer-actions">
               <Button type="text" icon={<BellOutlined />} aria-label="Notifications" />
               <Button type="text" icon={<SettingOutlined />} onClick={() => navigate('/access')} aria-label="Settings" />
+              <Button
+                type="text"
+                icon={<QuestionCircleOutlined />}
+                onClick={() => setSupportOpen((value) => !value)}
+                aria-label="Help"
+                aria-expanded={supportOpen}
+              />
               <Button type="text" icon={<LogoutOutlined />} onClick={handleLogout} aria-label="Logout" />
+              <Button
+                type="text"
+                icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                onClick={() => setCollapsed((value) => !value)}
+                aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+              />
             </div>
           </div>
         </div>
