@@ -2,12 +2,12 @@ import {
   AlertOutlined,
   ApiOutlined,
   AppstoreOutlined,
-  AuditOutlined,
   BarChartOutlined,
   BellOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   CodeOutlined,
+  AuditOutlined,
   DashboardOutlined,
   DatabaseOutlined,
   DeploymentUnitOutlined,
@@ -17,11 +17,13 @@ import {
   GlobalOutlined,
   LineChartOutlined,
   LogoutOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
+  LeftOutlined,
+  RightOutlined,
+  MessageOutlined,
   NodeIndexOutlined,
   PlusOutlined,
   QuestionCircleOutlined,
+  ReadOutlined,
   SearchOutlined,
   SettingOutlined,
   StarOutlined,
@@ -30,7 +32,7 @@ import {
 } from '@ant-design/icons';
 import { Badge, Button, Drawer, Input, Layout, Modal, Select, Space, Tag, Tooltip, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { protectedRoutes } from '@/app/routes/route-config';
 import { useActiveStore } from '@/app/providers/useActiveStore';
@@ -62,7 +64,7 @@ type ProductGroup = {
 const moduleGroups: ProductGroup[] = [
   {
     key: 'workspace',
-    label: 'Workspace',
+    label: 'Shortcuts',
     icon: <AppstoreOutlined />,
     defaultOpen: true,
     modules: [
@@ -75,17 +77,26 @@ const moduleGroups: ProductGroup[] = [
         routes: ['/overview'],
         children: [{ label: 'Overview', path: '/overview' }],
       },
+    ],
+  },
+  {
+    key: 'authorization',
+    label: 'Authorization',
+    icon: <ApiOutlined />,
+    defaultOpen: true,
+    modules: [
       {
-        key: 'analytics',
-        label: 'Analytics',
-        path: '/test-console',
-        icon: <BarChartOutlined />,
-        description: 'Decision analytics, checks, explains, and batch diagnostics.',
-        routes: ['/test-console', '/graph'],
+        key: 'services',
+        label: 'Services',
+        path: '/models',
+        icon: <ApiOutlined />,
+        description: 'Authorization models, tuple graph, and store-scoped resources.',
+        routes: ['/models', '/relationships', '/stores'],
         context: true,
         children: [
-          { label: 'Test Console', path: '/test-console' },
-          { label: 'Graph Explorer', path: '/graph' },
+          { label: 'Models', path: '/models' },
+          { label: 'Relationships', path: '/relationships' },
+          { label: 'Stores', path: '/stores' },
         ],
       },
       {
@@ -101,28 +112,27 @@ const moduleGroups: ProductGroup[] = [
           { label: 'Presets', path: '/presets' },
         ],
       },
-      {
-        key: 'services',
-        label: 'Services',
-        path: '/models',
-        icon: <ApiOutlined />,
-        description: 'Authorization models, tuple graph, and store-scoped resources.',
-        routes: ['/models', '/relationships', '/stores'],
-        context: true,
-        children: [
-          { label: 'Models', path: '/models' },
-          { label: 'Relationships', path: '/relationships' },
-          { label: 'Stores', path: '/stores' },
-        ],
-      },
     ],
   },
   {
     key: 'telemetry',
-    label: 'Telemetry',
+    label: 'Observability',
     icon: <LineChartOutlined />,
     defaultOpen: true,
     modules: [
+      {
+        key: 'analytics',
+        label: 'Analytics',
+        path: '/test-console',
+        icon: <BarChartOutlined />,
+        description: 'Decision analytics, checks, explains, and batch diagnostics.',
+        routes: ['/test-console', '/graph'],
+        context: true,
+        children: [
+          { label: 'Test Console', path: '/test-console' },
+          { label: 'Graph Explorer', path: '/graph' },
+        ],
+      },
       {
         key: 'monitoring',
         label: 'Monitoring',
@@ -145,7 +155,7 @@ const moduleGroups: ProductGroup[] = [
         key: 'events',
         label: 'Events',
         path: '/relationships',
-        icon: <AuditOutlined />,
+        icon: <NodeIndexOutlined />,
         description: 'Relationship changes and store activity timelines.',
         routes: ['/relationships'],
         children: [{ label: 'Relationship events', path: '/relationships' }],
@@ -163,7 +173,7 @@ const moduleGroups: ProductGroup[] = [
   },
   {
     key: 'management',
-    label: 'Management',
+    label: 'Administration',
     icon: <SettingOutlined />,
     defaultOpen: true,
     modules: [
@@ -212,7 +222,9 @@ export function MainLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
-  const [supportOpen, setSupportOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
+  const footerRef = useRef<HTMLDivElement>(null);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(moduleGroups.map((group) => [group.key, group.defaultOpen ?? true])),
   );
@@ -247,6 +259,8 @@ export function MainLayout() {
   const activeStoreIsValid = !activeStoreId || stores.some((store) => store.id === activeStoreId);
   const isValidatingActiveStore = Boolean(activeStoreId) && (!storesQuery.isSuccess || !activeStoreIsValid);
   const roleText = (profileQuery.data?.roles ?? []).slice(0, 2).join(', ');
+  const workspaceLabel = activeStore?.name ?? 'Billing console';
+  const workspaceMeta = activeStore ? 'Active store' : 'Default workspace';
 
   const activeContextRoutes = currentModule.routes
     .map((path) => routeByPath.get(path))
@@ -293,6 +307,22 @@ export function MainLayout() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  useEffect(() => {
+    if (!helpOpen && !userOpen) {
+      return;
+    }
+
+    const handler = (event: PointerEvent) => {
+      if (event.target instanceof Node && footerRef.current && !footerRef.current.contains(event.target)) {
+        setHelpOpen(false);
+        setUserOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
+  }, [helpOpen, userOpen]);
+
   return (
     <Layout
       className={[
@@ -305,37 +335,43 @@ export function MainLayout() {
     >
       <Layout.Sider width={collapsed ? 72 : 268} theme="light" className="enterprise-sidebar">
         <div className="enterprise-sidebar-inner">
-          <div>
+          <div className="enterprise-sidebar-main">
             <div className="enterprise-brand">
-              <button type="button" className="enterprise-brand-mark" onClick={() => navigate('/overview')} aria-label="Go to dashboard">
-                <img src="/aegis.svg" alt="" />
-              </button>
-              {!collapsed ? (
-                <div className="enterprise-brand-copy">
-                  <strong>Aegis</strong>
-                  <span>Authorization Cloud</span>
-                </div>
-              ) : null}
+              <div className="enterprise-brand-start">
+                <button type="button" className="enterprise-brand-mark" onClick={() => navigate('/overview')} aria-label="Go to dashboard">
+                  <img src="/aegis.svg" alt="" />
+                </button>
+                {!collapsed ? (
+                  <div className="enterprise-brand-copy">
+                    <strong>Aegis</strong>
+                    <span>Authorization Cloud</span>
+                  </div>
+                ) : null}
+              </div>
+              <Button
+                type="text"
+                className="enterprise-sidebar-toggle"
+                size="small"
+                icon={collapsed ? <RightOutlined /> : <LeftOutlined />}
+                onClick={() => setCollapsed((value) => !value)}
+                aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+              />
             </div>
 
             <button type="button" className="enterprise-workspace-switcher" onClick={() => setCommandOpen(true)}>
               <GlobalOutlined />
               {!collapsed ? (
                 <span>
-                  <strong>{profileQuery.data?.tenantId ?? 'Aegis workspace'}</strong>
-                  <small>{activeStore?.name ?? 'Select active store'}</small>
+                  <small>Workspace</small>
+                  <strong>{workspaceLabel}</strong>
+                  <em>{workspaceMeta}</em>
                 </span>
               ) : null}
             </button>
 
             <button type="button" className="enterprise-global-search" onClick={() => setCommandOpen(true)}>
               <SearchOutlined />
-              {!collapsed ? (
-                <>
-                  <span>Search</span>
-                  <kbd>Ctrl K</kbd>
-                </>
-              ) : null}
+              {!collapsed ? <span>Search</span> : null}
             </button>
 
             <nav className="enterprise-primary-nav" aria-label="Product modules">
@@ -376,50 +412,89 @@ export function MainLayout() {
             </nav>
           </div>
 
-          <div className="enterprise-sidebar-footer">
-            {!collapsed ? (
-              <Tooltip title="Profile" placement="right">
-                <button type="button" className="enterprise-user-tile" onClick={() => navigate('/profile')}>
-                  <span>
-                    <strong>{profileQuery.data?.username ?? 'Demo User'}</strong>
-                    <small>{roleText || 'Operator'}</small>
-                  </span>
-                </button>
-              </Tooltip>
-            ) : null}
-            {!collapsed && supportOpen ? (
-              <div className="enterprise-support-menu">
-                <button type="button" onClick={() => setCommandOpen(true)}>
-                  <SearchOutlined />
-                  Command palette
-                </button>
-                <button type="button" onClick={() => navigate('/overview')}>
-                  <DashboardOutlined />
-                  Workspace guide
-                </button>
-                <button type="button" onClick={() => navigate('/profile')}>
-                  <UserOutlined />
-                  Account details
-                </button>
+          <div className="enterprise-sidebar-footer" ref={footerRef}>
+            {userOpen ? (
+              <div className={collapsed ? 'enterprise-footer-popover is-collapsed' : 'enterprise-footer-popover'}>
+                <div className="enterprise-footer-popover-section">
+                  <p>Account</p>
+                  <button type="button" onClick={() => navigate('/profile')}>
+                    <UserOutlined />
+                    <span>
+                      <strong>{profileQuery.data?.username ?? 'Demo User'}</strong>
+                      <small>{roleText || 'Operator'}</small>
+                    </span>
+                  </button>
+                  <button type="button" onClick={handleLogout}>
+                    <LogoutOutlined />
+                    Sign out
+                  </button>
+                </div>
               </div>
             ) : null}
-            <div className="enterprise-footer-actions">
-              <Button type="text" icon={<BellOutlined />} aria-label="Notifications" />
-              <Button type="text" icon={<SettingOutlined />} onClick={() => navigate('/access')} aria-label="Settings" />
+            {helpOpen ? (
+              <div className={collapsed ? 'enterprise-footer-popover is-collapsed' : 'enterprise-footer-popover'}>
+                <div className="enterprise-footer-popover-section">
+                  <p>Support</p>
+                  <button type="button" onClick={() => setCommandOpen(true)}>
+                    <MessageOutlined />
+                    Ask a question
+                  </button>
+                  <button type="button">
+                    <BellOutlined />
+                    Report an issue
+                  </button>
+                  <button type="button">
+                    <StarOutlined />
+                    Share feedback
+                  </button>
+                </div>
+                <div className="enterprise-footer-popover-section">
+                  <p>Documentation</p>
+                  <button type="button" onClick={() => navigate('/overview')}>
+                    <ReadOutlined />
+                    Product docs
+                  </button>
+                  <button type="button">
+                    <CodeOutlined />
+                    Guides
+                  </button>
+                  <button type="button">
+                    <ClockCircleOutlined />
+                    Changelog
+                  </button>
+                  <button type="button">
+                    <QuestionCircleOutlined />
+                    Help center
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            <div className="enterprise-footer-actions" aria-label="Sidebar utilities">
               <Button
                 type="text"
-                icon={<QuestionCircleOutlined />}
-                onClick={() => setSupportOpen((value) => !value)}
-                aria-label="Help"
-                aria-expanded={supportOpen}
+                className="enterprise-footer-user-button"
+                icon={<UserOutlined />}
+                onClick={() => {
+                  setUserOpen((value) => !value);
+                  setHelpOpen(false);
+                }}
+                aria-label="User menu"
+                aria-expanded={userOpen}
               />
-              <Button type="text" icon={<LogoutOutlined />} onClick={handleLogout} aria-label="Logout" />
-              <Button
-                type="text"
-                icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                onClick={() => setCollapsed((value) => !value)}
-                aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-              />
+              <span className="enterprise-footer-action-cluster">
+                <Button type="text" icon={<SettingOutlined />} onClick={() => navigate('/access')} aria-label="Settings" />
+                <Button
+                  type="text"
+                  icon={<QuestionCircleOutlined />}
+                  onClick={() => {
+                    setHelpOpen((value) => !value);
+                    setUserOpen(false);
+                  }}
+                  aria-label="Help"
+                  aria-expanded={helpOpen}
+                />
+                <Button type="text" icon={<BellOutlined />} aria-label="Notifications" />
+              </span>
             </div>
           </div>
         </div>
@@ -526,9 +601,9 @@ export function MainLayout() {
           />
           <Select
             className="enterprise-filter-select"
-            defaultValue="production"
+            defaultValue="billing-console"
             options={[
-              { value: 'production', label: 'Production' },
+              { value: 'billing-console', label: 'Billing console' },
               { value: 'staging', label: 'Staging' },
               { value: 'development', label: 'Development' },
             ]}
