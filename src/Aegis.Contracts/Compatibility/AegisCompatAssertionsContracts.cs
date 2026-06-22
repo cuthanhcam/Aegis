@@ -55,4 +55,15 @@ namespace Aegis.Contracts.Compatibility
 
     public sealed record AegisAssertionRunListResponseDto(
         [property: JsonPropertyName("runs")] IReadOnlyList<AegisAssertionRunRecordDto> Runs);
+
+    public sealed record AegisGenerateAssertionsFromAuditRequestDto(
+        [property: JsonPropertyName("decision")] string? Decision = null,
+        [property: JsonPropertyName("limit")] int? Limit = null,
+        [property: JsonPropertyName("append")] bool Append = false);
+
+    public sealed record AegisGenerateAssertionsFromAuditResponseDto(
+        [property: JsonPropertyName("authorization_model_id")] string AuthorizationModelId,
+        [property: JsonPropertyName("generated_count")] int GeneratedCount,
+        [property: JsonPropertyName("appended")] bool Appended,
+        [property: JsonPropertyName("assertions")] IReadOnlyList<AegisCompatAssertionDto> Assertions);
 }

@@ -1,6 +1,7 @@
 using Aegis.Application.Features.Permissions;
 using Aegis.Application.Services;
 using Aegis.Authorization.Core.Engine;
+using Aegis.Authorization.Core.Interfaces;
 using Aegis.Authorization.Core.Models;
 using Aegis.Contracts.Administration;
 using Aegis.Contracts.Compatibility;
@@ -92,6 +93,70 @@ namespace Aegis.UnitTests.Application.Services
             Assert.Equal(1, run.Summary.Failed);
             Assert.NotEmpty(runs.Runs);
             Assert.Equal(run.RunId, detail?.RunId);
+        }
+
+        [Fact]
+        public async Task GenerateFromAuditAsync_ReturnsDraftAssertionsAndCanAppend()
+        {
+            var registry = new InMemoryStoreRegistry();
+            var store = await registry.CreateAsync("docs");
+            var model = await registry.CreateAsync(
+                store.Id,
+                "1.1",
+                "type user\n\ntype document\n  relations\n    define viewer: [user]");
+
+            var auditStore = new InMemoryAuditStore();
+            await auditStore.WriteAsync(new AuditEvent(
+                store.TenantId!,
+                "check",
+                "user:anne",
+                "viewer",
+                "document:roadmap",
+                "Allow",
+                "RELATIONSHIP_MATCH",
+                DateTimeOffset.UtcNow,
+                store.Id));
+            await auditStore.WriteAsync(new AuditEvent(
+                store.TenantId!,
+                "check",
+                "user:bob",
+                "viewer",
+                "document:roadmap",
+                "Deny",
+                "NO_MATCH",
+                DateTimeOffset.UtcNow,
+                store.Id));
+
+            var service = CreateAssertionService(registry, auditStore);
+
+            var draft = await service.GenerateFromAuditAsync(
+                store.Id,
+                model.Id,
+                new AegisGenerateAssertionsFromAuditRequestDto(Limit: 10));
+            var appended = await service.GenerateFromAuditAsync(
+                store.Id,
+                model.Id,
+                new AegisGenerateAssertionsFromAuditRequestDto(Decision: "Allow", Append: true));
+            var stored = await service.ReadAsync(store.Id, model.Id);
+
+            Assert.Equal(2, draft.GeneratedCount);
+            Assert.Contains(draft.Assertions, x => x.TupleKey.User == "user:anne" && x.Expectation);
+            Assert.Contains(draft.Assertions, x => x.TupleKey.User == "user:bob" && !x.Expectation);
+            Assert.True(appended.Appended);
+            Assert.Single(stored.Assertions);
+            Assert.Equal("user:anne", stored.Assertions[0].TupleKey.User);
+        }
+
+        private static AssertionAppService CreateAssertionService(
+            InMemoryStoreRegistry registry,
+            IAuditStore auditStore)
+        {
+            var relationships = new InMemoryRelationshipStore();
+            var checker = new CheckPermissionUseCase(
+                new AuthorizationEngine(relationships, new InMemoryRbacStore(), authorizationModelProvider: new AuthorizationModelProvider(registry)),
+                auditStore);
+
+            return new AssertionAppService(registry, registry, checker, new InMemoryAssertionRunStore(), auditStore);
         }
     }
 }

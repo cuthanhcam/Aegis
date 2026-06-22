@@ -1,5 +1,7 @@
 using Aegis.Application.Features.Permissions;
 using Aegis.Application.Interfaces;
+using Aegis.Authorization.Core.Interfaces;
+using Aegis.Authorization.Core.Models;
 using Aegis.Contracts.Administration;
 using Aegis.Contracts.Common;
 using Aegis.Contracts.Compatibility;
@@ -18,6 +20,7 @@ namespace Aegis.Application.Services
         private readonly IAuthorizationModelRegistry _authorizationModelRegistry;
         private readonly CheckPermissionUseCase? _checkPermissionUseCase;
         private readonly IAssertionRunStore? _assertionRunStore;
+        private readonly IAuditStore? _auditStore;
 
         public AssertionAppService(IStoreRegistry storeRegistry, IAuthorizationModelRegistry authorizationModelRegistry)
         {
@@ -30,11 +33,13 @@ namespace Aegis.Application.Services
             IStoreRegistry storeRegistry,
             IAuthorizationModelRegistry authorizationModelRegistry,
             CheckPermissionUseCase checkPermissionUseCase,
-            IAssertionRunStore assertionRunStore)
+            IAssertionRunStore assertionRunStore,
+            IAuditStore? auditStore = null)
             : this(storeRegistry, authorizationModelRegistry)
         {
             _checkPermissionUseCase = checkPermissionUseCase;
             _assertionRunStore = assertionRunStore;
+            _auditStore = auditStore;
         }
 
         public async Task<AegisCompatReadAssertionsResponseDto> ReadAsync(
@@ -179,6 +184,62 @@ namespace Aegis.Application.Services
                 : await _assertionRunStore.GetAsync(storeId, runId, cancellationToken);
         }
 
+        public async Task<AegisGenerateAssertionsFromAuditResponseDto> GenerateFromAuditAsync(
+            string storeId,
+            string authorizationModelId,
+            AegisGenerateAssertionsFromAuditRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
+            var store = await EnsureStoreExists(storeId, cancellationToken);
+            var model = await EnsureModelExists(storeId, authorizationModelId, cancellationToken);
+
+            if (_auditStore is null)
+            {
+                throw new InvalidOperationException("Assertion generation is unavailable because an audit store is not registered.");
+            }
+
+            var limit = request.Limit ?? 25;
+            if (limit <= 0 || limit > MaxAssertionsPerModel)
+            {
+                throw new CompatibilityApiException(
+                    400,
+                    "validation_error",
+                    $"limit must be between 1 and {MaxAssertionsPerModel}.");
+            }
+
+            var decision = NormalizeAuditDecision(request.Decision);
+            var tenantId = string.IsNullOrWhiteSpace(store.TenantId) ? storeId : store.TenantId;
+            var events = await _auditStore.QueryAsync(tenantId, action: null, decision, storeId, cancellationToken);
+            var relationIndex = BuildRelationIndex(model.Model);
+            var assertions = events
+                .Where(IsCheckAuditEvent)
+                .OrderByDescending(x => x.CreatedAt)
+                .Select(ToAssertion)
+                .Where(x => IsValidGeneratedAssertion(x, relationIndex))
+                .GroupBy(x => $"{x.TupleKey.User}:{x.TupleKey.Relation}:{x.TupleKey.Object}:{x.Expectation}", StringComparer.OrdinalIgnoreCase)
+                .Select(x => x.First())
+                .Take(limit)
+                .ToList();
+
+            if (request.Append && assertions.Count > 0)
+            {
+                var existing = await ReadAsync(storeId, authorizationModelId, cancellationToken);
+                var combined = existing.Assertions
+                    .Concat(assertions)
+                    .GroupBy(x => $"{x.TupleKey.User}:{x.TupleKey.Relation}:{x.TupleKey.Object}:{x.Expectation}", StringComparer.OrdinalIgnoreCase)
+                    .Select(x => x.First())
+                    .ToList();
+
+                await WriteAsync(storeId, authorizationModelId, new AegisCompatWriteAssertionsRequestDto(combined), cancellationToken);
+            }
+
+            return new AegisGenerateAssertionsFromAuditResponseDto(
+                authorizationModelId,
+                assertions.Count,
+                request.Append,
+                assertions);
+        }
+
         public async Task PurgeStoreAsync(string storeId, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(storeId))
@@ -199,7 +260,7 @@ namespace Aegis.Application.Services
             }
         }
 
-        private async Task EnsureStoreExists(string storeId, CancellationToken cancellationToken)
+        private async Task<StoreDto> EnsureStoreExists(string storeId, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(storeId))
             {
@@ -211,6 +272,8 @@ namespace Aegis.Application.Services
             {
                 throw new CompatibilityApiException(404, "store_id_not_found", "Store ID not found.");
             }
+
+            return store;
         }
 
         private static void ValidateAssertion(
@@ -321,6 +384,59 @@ namespace Aegis.Application.Services
 
         private static string BuildKey(string storeId, string authorizationModelId)
             => $"{storeId}:{authorizationModelId}";
+
+        private static bool IsCheckAuditEvent(AuditEvent auditEvent)
+        {
+            return auditEvent.Action.Equals("check", StringComparison.OrdinalIgnoreCase)
+                || auditEvent.Action.Equals("explain", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static AegisCompatAssertionDto ToAssertion(AuditEvent auditEvent)
+        {
+            return new AegisCompatAssertionDto(
+                new AegisCompatTupleKeyDto(auditEvent.Subject, auditEvent.Relation, auditEvent.Object),
+                auditEvent.Decision.Equals("Allow", StringComparison.OrdinalIgnoreCase),
+                ContextualTuples: null);
+        }
+
+        private static bool IsValidGeneratedAssertion(
+            AegisCompatAssertionDto assertion,
+            IReadOnlyDictionary<string, HashSet<string>> relationIndex)
+        {
+            try
+            {
+                ValidateAssertion(assertion, relationIndex);
+                return true;
+            }
+            catch (CompatibilityApiException)
+            {
+                return false;
+            }
+        }
+
+        private static string? NormalizeAuditDecision(string? decision)
+        {
+            if (string.IsNullOrWhiteSpace(decision))
+            {
+                return null;
+            }
+
+            if (decision.Equals("allow", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("allowed", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("true", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Allow";
+            }
+
+            if (decision.Equals("deny", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("denied", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("false", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Deny";
+            }
+
+            throw new CompatibilityApiException(400, "validation_error", "decision must be Allow or Deny.");
+        }
 
         private static string NewUlidLikeId()
         {

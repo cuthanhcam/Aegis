@@ -115,5 +115,23 @@ namespace Aegis.Api.Controllers
 
             return this.OkResponse(result);
         }
+
+        [HttpPost("{authorizationModelId}/generate-from-audit")]
+        [ProducesResponseType(typeof(ApiResponse<AegisGenerateAssertionsFromAuditResponseDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<ApiResponse<AegisGenerateAssertionsFromAuditResponseDto>>> GenerateFromAudit(
+            [FromRoute] string storeId,
+            [FromRoute] string authorizationModelId,
+            [FromBody] AegisGenerateAssertionsFromAuditRequestDto request,
+            CancellationToken cancellationToken)
+        {
+            var storeAccess = await TenantAccessGuard.ValidateStoreTenantAsync<AegisGenerateAssertionsFromAuditResponseDto>(this, _storeRegistry, storeId, cancellationToken);
+            if (storeAccess is not null)
+            {
+                return storeAccess;
+            }
+
+            var result = await _assertionAppService.GenerateFromAuditAsync(storeId, authorizationModelId, request, cancellationToken);
+            return this.OkResponse(result);
+        }
     }
 }
