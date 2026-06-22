@@ -6,3 +6,4 @@ export { TableSkeleton, TableRowSkeleton, FormSkeleton, type TableSkeletonProps,
 export { EmptyState, type EmptyStateProps } from './empty-state/EmptyState';
 export { TableEmptyState } from './empty-state/TableEmptyState';
 export { ListEmptyState } from './empty-state/ListEmptyState';
+export * from './enterprise';
