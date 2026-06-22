@@ -71,7 +71,8 @@ namespace Aegis.UnitTests.Application.Services
             var checker = new CheckPermissionUseCase(
                 new AuthorizationEngine(relationships, new InMemoryRbacStore(), authorizationModelProvider: new AuthorizationModelProvider(registry)),
                 new InMemoryAuditStore());
-            var service = new AssertionAppService(registry, registry, checker);
+            var runStore = new InMemoryAssertionRunStore();
+            var service = new AssertionAppService(registry, registry, checker, runStore);
             await service.WriteAsync(
                 store.Id,
                 model.Id,
@@ -82,8 +83,9 @@ namespace Aegis.UnitTests.Application.Services
                 ]));
 
             var run = await service.RunAsync(store.Id, model.Id);
-            var runs = await service.ListRunsAsync(store.Id, model.Id);
-            var detail = await service.GetRunAsync(store.Id, run.RunId);
+            var reloadedService = new AssertionAppService(registry, registry, checker, runStore);
+            var runs = await reloadedService.ListRunsAsync(store.Id, model.Id);
+            var detail = await reloadedService.GetRunAsync(store.Id, run.RunId);
 
             Assert.Equal(2, run.Summary.Total);
             Assert.Equal(1, run.Summary.Passed);

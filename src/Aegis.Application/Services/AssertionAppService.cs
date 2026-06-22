@@ -13,11 +13,11 @@ namespace Aegis.Application.Services
     public sealed class AssertionAppService : IAssertionAppService
     {
         private static readonly ConcurrentDictionary<string, IReadOnlyList<AegisCompatAssertionDto>> AssertionsByModel = new(StringComparer.OrdinalIgnoreCase);
-        private static readonly ConcurrentDictionary<string, AegisAssertionRunRecordDto> RunsById = new(StringComparer.OrdinalIgnoreCase);
         private const int MaxAssertionsPerModel = 100;
         private readonly IStoreRegistry _storeRegistry;
         private readonly IAuthorizationModelRegistry _authorizationModelRegistry;
         private readonly CheckPermissionUseCase? _checkPermissionUseCase;
+        private readonly IAssertionRunStore? _assertionRunStore;
 
         public AssertionAppService(IStoreRegistry storeRegistry, IAuthorizationModelRegistry authorizationModelRegistry)
         {
@@ -29,10 +29,12 @@ namespace Aegis.Application.Services
         public AssertionAppService(
             IStoreRegistry storeRegistry,
             IAuthorizationModelRegistry authorizationModelRegistry,
-            CheckPermissionUseCase checkPermissionUseCase)
+            CheckPermissionUseCase checkPermissionUseCase,
+            IAssertionRunStore assertionRunStore)
             : this(storeRegistry, authorizationModelRegistry)
         {
             _checkPermissionUseCase = checkPermissionUseCase;
+            _assertionRunStore = assertionRunStore;
         }
 
         public async Task<AegisCompatReadAssertionsResponseDto> ReadAsync(
@@ -143,7 +145,12 @@ namespace Aegis.Application.Services
                 summary,
                 results);
 
-            RunsById[BuildRunKey(storeId, record.RunId)] = record;
+            if (_assertionRunStore is null)
+            {
+                throw new InvalidOperationException("Assertion run history is unavailable because an assertion run store is not registered.");
+            }
+
+            await _assertionRunStore.SaveAsync(record, cancellationToken);
             return record;
         }
 
@@ -154,12 +161,9 @@ namespace Aegis.Application.Services
         {
             await EnsureStoreExists(storeId, cancellationToken);
             await EnsureModelExists(storeId, authorizationModelId, cancellationToken);
-            var runs = RunsById.Values
-                .Where(x => x.StoreId.Equals(storeId, StringComparison.OrdinalIgnoreCase)
-                    && x.AuthorizationModelId.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(x => x.StartedAt)
-                .Take(25)
-                .ToList();
+            var runs = _assertionRunStore is null
+                ? []
+                : await _assertionRunStore.ListByModelAsync(storeId, authorizationModelId, 25, cancellationToken);
 
             return new AegisAssertionRunListResponseDto(runs);
         }
@@ -170,11 +174,12 @@ namespace Aegis.Application.Services
             CancellationToken cancellationToken = default)
         {
             await EnsureStoreExists(storeId, cancellationToken);
-            RunsById.TryGetValue(BuildRunKey(storeId, runId), out var run);
-            return run;
+            return _assertionRunStore is null
+                ? null
+                : await _assertionRunStore.GetAsync(storeId, runId, cancellationToken);
         }
 
-        public Task PurgeStoreAsync(string storeId, CancellationToken cancellationToken = default)
+        public async Task PurgeStoreAsync(string storeId, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(storeId))
             {
@@ -188,14 +193,10 @@ namespace Aegis.Application.Services
                 AssertionsByModel.TryRemove(key, out _);
             }
 
-            foreach (var key in RunsById.Keys
-                         .Where(x => x.StartsWith($"{storeId}:", StringComparison.OrdinalIgnoreCase))
-                         .ToArray())
+            if (_assertionRunStore is not null)
             {
-                RunsById.TryRemove(key, out _);
+                await _assertionRunStore.PurgeStoreAsync(storeId, cancellationToken);
             }
-
-            return Task.CompletedTask;
         }
 
         private async Task EnsureStoreExists(string storeId, CancellationToken cancellationToken)
@@ -320,9 +321,6 @@ namespace Aegis.Application.Services
 
         private static string BuildKey(string storeId, string authorizationModelId)
             => $"{storeId}:{authorizationModelId}";
-
-        private static string BuildRunKey(string storeId, string runId)
-            => $"{storeId}:{runId}";
 
         private static string NewUlidLikeId()
         {
