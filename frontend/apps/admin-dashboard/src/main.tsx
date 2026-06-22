@@ -23,7 +23,7 @@ createRoot(document.getElementById('root')!).render(
             locale={enUS}
             theme={{
               token: {
-                colorPrimary: '#FF3366',
+                colorPrimary: '#4F46E5',
                 borderRadius: 8,
                 fontFamily: APP_FONT_FAMILY,
                 fontFamilyCode: APP_CODE_FONT_FAMILY,

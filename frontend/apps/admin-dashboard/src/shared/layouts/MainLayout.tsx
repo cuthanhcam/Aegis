@@ -1,19 +1,152 @@
-import { LogoutOutlined } from '@ant-design/icons';
-import { Button, Layout, Menu, Select, Space, Tag, Tooltip, Typography } from 'antd';
+import {
+  AlertOutlined,
+  AppstoreOutlined,
+  AuditOutlined,
+  BarChartOutlined,
+  BellOutlined,
+  ClockCircleOutlined,
+  CloudServerOutlined,
+  CodeOutlined,
+  DashboardOutlined,
+  DatabaseOutlined,
+  DeploymentUnitOutlined,
+  FileTextOutlined,
+  FilterOutlined,
+  GlobalOutlined,
+  LineChartOutlined,
+  LogoutOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  NodeIndexOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  SettingOutlined,
+  StarOutlined,
+  TeamOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
+import { Badge, Button, Drawer, Input, Layout, Modal, Select, Space, Tag, Tooltip, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo } from 'react';
-import { useLocation, useNavigate, Outlet } from 'react-router-dom';
-import { getNavigationItems, protectedRoutes } from '@/app/routes/route-config';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { protectedRoutes } from '@/app/routes/route-config';
 import { useActiveStore } from '@/app/providers/useActiveStore';
 import { useAuth } from '@/app/providers/useAuth';
 import { apiClient } from '@/shared/api';
 import { TableSkeleton } from '@/shared/ui';
+
+type ModuleKey = 'dashboard' | 'analytics' | 'agents' | 'services' | 'monitoring' | 'logs' | 'events' | 'alerts' | 'settings';
+
+type ProductModule = {
+  key: ModuleKey;
+  label: string;
+  path: string;
+  icon: ReactNode;
+  description: string;
+  routes: string[];
+};
+
+const productModules: ProductModule[] = [
+  {
+    key: 'dashboard',
+    label: 'Dashboard',
+    path: '/overview',
+    icon: <DashboardOutlined />,
+    description: 'Executive health, readiness, and operating context.',
+    routes: ['/overview', '/stores'],
+  },
+  {
+    key: 'analytics',
+    label: 'Analytics',
+    path: '/test-console',
+    icon: <BarChartOutlined />,
+    description: 'Decision analytics, checks, explains, and batch diagnostics.',
+    routes: ['/test-console', '/graph'],
+  },
+  {
+    key: 'agents',
+    label: 'Agents',
+    path: '/assertions',
+    icon: <DeploymentUnitOutlined />,
+    description: 'Assertion suites, model safety checks, and launch presets.',
+    routes: ['/assertions', '/presets'],
+  },
+  {
+    key: 'services',
+    label: 'Services',
+    path: '/models',
+    icon: <CloudServerOutlined />,
+    description: 'Authorization models, tuple graph, and store-scoped resources.',
+    routes: ['/models', '/relationships', '/stores'],
+  },
+  {
+    key: 'monitoring',
+    label: 'Monitoring',
+    path: '/graph',
+    icon: <LineChartOutlined />,
+    description: 'Graph query surfaces and operational performance signals.',
+    routes: ['/graph', '/overview', '/test-console'],
+  },
+  {
+    key: 'logs',
+    label: 'Logs',
+    path: '/audit',
+    icon: <FileTextOutlined />,
+    description: 'Audit trails, decision logs, and forensic evidence.',
+    routes: ['/audit', '/relationships'],
+  },
+  {
+    key: 'events',
+    label: 'Events',
+    path: '/relationships',
+    icon: <AuditOutlined />,
+    description: 'Relationship changes and store activity timelines.',
+    routes: ['/relationships', '/audit'],
+  },
+  {
+    key: 'alerts',
+    label: 'Alerts',
+    path: '/presets',
+    icon: <AlertOutlined />,
+    description: 'Saved launch checks, readiness warnings, and guardrail views.',
+    routes: ['/presets', '/assertions'],
+  },
+  {
+    key: 'settings',
+    label: 'Settings',
+    path: '/access',
+    icon: <SettingOutlined />,
+    description: 'Users, roles, permissions, profile, and workspace settings.',
+    routes: ['/access', '/profile'],
+  },
+];
+
+const routeIconFallback: Record<string, ReactNode> = {
+  '/overview': <DashboardOutlined />,
+  '/stores': <DatabaseOutlined />,
+  '/models': <CodeOutlined />,
+  '/relationships': <NodeIndexOutlined />,
+  '/assertions': <DeploymentUnitOutlined />,
+  '/audit': <AuditOutlined />,
+  '/test-console': <BarChartOutlined />,
+  '/graph': <AppstoreOutlined />,
+  '/presets': <StarOutlined />,
+  '/access': <TeamOutlined />,
+  '/profile': <UserOutlined />,
+};
+
+const savedViews = ['Production denies', 'Model publish risks', 'Tuple writes today', 'Latency regression', 'Audit exceptions'];
+const favoriteViews = ['Backend overview', 'Store graph health', 'Assertion failures'];
+const recentViews = ['document:roadmap', 'user:anne', 'model rollback', 'viewer relation'];
 
 export function MainLayout() {
   const { accessToken, logout } = useAuth();
   const { activeStoreId, setActiveStoreId } = useActiveStore();
   const location = useLocation();
   const navigate = useNavigate();
+  const [collapsed, setCollapsed] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
 
   const storesQuery = useQuery({
     queryKey: ['stores', accessToken],
@@ -27,14 +160,26 @@ export function MainLayout() {
     enabled: Boolean(accessToken),
   });
 
-  const navItems = getNavigationItems(profileQuery.data?.roles ?? []);
+  const allowedRoutes = useMemo(() => {
+    const roleSet = new Set((profileQuery.data?.roles ?? []).map((role) => role.toLowerCase()));
+    return protectedRoutes.filter((route) => !route.requiredRole || roleSet.has(route.requiredRole.toLowerCase()));
+  }, [profileQuery.data?.roles]);
 
-  const roleText = (profileQuery.data?.roles ?? []).slice(0, 2).join(', ');
-  const currentRoute = protectedRoutes.find((route) => location.pathname.startsWith(route.path)) ?? protectedRoutes[0];
+  const routeByPath = useMemo(() => new Map(allowedRoutes.map((route) => [route.path, route])), [allowedRoutes]);
+  const currentRoute = allowedRoutes.find((route) => location.pathname.startsWith(route.path)) ?? allowedRoutes[0];
+  const currentModule =
+    productModules.find((module) => module.routes.some((path) => location.pathname.startsWith(path))) ?? productModules[0];
   const stores = useMemo(() => storesQuery.data ?? [], [storesQuery.data]);
   const activeStore = stores.find((store) => store.id === activeStoreId);
   const activeStoreIsValid = !activeStoreId || stores.some((store) => store.id === activeStoreId);
   const isValidatingActiveStore = Boolean(activeStoreId) && (!storesQuery.isSuccess || !activeStoreIsValid);
+  const roleText = (profileQuery.data?.roles ?? []).slice(0, 2).join(', ');
+
+  const activeContextRoutes = currentModule.routes
+    .map((path) => routeByPath.get(path))
+    .filter((route): route is NonNullable<typeof currentRoute> => Boolean(route));
+
+  const commandItems = allowedRoutes.filter((route) => route.label.toLowerCase().includes('') || route.description);
 
   const handleLogout = () => {
     logout();
@@ -59,66 +204,269 @@ export function MainLayout() {
     }
   }, [activeStoreId, setActiveStoreId, stores, storesQuery.isSuccess]);
 
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setCommandOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   return (
-    <Layout className="pro-shell">
-      <Layout.Sider width={232} theme="light" className="pro-sider">
-        <div className="pro-brand">
-          <div className="pro-brand-mark">
-            <img src="/aegis.svg" alt="Aegis" />
-          </div>
-          <div>
-            <div className="pro-brand-title">Aegis</div>
-            <div className="pro-brand-subtitle">Authorization Console</div>
-          </div>
+    <Layout className={`enterprise-shell ${collapsed ? 'enterprise-shell-collapsed' : ''}`}>
+      <Layout.Sider width={collapsed ? 72 : 248} theme="light" className="enterprise-sidebar">
+        <div className="enterprise-brand">
+          <button type="button" className="enterprise-brand-mark" onClick={() => navigate('/overview')} aria-label="Go to dashboard">
+            <img src="/aegis.svg" alt="" />
+          </button>
+          {!collapsed ? (
+            <div className="enterprise-brand-copy">
+              <strong>Aegis</strong>
+              <span>Authorization Cloud</span>
+            </div>
+          ) : null}
+          <Button
+            type="text"
+            size="small"
+            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={() => setCollapsed((value) => !value)}
+            aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+          />
         </div>
-        <div className="pro-sider-context">
-          <span className="pro-kicker">Active store</span>
-          <Tooltip title={activeStore ? `${activeStore.name} (${activeStore.id})` : 'No active store selected'}>
-            <div className="pro-sider-store">{activeStore?.name ?? 'No store selected'}</div>
-          </Tooltip>
-          <div className="pro-sider-statline">
-            <span>{stores.length} store{stores.length === 1 ? '' : 's'}</span>
-            <span>{profileQuery.data?.tenantId ?? 'tenant pending'}</span>
-          </div>
+
+        <button type="button" className="enterprise-workspace-switcher" onClick={() => setCommandOpen(true)}>
+          <GlobalOutlined />
+          {!collapsed ? (
+            <span>
+              <strong>{profileQuery.data?.tenantId ?? 'Workspace'}</strong>
+              <small>{activeStore?.name ?? 'Select active store'}</small>
+            </span>
+          ) : null}
+        </button>
+
+        <button type="button" className="enterprise-global-search" onClick={() => setCommandOpen(true)}>
+          <SearchOutlined />
+          {!collapsed ? (
+            <>
+              <span>Search or jump to...</span>
+              <kbd>Ctrl K</kbd>
+            </>
+          ) : null}
+        </button>
+
+        <nav className="enterprise-primary-nav" aria-label="Product modules">
+          {productModules.map((module) => {
+            const selected = module.key === currentModule.key;
+            return (
+              <Tooltip key={module.key} title={collapsed ? module.label : undefined} placement="right">
+                <button
+                  type="button"
+                  className={selected ? 'is-active' : ''}
+                  onClick={() => navigate(module.path)}
+                  aria-current={selected ? 'page' : undefined}
+                >
+                  {module.icon}
+                  {!collapsed ? <span>{module.label}</span> : null}
+                </button>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        <div className="enterprise-sidebar-footer">
+          <Button type="text" icon={<BellOutlined />} aria-label="Notifications" />
+          <Button type="text" icon={<SettingOutlined />} onClick={() => navigate('/profile')} aria-label="Profile settings" />
+          <Button type="text" icon={<LogoutOutlined />} onClick={handleLogout} aria-label="Logout" />
         </div>
-        <Menu
-          mode="inline"
-          selectedKeys={[currentRoute?.path ?? location.pathname]}
-          items={navItems}
-          onClick={(item) => navigate(String(item.key))}
-          className="pro-menu"
-        />
       </Layout.Sider>
-      <Layout>
-        <Layout.Header className="pro-header">
-          <div className="pro-header-title">
-            <Typography.Text className="pro-kicker">Aegis workspace</Typography.Text>
-            <Typography.Title level={3}>{currentRoute?.label ?? 'Aegis'}</Typography.Title>
-            <Typography.Text className="pro-route-description">
-              {currentRoute?.description ?? 'Manage authorization state and evaluate access decisions.'}
-            </Typography.Text>
+
+      <aside className="enterprise-context-panel">
+        <div className="enterprise-context-header">
+          <span className="enterprise-kicker">{currentModule.label}</span>
+          <Typography.Title level={2}>{currentRoute?.label ?? currentModule.label}</Typography.Title>
+          <Typography.Text>{currentModule.description}</Typography.Text>
+        </div>
+
+        <Input allowClear prefix={<SearchOutlined />} placeholder={`Search ${currentModule.label.toLowerCase()}`} />
+
+        <section>
+          <div className="enterprise-context-label">Overview</div>
+          <div className="enterprise-context-list">
+            {activeContextRoutes.map((route) => {
+              const selected = location.pathname.startsWith(route.path);
+              return (
+                <button key={route.path} type="button" className={selected ? 'is-active' : ''} onClick={() => navigate(route.path)}>
+                  {route.icon ?? routeIconFallback[route.path]}
+                  <span>{route.label}</span>
+                </button>
+              );
+            })}
           </div>
-          <Space size={10} wrap className="pro-header-actions">
+        </section>
+
+        <section>
+          <div className="enterprise-context-label">Saved filters</div>
+          <div className="enterprise-chip-list">
+            {savedViews.map((view) => (
+              <button key={view} type="button">
+                <FilterOutlined />
+                {view}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <div className="enterprise-context-label">Favorites</div>
+          <div className="enterprise-chip-list">
+            {favoriteViews.map((view) => (
+              <button key={view} type="button">
+                <StarOutlined />
+                {view}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <div className="enterprise-context-label">Recent</div>
+          <div className="enterprise-recent-list">
+            {recentViews.map((view) => (
+              <button key={view} type="button">
+                {view}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <Button block icon={<PlusOutlined />} onClick={() => navigate(currentModule.path)}>
+          Quick create
+        </Button>
+      </aside>
+
+      <Layout className="enterprise-main-shell">
+        <header className="enterprise-topbar">
+          <div className="enterprise-page-heading">
+            <Button className="enterprise-context-toggle" icon={<AppstoreOutlined />} onClick={() => setContextOpen(true)}>
+              Context
+            </Button>
+            <span className="enterprise-breadcrumb">Aegis / {currentModule.label}</span>
+            <Typography.Title level={1}>{currentRoute?.label ?? 'Dashboard'}</Typography.Title>
+            <Typography.Text>{currentRoute?.description ?? 'Operate authorization workflows across stores and tenants.'}</Typography.Text>
+          </div>
+
+          <div className="enterprise-status-strip">
+            <Tag color="success">Live</Tag>
             {profileQuery.data?.tenantId ? <Tag>Tenant: {profileQuery.data.tenantId}</Tag> : null}
             {roleText ? <Tag color="blue">Role: {roleText}</Tag> : null}
-            <Select
-              showSearch
-              className="pro-store-select"
-              placeholder="Select active store"
-              loading={storesQuery.isLoading}
-              value={activeStoreId || undefined}
-              options={stores.map((s) => ({ value: s.id, label: `${s.name} (${s.id})` }))}
-              onChange={(value) => setActiveStoreId(value)}
-            />
-            <Button icon={<LogoutOutlined />} onClick={handleLogout}>
-              Logout
-            </Button>
-          </Space>
-        </Layout.Header>
-        <Layout.Content className="pro-content">
+            <span>
+              <ClockCircleOutlined /> Updated now
+            </span>
+          </div>
+        </header>
+
+        <div className="enterprise-filterbar">
+          <Select
+            showSearch
+            className="enterprise-store-select"
+            placeholder="Select active store"
+            loading={storesQuery.isLoading}
+            value={activeStoreId || undefined}
+            options={stores.map((store) => ({ value: store.id, label: `${store.name} (${store.id.slice(0, 8)})` }))}
+            onChange={(value) => setActiveStoreId(value)}
+          />
+          <Select
+            className="enterprise-filter-select"
+            defaultValue="production"
+            options={[
+              { value: 'production', label: 'Production' },
+              { value: 'staging', label: 'Staging' },
+              { value: 'development', label: 'Development' },
+            ]}
+          />
+          <Select
+            className="enterprise-filter-select"
+            defaultValue="platform"
+            options={[
+              { value: 'platform', label: 'Platform' },
+              { value: 'security', label: 'Security' },
+              { value: 'ops', label: 'Operations' },
+            ]}
+          />
+          <Input className="enterprise-inline-search" allowClear prefix={<SearchOutlined />} placeholder="Search this view" />
+          <Button icon={<FilterOutlined />}>Filters</Button>
+          <Button>Last 24 hours</Button>
+          <Button>Export</Button>
+        </div>
+
+        <Layout.Content className="enterprise-content">
           {isValidatingActiveStore ? <TableSkeleton rows={5} columns={4} /> : <Outlet />}
         </Layout.Content>
       </Layout>
+
+      <Drawer
+        title="Module context"
+        placement="left"
+        open={contextOpen}
+        width={320}
+        onClose={() => setContextOpen(false)}
+        className="enterprise-mobile-context"
+      >
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          {activeContextRoutes.map((route) => (
+            <Button key={route.path} block onClick={() => navigate(route.path)}>
+              {route.label}
+            </Button>
+          ))}
+        </Space>
+      </Drawer>
+
+      <Modal
+        title="Command palette"
+        open={commandOpen}
+        footer={null}
+        onCancel={() => setCommandOpen(false)}
+        className="enterprise-command-modal"
+      >
+        <Input autoFocus prefix={<SearchOutlined />} placeholder="Search pages, stores, saved filters, recent resources..." />
+        <div className="enterprise-command-list">
+          {commandItems.map((route) => (
+            <button
+              key={route.path}
+              type="button"
+              onClick={() => {
+                navigate(route.path);
+                setCommandOpen(false);
+              }}
+            >
+              <span>{route.icon ?? routeIconFallback[route.path]}</span>
+              <strong>{route.label}</strong>
+              <small>{route.description}</small>
+            </button>
+          ))}
+          {stores.map((store) => (
+            <button
+              key={store.id}
+              type="button"
+              onClick={() => {
+                setActiveStoreId(store.id);
+                setCommandOpen(false);
+              }}
+            >
+              <span>
+                <DatabaseOutlined />
+              </span>
+              <strong>{store.name}</strong>
+              <small>{store.id}</small>
+              {store.id === activeStoreId ? <Badge status="processing" text="Active" /> : null}
+            </button>
+          ))}
+        </div>
+      </Modal>
     </Layout>
   );
 }

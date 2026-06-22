@@ -190,17 +190,21 @@ export function GraphExplorerPage() {
       return;
     }
 
-    const preset = getGraphPreset(activeStoreId);
-    setUsersRelation(preset.usersRelation);
-    setUsersObject(preset.usersObject);
-    setObjectsUser(preset.objectsUser);
-    setObjectsRelation(preset.objectsRelation);
-    setObjectsType(preset.objectsType);
-    setExpandRelation(preset.expandRelation);
-    setExpandObject(preset.expandObject);
-    setUsersResult([]);
-    setObjectsResult([]);
-    setExpandResult(null);
+    const timer = window.setTimeout(() => {
+      const preset = getGraphPreset(activeStoreId);
+      setUsersRelation(preset.usersRelation);
+      setUsersObject(preset.usersObject);
+      setObjectsUser(preset.objectsUser);
+      setObjectsRelation(preset.objectsRelation);
+      setObjectsType(preset.objectsType);
+      setExpandRelation(preset.expandRelation);
+      setExpandObject(preset.expandObject);
+      setUsersResult([]);
+      setObjectsResult([]);
+      setExpandResult(null);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [activeStoreId]);
 
   if (!isAuthenticated) {
