@@ -102,13 +102,14 @@ namespace Aegis.Application.Services
             string authorizationModelId,
             CancellationToken cancellationToken = default)
         {
-            await EnsureStoreExists(storeId, cancellationToken);
+            var store = await EnsureStoreExists(storeId, cancellationToken);
             if (_checkPermissionUseCase is null)
             {
                 throw new InvalidOperationException("Assertion runner is unavailable because permission checks are not registered.");
             }
 
             var model = await EnsureModelExists(storeId, authorizationModelId, cancellationToken);
+            var tenantId = string.IsNullOrWhiteSpace(store.TenantId) ? storeId : store.TenantId;
             AssertionsByModel.TryGetValue(BuildKey(storeId, authorizationModelId), out var assertions);
             assertions ??= [];
             var startedAt = DateTimeOffset.UtcNow;
@@ -117,7 +118,7 @@ namespace Aegis.Application.Services
             foreach (var assertion in assertions)
             {
                 var response = await _checkPermissionUseCase.ExecuteAsync(
-                    storeId,
+                    tenantId,
                     new CheckRequestDto(
                         assertion.TupleKey.User,
                         assertion.TupleKey.Relation,

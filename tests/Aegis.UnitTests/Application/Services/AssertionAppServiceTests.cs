@@ -65,7 +65,7 @@ namespace Aegis.UnitTests.Application.Services
 
             var relationships = new InMemoryRelationshipStore();
             await relationships.UpsertAsync(
-                store.Id,
+                store.TenantId!,
                 new RelationshipTuple(new Subject("user:anne"), "viewer", new ObjectRef("document:roadmap"), RelationshipEffect.Allow, DateTimeOffset.UtcNow),
                 storeId: store.Id);
 
