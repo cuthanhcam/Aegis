@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "scenarios": [
+    {
+      "id": "direct-allow",
+      "tenantId": "tenant-a",
+      "subject": "user:alice",
+      "relation": "viewer",
+      "object": "document:plan",
+      "relationships": [
+        {
+          "tenantId": "tenant-a",
+          "subject": "user:alice",
+          "relation": "viewer",
+          "object": "document:plan",
+          "effect": "allow"
+        }
+      ],
+      "expectedAllowed": true,
+      "expectedReasonCode": "ALLOW_REBAC_DIRECT"
+    },
+    {
+      "id": "explicit-deny",
+      "tenantId": "tenant-a",
+      "subject": "user:bob",
+      "relation": "viewer",
+      "object": "document:secret",
+      "relationships": [
+        {
+          "tenantId": "tenant-a",
+          "subject": "user:bob",
+          "relation": "viewer",
+          "object": "document:secret",
+          "effect": "deny"
+        }
+      ],
+      "rbacAllowed": true,
+      "expectedAllowed": false,
+      "expectedReasonCode": "DENY_EXPLICIT"
+    },
+    {
+      "id": "no-match-fails-closed",
+      "tenantId": "tenant-a",
+      "subject": "user:carol",
+      "relation": "editor",
+      "object": "document:plan",
+      "relationships": [],
+      "expectedAllowed": false,
+      "expectedReasonCode": "DENY_NOT_FOUND"
+    },
+    {
+      "id": "tenant-isolation",
+      "tenantId": "tenant-b",
+      "subject": "user:alice",
+      "relation": "viewer",
+      "object": "document:plan",
+      "relationships": [
+        {
+          "tenantId": "tenant-a",
+          "subject": "user:alice",
+          "relation": "viewer",
+          "object": "document:plan",
+          "effect": "allow"
+        }
+      ],
+      "expectedAllowed": false,
+      "expectedReasonCode": "DENY_NOT_FOUND"
+    },
+    {
+      "id": "rewrite-parent-allow",
+      "tenantId": "tenant-a",
+      "subject": "user:dana",
+      "relation": "viewer",
+      "object": "document:plan",
+      "model": "type document\n  define viewer: viewer from parent\ntype folder\n  define viewer: this",
+      "relationships": [
+        {
+          "tenantId": "tenant-a",
+          "subject": "folder:root",
+          "relation": "parent",
+          "object": "document:plan",
+          "effect": "allow"
+        },
+        {
+          "tenantId": "tenant-a",
+          "subject": "user:dana",
+          "relation": "viewer",
+          "object": "folder:root",
+          "effect": "allow"
+        }
+      ],
+      "expectedAllowed": true,
+      "expectedReasonCode": "ALLOW_REBAC_DIRECT"
+    }
+  ]
+}
