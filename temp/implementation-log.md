@@ -35,3 +35,12 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Intended correction: normalize both Windows and Unix project-reference separators before extracting the project name, and retain explicit regression cases for both forms.
 - Evidence: full Windows locked restore and Release build completed with zero warnings and zero errors; 268 unit tests and 23 integration tests passed. A clean `mcr.microsoft.com/dotnet/sdk:8.0` container built the archived merge commit with the correction overlaid and passed all 268 unit tests, including both separator regression cases.
 - Follow-up: merge the hotfix locally into `develop`, push, and verify the replacement `develop` Actions run.
+
+## 2026-08-16 — Backend foundation B0 verification
+
+- Branch: `develop`
+- Merge commit: `0e990c6`
+- Status: Verified
+- Result: the cross-platform architecture guard was merged locally and pushed without changing the pipeline trigger policy. GitHub Actions `.NET CI` run `31955303976` completed successfully for the merge commit.
+- Evidence: locked restore, Release build, 268 unit tests, and 23 integration tests passed across the established local/Linux/Actions verification chain.
+- Follow-up: start B1 contract governance from an updated `develop` using a new feature branch. Promotion from `develop` to `main` is intentionally left to the repository owner.

@@ -10,7 +10,7 @@ Use this file as a release ledger, not as a substitute for issue tracking. Link 
 
 | Phase | Outcome | Status | Required evidence |
 | --- | --- | --- | --- |
-| B0 | Baseline and guardrails | In review | ADRs, inventory, architecture tests, golden corpus, CI report |
+| B0 | Baseline and guardrails | Verified | ADRs, inventory, architecture tests, golden corpus, CI report |
 | B1 | Governed contracts | Not started | versioned OpenAPI, diff report, generated client, lifecycle tests |
 | B2 | Identity and isolation | Not started | threat model, isolation matrix, rotation/revocation drill, SBOM |
 | B3 | Durable data correctness | Not started | failure tests, migration report, restore drill, reconciliation report |
@@ -68,6 +68,6 @@ Use this file as a release ledger, not as a substitute for issue tracking. Link 
 - [x] Inventory endpoints, configuration, cache keys, migrations, background services, and metrics.
 - [x] Establish the golden decision corpus.
 - [x] Resolve the .NET/Microsoft.Extensions baseline through ADR 0005 and an all-8.x framework package policy.
-- [ ] Confirm the `develop` CI run passes after the local feature-branch merge is pushed.
+- [x] Confirm the `develop` CI run passes after the local feature-branch merge is pushed.
 
-B0 is `In review`: all local exit evidence exists, but the merged `develop` CI result must pass before the phase becomes `Verified`.
+B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
