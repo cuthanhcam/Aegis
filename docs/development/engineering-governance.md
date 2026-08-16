@@ -23,6 +23,8 @@ git switch -c <type>/<short-description>
 
 Use focused prefixes such as `feat/`, `fix/`, `chore/`, `docs/`, or `refactor/`. Keep unrelated user changes out of the branch commit. Merge only after gates pass and the branch can be reverted without unrelated rollback.
 
+CI runs for every pushed branch and pull request. A feature branch must pass its push run before review; the pull-request run remains the final integration check against the target branch.
+
 ## Sources of truth
 
 | Question                          | Source                                     |
