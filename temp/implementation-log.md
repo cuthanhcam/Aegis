@@ -44,3 +44,13 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Result: the cross-platform architecture guard was merged locally and pushed without changing the pipeline trigger policy. GitHub Actions `.NET CI` run `31955303976` completed successfully for the merge commit.
 - Evidence: locked restore, Release build, 268 unit tests, and 23 integration tests passed across the established local/Linux/Actions verification chain.
 - Follow-up: start B1 contract governance from an updated `develop` using a new feature branch. Promotion from `develop` to `main` is intentionally left to the repository owner.
+
+## 2026-08-16 — Governed contracts B1, iteration 1
+
+- Branch: `chore/api-contract-governance-b1`
+- Status: In progress
+- Intended result: make the existing `/api/v1` convention executable, define compatibility policy, and provide a deterministic OpenAPI export without changing authorization behavior or the frontend.
+- Implementation: ADR 0006 defines major-version, breaking-change, deprecation, compatibility-surface, and stable-error-code rules. Integration guards inspect the actual MVC action graph and Swagger document. `eng/export-openapi.ps1` exports the runtime-generated contract for future diffing and client generation.
+- Pipeline constraint: no workflow file is changed. Publishing the generated artifact from CI remains an explicit B1 gate pending repository-owner approval.
+- Evidence: locked restore and Release build completed with zero warnings and zero errors; 268 unit tests and 25 integration tests passed. The exporter generated a valid OpenAPI v1 JSON document containing 53 paths, while the contract guards verified every controller route and HTTP method declaration.
+- Follow-up: merge this reviewed slice locally into `develop`, verify the resulting Actions run, then add the committed contract baseline, diff report, and generated-client proof in the next B1 branch.

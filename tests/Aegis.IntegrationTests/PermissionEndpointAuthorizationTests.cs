@@ -417,7 +417,7 @@ public sealed class PermissionEndpointAuthorizationTests
     }
 }
 
-internal sealed class TestApiFactory : WebApplicationFactory<Program>
+public sealed class TestApiFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {

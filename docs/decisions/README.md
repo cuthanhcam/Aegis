@@ -9,6 +9,7 @@ Architecture decision records explain why Aegis has a particular boundary. They 
 | [0003](0003-deployment-profiles.md)     | Accepted | Support all-in-one first and preserve profile boundaries |
 | [0004](0004-freeze-legacy-frontend.md)  | Accepted | Freeze the current frontend as a parity reference        |
 | [0005](0005-dotnet-package-baseline.md) | Accepted | Align framework extensions with the .NET 8 baseline      |
+| [0006](0006-govern-public-api-contracts.md) | Accepted | Govern versioning and compatibility of public API contracts |
 
 ## ADR template
 
