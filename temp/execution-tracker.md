@@ -68,6 +68,6 @@ Use this file as a release ledger, not as a substitute for issue tracking. Link 
 - [x] Inventory endpoints, configuration, cache keys, migrations, background services, and metrics.
 - [x] Establish the golden decision corpus.
 - [x] Resolve the .NET/Microsoft.Extensions baseline through ADR 0005 and an all-8.x framework package policy.
-- [ ] Confirm the branch CI run passes after push.
+- [ ] Confirm the `develop` CI run passes after the local feature-branch merge is pushed.
 
-B0 is `In review`: all local exit evidence exists, but the branch CI result must pass before the phase becomes `Verified`.
+B0 is `In review`: all local exit evidence exists, but the merged `develop` CI result must pass before the phase becomes `Verified`.
