@@ -7,6 +7,7 @@ This is the full documentation index for Aegis. Articles follow the [metadata an
 - [System Architecture](architecture/system-architecture.md)
 - [Frontend Console Architecture](architecture/frontend-console.md)
 - [Legacy Architecture Overview](architecture.md)
+- [Architecture Decision Records](decisions/README.md)
 
 ## Product
 
@@ -26,6 +27,7 @@ This is the full documentation index for Aegis. Articles follow the [metadata an
 - [Dashboard Guide](guides/dashboard-guide.md)
 - [API Integration Guide](guides/api-integration.md)
 - [Local Development Guide](guides/getting-started-development.md)
+- [Engineering Governance](development/engineering-governance.md)
 
 ## Reference
 

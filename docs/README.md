@@ -26,6 +26,8 @@ Substantial topics follow the [article metadata and content contract](article-me
 | Prepare for production            | [Operating Aegis in Production](operations/production-readiness.md)    |
 | See planned platform work         | [Roadmap](product/roadmap.md)                                          |
 
+Architecture rationale is recorded in the [Architecture Decision Records](decisions/README.md). Contributors should follow [Engineering Governance](development/engineering-governance.md) so decisions, verification evidence, and unfinished work stay traceable.
+
 ## Documentation Structure
 
 ```text

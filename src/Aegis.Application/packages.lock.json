@@ -1,0 +1,50 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net8.0": {
+      "Microsoft.Extensions.DependencyInjection.Abstractions": {
+        "type": "Direct",
+        "requested": "[10.0.8, )",
+        "resolved": "10.0.8",
+        "contentHash": "21nbDV60SRPWGIivsyl6lqBeEJNG1sginhhfWgRrr3Ais7aQ12To25OAHQxgoiJkjqy1aQ6RxpZBGYuTi7Ge6A=="
+      },
+      "Microsoft.Extensions.Primitives": {
+        "type": "Transitive",
+        "resolved": "10.0.8",
+        "contentHash": "OBPo4nYhMyIbtueoC10CBm6AGAbo/A9IV8QQ/6ryZS7VvmqpGT7hunazeHLxFawRzn3oLOq4jhqhpBX4tfswWQ=="
+      },
+      "aegis.authorization": {
+        "type": "Project",
+        "dependencies": {
+          "Aegis.Domain": "[1.0.0, )",
+          "Aegis.SharedKernel": "[1.0.0, )",
+          "Microsoft.Extensions.Caching.Abstractions": "[10.0.8, )"
+        }
+      },
+      "aegis.contracts": {
+        "type": "Project",
+        "dependencies": {
+          "Aegis.SharedKernel": "[1.0.0, )"
+        }
+      },
+      "aegis.domain": {
+        "type": "Project",
+        "dependencies": {
+          "Aegis.SharedKernel": "[1.0.0, )"
+        }
+      },
+      "aegis.sharedkernel": {
+        "type": "Project"
+      },
+      "Microsoft.Extensions.Caching.Abstractions": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.8, )",
+        "resolved": "10.0.8",
+        "contentHash": "EoK2TwVR1daxmfXUPnvIYZSk5XQjHe45sGekox4kvMt88KQZQhDVzYW5Na5+oNwTuRpE48hipyGJg12F1Tm70w==",
+        "dependencies": {
+          "Microsoft.Extensions.Primitives": "10.0.8"
+        }
+      }
+    }
+  }
+}
