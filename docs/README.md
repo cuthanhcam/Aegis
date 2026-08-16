@@ -26,6 +26,10 @@ Substantial topics follow the [article metadata and content contract](article-me
 | Prepare for production            | [Operating Aegis in Production](operations/production-readiness.md)    |
 | See planned platform work         | [Roadmap](product/roadmap.md)                                          |
 
+Architecture rationale is recorded in the [Architecture Decision Records](decisions/README.md). Contributors should follow [Engineering Governance](development/engineering-governance.md) so decisions, verification evidence, and unfinished work stay traceable.
+
+Backend contributors should also maintain the [Backend Runtime Inventory](architecture/backend-runtime-inventory.md), which maps HTTP, configuration, persistence, cache, worker, health, and metrics surfaces to their remaining product-readiness work.
+
 ## Documentation Structure
 
 ```text

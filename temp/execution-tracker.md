@@ -10,7 +10,7 @@ Use this file as a release ledger, not as a substitute for issue tracking. Link 
 
 | Phase | Outcome | Status | Required evidence |
 | --- | --- | --- | --- |
-| B0 | Baseline and guardrails | Not started | ADRs, inventory, architecture tests, golden corpus, CI report |
+| B0 | Baseline and guardrails | In review | ADRs, inventory, architecture tests, golden corpus, CI report |
 | B1 | Governed contracts | Not started | versioned OpenAPI, diff report, generated client, lifecycle tests |
 | B2 | Identity and isolation | Not started | threat model, isolation matrix, rotation/revocation drill, SBOM |
 | B3 | Durable data correctness | Not started | failure tests, migration report, restore drill, reconciliation report |
@@ -53,3 +53,21 @@ Use this file as a release ledger, not as a substitute for issue tracking. Link 
 6. Build the token foundation and application shell.
 7. Deliver one thin read-only store/model slice end to end.
 8. Review measurements and refine phase estimates before expanding parallel work.
+
+## Active iteration: B0 foundation guardrails
+
+- [x] Accept modular-monolith-first architecture decision.
+- [x] Define the authorization-focused Core boundary.
+- [x] Define all-in-one and future deployment profiles.
+- [x] Freeze the legacy frontend without deleting parity knowledge.
+- [x] Centralize NuGet version declarations.
+- [x] Add an executable production-project dependency policy.
+- [x] Add the backend verification command and locked-restore CI policy.
+- [x] Generate and commit package lock files.
+- [x] Pass Release build and complete solution tests.
+- [x] Inventory endpoints, configuration, cache keys, migrations, background services, and metrics.
+- [x] Establish the golden decision corpus.
+- [x] Resolve the .NET/Microsoft.Extensions baseline through ADR 0005 and an all-8.x framework package policy.
+- [ ] Confirm the `develop` CI run passes after the local feature-branch merge is pushed.
+
+B0 is `In review`: all local exit evidence exists, but the merged `develop` CI result must pass before the phase becomes `Verified`.
