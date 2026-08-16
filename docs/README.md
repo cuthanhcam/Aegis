@@ -4,20 +4,27 @@ Welcome to the Aegis documentation.
 
 Aegis is a centralized authorization platform. These docs are written like product documentation: what Aegis is, how to use it, how to integrate with it, and how to operate it.
 
+Substantial topics follow the [article metadata and content contract](article-metadata-schema.md): mental model, concrete examples, security and failure implications, verification, and next reading.
+
 ## Start Here
 
-| Goal | Read |
-| --- | --- |
-| Understand Aegis as a product | [Product Overview](product/product-overview.md) |
-| Learn the authorization model | [Core Concepts](concepts/README.md) |
-| Use Aegis day to day | [User Guide](guides/user-guide.md) |
-| Use the admin dashboard | [Dashboard Guide](guides/dashboard-guide.md) |
-| Integrate an application | [API Integration Guide](guides/api-integration.md) |
-| Look up endpoints | [API Reference](reference/api-reference.md) |
-| Try seeded examples | [Demo Data Guide](reference/demo-data.md) |
-| Run Aegis locally | [Local Development Guide](guides/getting-started-development.md) |
-| Deploy and operate Aegis | [Deployment Guide](operations/deployment.md) |
-| See planned platform work | [Roadmap](product/roadmap.md) |
+| Goal                              | Read                                                                   |
+| --------------------------------- | ---------------------------------------------------------------------- |
+| Understand Aegis as a product     | [Product Overview](product/product-overview.md)                        |
+| Understand the system boundaries  | [System Architecture](architecture/system-architecture.md)             |
+| Learn the authorization model     | [Core Concepts](concepts/README.md)                                    |
+| Understand repeatable decisions   | [Deterministic Authorization](concepts/deterministic-authorization.md) |
+| Review tenant security boundaries | [Tenant and Store Isolation](concepts/tenant-store-isolation.md)       |
+| Build the replacement console     | [Frontend Console Architecture](architecture/frontend-console.md)      |
+| Use Aegis day to day              | [User Guide](guides/user-guide.md)                                     |
+| Use the admin dashboard           | [Dashboard Guide](guides/dashboard-guide.md)                           |
+| Integrate an application          | [API Integration Guide](guides/api-integration.md)                     |
+| Look up endpoints                 | [API Reference](reference/api-reference.md)                            |
+| Try seeded examples               | [Demo Data Guide](reference/demo-data.md)                              |
+| Run Aegis locally                 | [Local Development Guide](guides/getting-started-development.md)       |
+| Deploy and operate Aegis          | [Deployment Guide](operations/deployment.md)                           |
+| Prepare for production            | [Operating Aegis in Production](operations/production-readiness.md)    |
+| See planned platform work         | [Roadmap](product/roadmap.md)                                          |
 
 ## Documentation Structure
 
@@ -25,12 +32,18 @@ Aegis is a centralized authorization platform. These docs are written like produ
 docs/
 |-- README.md
 |-- index.md
+|-- article-metadata-schema.md
+|-- architecture/
+|   |-- system-architecture.md
+|   `-- frontend-console.md
 |-- product/
 |   |-- product-overview.md
 |   `-- roadmap.md
 |-- concepts/
 |   |-- README.md
-|   `-- core-concepts-tuple-model.md
+|   |-- core-concepts-tuple-model.md
+|   |-- deterministic-authorization.md
+|   `-- tenant-store-isolation.md
 |-- guides/
 |   |-- user-guide.md
 |   |-- dashboard-guide.md
@@ -41,7 +54,8 @@ docs/
 |   |-- quick-reference.md
 |   `-- demo-data.md
 `-- operations/
-    `-- deployment.md
+    |-- deployment.md
+    `-- production-readiness.md
 ```
 
 ## Reading Paths
@@ -60,13 +74,21 @@ docs/
 
 ### I want to integrate my app
 
-1. [API Integration Guide](guides/api-integration.md)
-2. [API Reference](reference/api-reference.md)
-3. [Quick Reference](reference/quick-reference.md)
+1. [Deterministic Authorization](concepts/deterministic-authorization.md)
+2. [API Integration Guide](guides/api-integration.md)
+3. [API Reference](reference/api-reference.md)
+4. [Quick Reference](reference/quick-reference.md)
 
 ### I want to run Aegis
 
 1. [Local Development Guide](guides/getting-started-development.md)
 2. [Deployment Guide](operations/deployment.md)
-3. [API Reference](reference/api-reference.md)
+3. [Operating Aegis in Production](operations/production-readiness.md)
+4. [API Reference](reference/api-reference.md)
 
+### I want to develop Aegis
+
+1. [System Architecture](architecture/system-architecture.md)
+2. [Tenant and Store Isolation](concepts/tenant-store-isolation.md)
+3. [Frontend Console Architecture](architecture/frontend-console.md)
+4. [Product-readiness Planning Pack](../temp/README.md)
