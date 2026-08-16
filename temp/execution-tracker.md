@@ -11,7 +11,7 @@ Use this file as a release ledger, not as a substitute for issue tracking. Link 
 | Phase | Outcome | Status | Required evidence |
 | --- | --- | --- | --- |
 | B0 | Baseline and guardrails | Verified | ADRs, inventory, architecture tests, golden corpus, CI report |
-| B1 | Governed contracts | Not started | versioned OpenAPI, diff report, generated client, lifecycle tests |
+| B1 | Governed contracts | In progress | versioned OpenAPI, diff report, generated client, lifecycle tests |
 | B2 | Identity and isolation | Not started | threat model, isolation matrix, rotation/revocation drill, SBOM |
 | B3 | Durable data correctness | Not started | failure tests, migration report, restore drill, reconciliation report |
 | B4 | SLO-backed operations | Not started | dashboards, load report, game-day record, runbooks |
@@ -69,5 +69,19 @@ Use this file as a release ledger, not as a substitute for issue tracking. Link 
 - [x] Establish the golden decision corpus.
 - [x] Resolve the .NET/Microsoft.Extensions baseline through ADR 0005 and an all-8.x framework package policy.
 - [x] Confirm the `develop` CI run passes after the local feature-branch merge is pushed.
+
+## Active iteration: B1 contract governance
+
+- [x] Accept the native API versioning, compatibility, and error-code policy in ADR 0006.
+- [x] Add executable guards for versioned controller routes and explicit HTTP methods.
+- [x] Add a repeatable OpenAPI v1 export command sourced from the executable application graph.
+- [ ] Commit a reviewed OpenAPI baseline and produce a machine-readable breaking-change diff.
+- [ ] Generate and compile a TypeScript client without beginning the console rewrite.
+- [ ] Add lifecycle tests for additive, deprecated, and breaking contract changes.
+- [ ] Publish the OpenAPI artifact from CI after repository-owner approval to modify the pipeline.
+
+B1 remains `In progress`. This slice establishes policy and the export mechanism; it does not change runtime authorization behavior or the frozen frontend.
+
+Iteration 1 evidence: local locked restore, zero-warning Release build, 268 unit tests, 25 integration tests, a 53-path OpenAPI v1 export, and `develop` Actions run `31955813080` all passed for merge commit `c39e396`.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
