@@ -10,7 +10,7 @@ Use this file as a release ledger, not as a substitute for issue tracking. Link 
 
 | Phase | Outcome | Status | Required evidence |
 | --- | --- | --- | --- |
-| B0 | Baseline and guardrails | In progress | ADRs, inventory, architecture tests, golden corpus, CI report |
+| B0 | Baseline and guardrails | In review | ADRs, inventory, architecture tests, golden corpus, CI report |
 | B1 | Governed contracts | Not started | versioned OpenAPI, diff report, generated client, lifecycle tests |
 | B2 | Identity and isolation | Not started | threat model, isolation matrix, rotation/revocation drill, SBOM |
 | B3 | Durable data correctness | Not started | failure tests, migration report, restore drill, reconciliation report |
@@ -65,8 +65,9 @@ Use this file as a release ledger, not as a substitute for issue tracking. Link 
 - [x] Add the backend verification command and locked-restore CI policy.
 - [x] Generate and commit package lock files.
 - [x] Pass Release build and complete solution tests.
-- [ ] Inventory endpoints, configuration, cache keys, migrations, background services, and metrics.
-- [ ] Establish the golden decision corpus.
-- [ ] Resolve or approve the .NET 8 versus Microsoft.Extensions 9/10 package-major exceptions.
+- [x] Inventory endpoints, configuration, cache keys, migrations, background services, and metrics.
+- [x] Establish the golden decision corpus.
+- [x] Resolve the .NET/Microsoft.Extensions baseline through ADR 0005 and an all-8.x framework package policy.
+- [ ] Confirm the branch CI run passes after push.
 
-B0 remains `In progress` until every original exit criterion has evidence. Iteration 1 is a guardrail slice, not phase completion.
+B0 is `In review`: all local exit evidence exists, but the branch CI result must pass before the phase becomes `Verified`.

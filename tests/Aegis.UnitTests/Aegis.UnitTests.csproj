@@ -23,6 +23,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="Authorization\GoldenDecisionCorpus.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Aegis.Domain\Aegis.Domain.csproj" />
     <ProjectReference Include="..\..\src\Aegis.Authorization\Aegis.Authorization.csproj" />
     <ProjectReference Include="..\..\src\Aegis.Application\Aegis.Application.csproj" />

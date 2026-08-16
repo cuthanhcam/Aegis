@@ -2,12 +2,13 @@
 
 Architecture decision records explain why Aegis has a particular boundary. They are append-only historical records: supersede an accepted decision with a new ADR instead of rewriting its outcome.
 
-| ADR                                    | Status   | Decision                                                 |
-| -------------------------------------- | -------- | -------------------------------------------------------- |
-| [0001](0001-modular-monolith-first.md) | Accepted | Build a modular monolith before extracting services      |
-| [0002](0002-core-boundary.md)          | Accepted | Keep Aegis Core focused on authorization semantics       |
-| [0003](0003-deployment-profiles.md)    | Accepted | Support all-in-one first and preserve profile boundaries |
-| [0004](0004-freeze-legacy-frontend.md) | Accepted | Freeze the current frontend as a parity reference        |
+| ADR                                     | Status   | Decision                                                 |
+| --------------------------------------- | -------- | -------------------------------------------------------- |
+| [0001](0001-modular-monolith-first.md)  | Accepted | Build a modular monolith before extracting services      |
+| [0002](0002-core-boundary.md)           | Accepted | Keep Aegis Core focused on authorization semantics       |
+| [0003](0003-deployment-profiles.md)     | Accepted | Support all-in-one first and preserve profile boundaries |
+| [0004](0004-freeze-legacy-frontend.md)  | Accepted | Freeze the current frontend as a parity reference        |
+| [0005](0005-dotnet-package-baseline.md) | Accepted | Align framework extensions with the .NET 8 baseline      |
 
 ## ADR template
 
