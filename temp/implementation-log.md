@@ -25,3 +25,13 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Result: completed the maintained backend runtime inventory, accepted the all-8.x framework-extension baseline, and introduced golden decision corpus schema version 1 with direct allow, explicit deny precedence, fail-closed miss, tenant isolation, and rewrite traversal scenarios.
 - Evidence: locked restore succeeded for nine projects after regenerating lock files; Release build completed with zero warnings and zero errors; 266 unit tests and 23 integration tests passed. The golden corpus test asserts decision, stable reason code, and non-empty trace for every scenario.
 - Follow-up: merge the reviewed feature branch locally into `develop` and require the resulting `develop` CI run to pass before changing B0 from `In review` to `Verified`. Promotion from `develop` to `main` remains a manual owner action.
+
+## 2026-08-16 — B0 Linux CI portability correction
+
+- Branch: `fix/architecture-test-cross-platform`
+- Status: Verified locally and in Linux reproduction
+- Trigger: `develop` Actions run `31955006735` failed its Test step after the B0 merge.
+- Diagnosis: the dependency-policy test passed a Windows-style `ProjectReference` value directly to `Path.GetFileNameWithoutExtension`; on Linux, backslash is not a path separator, so valid references were compared as full relative paths.
+- Intended correction: normalize both Windows and Unix project-reference separators before extracting the project name, and retain explicit regression cases for both forms.
+- Evidence: full Windows locked restore and Release build completed with zero warnings and zero errors; 268 unit tests and 23 integration tests passed. A clean `mcr.microsoft.com/dotnet/sdk:8.0` container built the archived merge commit with the correction overlaid and passed all 268 unit tests, including both separator regression cases.
+- Follow-up: merge the hotfix locally into `develop`, push, and verify the replacement `develop` Actions run.
