@@ -45,7 +45,7 @@ public sealed class ProjectDependencyTests
                 .Descendants("ProjectReference")
                 .Select(element => element.Attribute("Include")?.Value)
                 .Where(value => !string.IsNullOrWhiteSpace(value))
-                .Select(value => Path.GetFileNameWithoutExtension(value!));
+                .Select(value => GetProjectName(value!));
 
             foreach (var reference in references)
             {
@@ -57,6 +57,21 @@ public sealed class ProjectDependencyTests
         }
 
         Assert.True(violations.Count == 0, string.Join(Environment.NewLine, violations));
+    }
+
+    [Theory]
+    [InlineData(@"..\Aegis.Domain\Aegis.Domain.csproj", "Aegis.Domain")]
+    [InlineData("../Aegis.Domain/Aegis.Domain.csproj", "Aegis.Domain")]
+    public void Project_reference_names_are_portable_across_path_separators(string reference, string expected)
+    {
+        Assert.Equal(expected, GetProjectName(reference));
+    }
+
+    private static string GetProjectName(string projectReference)
+    {
+        var normalizedReference = projectReference.Replace('\\', '/');
+        var fileName = normalizedReference[(normalizedReference.LastIndexOf('/') + 1)..];
+        return Path.GetFileNameWithoutExtension(fileName);
     }
 
     private static string FindRepositoryRoot()
