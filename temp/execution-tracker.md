@@ -120,4 +120,6 @@ Iteration 5 request-semantics local evidence: regenerated OpenAPI semantic diff 
 
 Iteration 5 merge evidence: feature commit `b587fa0` was merged locally into `develop` as `33de240`. Actions run `32044172154` failed at `Set up job` before checkout and before any repository command; it is retained as infrastructure evidence, not treated as a product-code failure. A traceable docs-only merge supplies the replacement verification run.
 
+Iteration 5 Actions evidence: replacement `.NET CI` run `32044320783` passed for docs-evidence merge `653311c`, covering the unchanged request-semantics source tree. No workflow file was modified.
+
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
