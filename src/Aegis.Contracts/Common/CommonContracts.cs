@@ -29,7 +29,7 @@ namespace Aegis.Contracts.Common
     /// <summary>
     /// Generic API response envelope for native endpoints.
     /// </summary>
-    public sealed class ApiResponse<T>
+    public sealed class ApiResponse<T> : IApiResponse
     {
         /// <summary>
         /// Indicates whether the operation succeeded.
@@ -44,7 +44,7 @@ namespace Aegis.Contracts.Common
         /// <summary>
         /// The error payload when <see cref="Success" /> is false.
         /// </summary>
-        public ApiError? Error { get; init; }
+        public ApiError? Error { get; set; }
 
         /// <summary>
         /// Creates a successful response wrapper.
@@ -54,11 +54,25 @@ namespace Aegis.Contracts.Common
         /// <summary>
         /// Creates a failed response wrapper.
         /// </summary>
-        public static ApiResponse<T> Fail(string code, string message) => new()
+        public static ApiResponse<T> Fail(
+            string code,
+            string message,
+            string? traceId = null,
+            IReadOnlyDictionary<string, string[]>? details = null) => new()
         {
             Success = false,
-            Error = new ApiError(code, message),
+            Error = new ApiError(code, message, traceId, details),
         };
+    }
+
+    /// <summary>
+    /// Non-generic view used by API result filters to attach request metadata.
+    /// </summary>
+    public interface IApiResponse
+    {
+        bool Success { get; }
+
+        ApiError? Error { get; set; }
     }
 
     /// <summary>
@@ -66,5 +80,7 @@ namespace Aegis.Contracts.Common
     /// </summary>
     public sealed record ApiError(
         string Code,
-        string Message);
+        string Message,
+        string? TraceId = null,
+        IReadOnlyDictionary<string, string[]>? Details = null);
 }

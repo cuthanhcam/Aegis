@@ -10,6 +10,7 @@ Architecture decision records explain why Aegis has a particular boundary. They 
 | [0004](0004-freeze-legacy-frontend.md)  | Accepted | Freeze the current frontend as a parity reference        |
 | [0005](0005-dotnet-package-baseline.md) | Accepted | Align framework extensions with the .NET 8 baseline      |
 | [0006](0006-govern-public-api-contracts.md) | Accepted | Govern versioning and compatibility of public API contracts |
+| [0007](0007-native-error-envelope.md) | Accepted | Preserve and enrich the native v1 error envelope |
 
 ## ADR template
 

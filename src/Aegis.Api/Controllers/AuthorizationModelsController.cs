@@ -56,7 +56,7 @@ namespace Aegis.Api.Controllers
             var result = await _authorizationModelAppService.GetLatestAsync(storeId, cancellationToken);
             if (result is null)
             {
-                return this.NotFoundResponse<AuthorizationModelDto>("AUTHORIZATION_MODEL_NOT_FOUND", "No authorization model was found.");
+                return this.NotFoundResponse<AuthorizationModelDto>(NativeErrorCodes.AuthorizationModelNotFound, "No authorization model was found.");
             }
 
             return this.OkResponse(result);
@@ -79,7 +79,7 @@ namespace Aegis.Api.Controllers
             var result = await _authorizationModelAppService.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
             if (result is null)
             {
-                return this.NotFoundResponse<AuthorizationModelDto>("AUTHORIZATION_MODEL_NOT_FOUND", $"Authorization model '{authorizationModelId}' was not found.");
+                return this.NotFoundResponse<AuthorizationModelDto>(NativeErrorCodes.AuthorizationModelNotFound, $"Authorization model '{authorizationModelId}' was not found.");
             }
 
             return this.OkResponse(result);
@@ -102,7 +102,7 @@ namespace Aegis.Api.Controllers
             var result = await _authorizationModelAppService.PublishAsync(storeId, authorizationModelId, cancellationToken);
             if (result is null)
             {
-                return this.NotFoundResponse<PublishAuthorizationModelResponseDto>("AUTHORIZATION_MODEL_NOT_FOUND", $"Authorization model '{authorizationModelId}' was not found.");
+                return this.NotFoundResponse<PublishAuthorizationModelResponseDto>(NativeErrorCodes.AuthorizationModelNotFound, $"Authorization model '{authorizationModelId}' was not found.");
             }
 
             return this.OkResponse(result);
@@ -125,7 +125,7 @@ namespace Aegis.Api.Controllers
             var result = await _authorizationModelAppService.RollbackAsync(storeId, authorizationModelId, cancellationToken);
             if (result is null)
             {
-                return this.NotFoundResponse<RollbackAuthorizationModelResponseDto>("AUTHORIZATION_MODEL_NOT_FOUND", $"Authorization model '{authorizationModelId}' was not found.");
+                return this.NotFoundResponse<RollbackAuthorizationModelResponseDto>(NativeErrorCodes.AuthorizationModelNotFound, $"Authorization model '{authorizationModelId}' was not found.");
             }
 
             return this.OkResponse(result);
@@ -149,7 +149,7 @@ namespace Aegis.Api.Controllers
             var result = await _authorizationModelAppService.DiffAsync(storeId, leftAuthorizationModelId, rightAuthorizationModelId, cancellationToken);
             if (result is null)
             {
-                return this.NotFoundResponse<AuthorizationModelDiffDto>("AUTHORIZATION_MODEL_NOT_FOUND", "One or both authorization models were not found.");
+                return this.NotFoundResponse<AuthorizationModelDiffDto>(NativeErrorCodes.AuthorizationModelNotFound, "One or both authorization models were not found.");
             }
 
             return this.OkResponse(result);
@@ -207,7 +207,7 @@ namespace Aegis.Api.Controllers
             var result = await _authorizationModelAppService.UpdateAsync(storeId, authorizationModelId, request, cancellationToken);
             if (result is null)
             {
-                return this.NotFoundResponse<AuthorizationModelDto>("AUTHORIZATION_MODEL_NOT_FOUND", $"Authorization model '{authorizationModelId}' was not found.");
+                return this.NotFoundResponse<AuthorizationModelDto>(NativeErrorCodes.AuthorizationModelNotFound, $"Authorization model '{authorizationModelId}' was not found.");
             }
 
             return this.OkResponse(result);

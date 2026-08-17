@@ -55,7 +55,7 @@ namespace Aegis.Api.Controllers
                 return (
                     null,
                     BadRequest(ApiResponse<CheckResponseDto>.Fail(
-                        "TENANT_MISMATCH",
+                        NativeErrorCodes.TenantMismatch,
                         "Tenant in query does not match authenticated/header tenant context.")));
             }
 
@@ -68,7 +68,7 @@ namespace Aegis.Api.Controllers
                 return (
                     null,
                     BadRequest(ApiResponse<CheckResponseDto>.Fail(
-                        "TENANT_REQUIRED",
+                        NativeErrorCodes.TenantRequired,
                         "Tenant context is required from JWT/header context or tenantId query parameter.")));
             }
 

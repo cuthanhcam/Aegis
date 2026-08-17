@@ -27,7 +27,7 @@ namespace Aegis.Api.Controllers
             var tenantId = TenantAccessGuard.ResolveTenantId(User);
             if (string.IsNullOrWhiteSpace(tenantId))
             {
-                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<IReadOnlyList<StoreDto>>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<IReadOnlyList<StoreDto>>.Fail(NativeErrorCodes.TenantForbidden, "Tenant claim is required."));
             }
 
             var result = await _storeAppService.ListAsync(tenantId, cancellationToken);
@@ -43,7 +43,7 @@ namespace Aegis.Api.Controllers
             var tenantId = TenantAccessGuard.ResolveTenantId(User);
             if (string.IsNullOrWhiteSpace(tenantId))
             {
-                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<StoreDto>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<StoreDto>.Fail(NativeErrorCodes.TenantForbidden, "Tenant claim is required."));
             }
 
             var result = await _storeAppService.CreateAsync(tenantId, request, cancellationToken);
@@ -60,13 +60,13 @@ namespace Aegis.Api.Controllers
             var tenantId = TenantAccessGuard.ResolveTenantId(User);
             if (string.IsNullOrWhiteSpace(tenantId))
             {
-                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<StoreDto>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<StoreDto>.Fail(NativeErrorCodes.TenantForbidden, "Tenant claim is required."));
             }
 
             var result = await _storeAppService.GetByIdAsync(tenantId, storeId, cancellationToken);
             if (result is null)
             {
-                return this.NotFoundResponse<StoreDto>("STORE_NOT_FOUND", $"Store '{storeId}' was not found.");
+                return this.NotFoundResponse<StoreDto>(NativeErrorCodes.StoreNotFound, $"Store '{storeId}' was not found.");
             }
 
             return this.OkResponse(result);
@@ -81,7 +81,7 @@ namespace Aegis.Api.Controllers
             var tenantId = TenantAccessGuard.ResolveTenantId(User);
             if (string.IsNullOrWhiteSpace(tenantId))
             {
-                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<string>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<string>.Fail(NativeErrorCodes.TenantForbidden, "Tenant claim is required."));
             }
 
             var deleted = await _storeAppService.DeleteAsync(tenantId, storeId, cancellationToken);

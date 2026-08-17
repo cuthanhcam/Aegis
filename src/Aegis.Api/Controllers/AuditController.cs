@@ -42,7 +42,7 @@ namespace Aegis.Api.Controllers
                 var store = await _storeRegistry.GetForTenantAsync(tenantId, storeId, cancellationToken);
                 if (store is null)
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<IReadOnlyList<AuditEventDto>>.Fail("STORE_FORBIDDEN", "Store does not belong to the requested tenant."));
+                    return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<IReadOnlyList<AuditEventDto>>.Fail(NativeErrorCodes.StoreForbidden, "Store does not belong to the requested tenant."));
                 }
             }
 

@@ -2,6 +2,8 @@ using Aegis.Api.Middlewares;
 using Aegis.Api.Security;
 using Aegis.Api.Health;
 using Aegis.Api.Metrics;
+using Aegis.Api.Filters;
+using Aegis.Api.Observability;
 using Aegis.Application;
 using Aegis.Authorization.Core.Metrics;
 using Aegis.Contracts.Common;
@@ -31,13 +33,23 @@ if (string.IsNullOrWhiteSpace(jwtOptions.Secret))
 
 builder.Services
     .AddControllers()
+    .AddMvcOptions(options => options.Filters.Add<NativeErrorMetadataFilter>())
     .ConfigureApiBehaviorOptions(options =>
     {
         options.InvalidModelStateResponseFactory = context =>
         {
-            var firstError = context.ModelState.Values
-                .SelectMany(v => v.Errors)
-                .Select(e => e.ErrorMessage)
+            var validationErrors = context.ModelState
+                .Where(entry => entry.Value?.Errors.Count > 0)
+                .ToDictionary(
+                    entry => entry.Key,
+                    entry => entry.Value!.Errors
+                        .Select(error => string.IsNullOrWhiteSpace(error.ErrorMessage)
+                            ? "The supplied value is invalid."
+                            : error.ErrorMessage)
+                        .ToArray(),
+                    StringComparer.Ordinal);
+            var firstError = validationErrors.Values
+                .SelectMany(errors => errors)
                 .FirstOrDefault(message => !string.IsNullOrWhiteSpace(message))
                 ?? "Request payload validation failed.";
 
@@ -46,7 +58,11 @@ builder.Services
                 return new BadRequestObjectResult(new AegisCompatErrorResponseDto("validation_error", firstError));
             }
 
-            return new BadRequestObjectResult(ApiResponse<string>.Fail("VALIDATION_ERROR", firstError));
+            return new BadRequestObjectResult(ApiResponse<string>.Fail(
+                NativeErrorCodes.ValidationError,
+                firstError,
+                RequestTraceContext.GetTraceId(context.HttpContext),
+                validationErrors));
         };
     });
 builder.Services.AddAegisApplication();
@@ -107,7 +123,10 @@ builder.Services.AddRateLimiter(options =>
         }
 
         await response.WriteAsync(
-            JsonSerializer.Serialize(ApiResponse<string>.Fail("RATE_LIMIT_EXCEEDED", "Too many requests.")),
+            JsonSerializer.Serialize(ApiResponse<string>.Fail(
+                NativeErrorCodes.RateLimitExceeded,
+                "Too many requests.",
+                RequestTraceContext.GetTraceId(rateLimitContext.HttpContext))),
             cancellationToken);
     };
 });
