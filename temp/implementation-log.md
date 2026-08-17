@@ -67,3 +67,14 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Pipeline constraint: workflow files remain unchanged. CI artifact publication and automatic invocation of the new contract commands still require repository-owner approval.
 - Merge evidence: feature commit `8d0a610` was merged locally into `develop` as `f356cd4` and pushed. GitHub Actions `.NET CI` run `32041840093` completed successfully without modifying the workflow.
 - Follow-up: add executable lifecycle fixtures that prove additive changes pass and breaking removals fail, then complete the remaining B1 release evidence.
+
+## 2026-08-17 — Governed contracts B1, iteration 3
+
+- Branch: `test/openapi-contract-lifecycle-b1`
+- Status: In progress
+- Result: made the contract comparator independently callable against fixtures and added executable lifecycle classification coverage.
+- Accepted fixtures: an additive `/api/v1` path and an operation marked deprecated complete without a breaking classification.
+- Rejected fixtures: removing a path, HTTP operation, or component schema throws and writes a JSON report whose `breaking` field is true.
+- Scope: fixtures and reports live under ignored `artifacts`; the committed OpenAPI baseline remains immutable during verification. No runtime endpoint, authorization behavior, frontend source, or workflow file changes.
+- Portability correction: a post-checkout baseline uses CRLF while the generated candidate uses LF. Raw-byte hashing produced a false difference, so the comparator now hashes canonicalized JSON and remains sensitive to semantic structure instead of formatting.
+- Evidence: lifecycle harness passed all five classifications; baseline and candidate semantic SHA-256 hashes matched across line endings. Generated TypeScript client strict compilation and npm audit passed. Locked restore, Release build, 268 unit tests, and 25 integration tests passed with zero build warnings or errors. Actions evidence is pending before merge.
