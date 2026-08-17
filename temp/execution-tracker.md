@@ -118,4 +118,6 @@ Iteration 4 native-error evidence: additive OpenAPI diff, generated-client stric
 
 Iteration 5 request-semantics local evidence: regenerated OpenAPI semantic diff and all five lifecycle fixtures passed; the generated TypeScript client passed strict compilation and npm audit; locked restore, zero-warning Release build, 276 unit tests, and 26 integration tests passed. `develop` merge and Actions evidence remain pending.
 
+Iteration 5 merge evidence: feature commit `b587fa0` was merged locally into `develop` as `33de240`. Actions run `32044172154` failed at `Set up job` before checkout and before any repository command; it is retained as infrastructure evidence, not treated as a product-code failure. A traceable docs-only merge supplies the replacement verification run.
+
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
