@@ -90,4 +90,6 @@ The iteration 2 merge commit is `f356cd4`; `develop` Actions run `32041840093` p
 
 Iteration 3 lifecycle evidence covers five disposable contracts: additive path and deprecated operation are accepted; removed path, operation, and schema are rejected with machine-readable reports. B1 remains `In progress` only because OpenAPI artifact publication through the unchanged pipeline is explicitly deferred by repository-owner direction.
 
+The iteration 3 merge commit is `3f095da`; `develop` Actions run `32042633435` passed. All locally authorized B1 contract-governance gates are now evidenced.
+
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
