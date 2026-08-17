@@ -1,8 +1,10 @@
 using Aegis.Application.DomainEvents;
+using Aegis.Application.Contracts;
 using Aegis.Application.Interfaces;
 using Aegis.Authorization.Core.Interfaces;
 using Aegis.Authorization.Core.Models;
 using Aegis.Contracts.Compatibility;
+using Aegis.Contracts.Common;
 using Aegis.Contracts.Relationships;
 using Aegis.Domain.Entities;
 using Aegis.Domain.Enums;
@@ -13,10 +15,6 @@ namespace Aegis.Application.Services
 {
     public sealed class RelationshipAppService : IRelationshipService
     {
-        private const int DefaultChangesPageSize = 50;
-        private const int MaxChangesPageSize = 100;
-        private const int DefaultReadPageSize = 50;
-        private const int MaxReadPageSize = 100;
         private readonly IRelationshipStore _relationshipStore;
         private readonly IRelationshipRepository? _relationshipRepository;
         private readonly IDomainEventDispatcher? _domainEventDispatcher;
@@ -202,22 +200,16 @@ namespace Aegis.Application.Services
                 throw new ArgumentException("tenantId is required.");
             }
 
-            var pageSize = request.PageSize.GetValueOrDefault(DefaultChangesPageSize);
-            if (request.PageSize is <= 0 || request.PageSize is > MaxChangesPageSize)
+            var pageSize = request.PageSize.GetValueOrDefault(ApiRequestLimits.DefaultPageSize);
+            if (request.PageSize is <= 0 || request.PageSize is > ApiRequestLimits.MaxPageSize)
             {
                 throw new CompatibilityApiException(
                     400,
                     "page_size_invalid",
-                    $"invalid page_size: value must be inside range [1, {MaxChangesPageSize}]");
+                    $"invalid page_size: value must be inside range [1, {ApiRequestLimits.MaxPageSize}]");
             }
 
-            var offset = 0;
-            if (!string.IsNullOrWhiteSpace(request.PageToken) && !int.TryParse(request.PageToken, out offset))
-            {
-                throw new CompatibilityApiException(400, "invalid_continuation_token", "Invalid continuation token");
-            }
-
-            if (offset < 0)
+            if (!ContinuationTokenCodec.TryDecodeOffset(request.PageToken, out var offset))
             {
                 throw new CompatibilityApiException(400, "invalid_continuation_token", "Invalid continuation token");
             }
@@ -241,7 +233,7 @@ namespace Aegis.Application.Services
                         x.CreatedAt))
                     .ToList();
 
-                var continuationToken = items.Count == pageSize ? (offset + pageSize).ToString(System.Globalization.CultureInfo.InvariantCulture) : null;
+                var continuationToken = items.Count == pageSize ? ContinuationTokenCodec.EncodeOffset(offset + pageSize) : null;
                 return new ReadChangesResponseDto(items, continuationToken);
             }
 
@@ -262,7 +254,7 @@ namespace Aegis.Application.Services
                     x.CreatedAt))
                 .ToList();
 
-            var continuationFromStore = itemsFromStore.Count == pageSize ? (offset + pageSize).ToString(System.Globalization.CultureInfo.InvariantCulture) : null;
+            var continuationFromStore = itemsFromStore.Count == pageSize ? ContinuationTokenCodec.EncodeOffset(offset + pageSize) : null;
             return new ReadChangesResponseDto(itemsFromStore, continuationFromStore);
         }
 
@@ -292,13 +284,13 @@ namespace Aegis.Application.Services
                 throw new ArgumentException("Invalid tuple_key.object format.");
             }
 
-            var pageSize = request.PageSize.GetValueOrDefault(DefaultReadPageSize);
-            if (request.PageSize is <= 0 || request.PageSize is > MaxReadPageSize)
+            var pageSize = request.PageSize.GetValueOrDefault(ApiRequestLimits.DefaultPageSize);
+            if (request.PageSize is <= 0 || request.PageSize is > ApiRequestLimits.MaxPageSize)
             {
                 throw new CompatibilityApiException(
                     400,
                     "page_size_invalid",
-                    $"invalid page_size: value must be inside range [1, {MaxReadPageSize}]");
+                    $"invalid page_size: value must be inside range [1, {ApiRequestLimits.MaxPageSize}]");
             }
 
             var offset = 0;

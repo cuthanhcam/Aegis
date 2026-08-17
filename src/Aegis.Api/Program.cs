@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.Http.Timeouts;
 using Microsoft.OpenApi.Models;
 using System.Text.Json;
 using System.Text;
@@ -89,6 +90,37 @@ builder.Services.AddOptions<JwtOptions>()
 
 var authRatePermitLimit = builder.Configuration.GetValue<int?>("RateLimiting:Auth:PermitLimit") ?? 10;
 var authRateWindowSeconds = builder.Configuration.GetValue<int?>("RateLimiting:Auth:WindowSeconds") ?? 60;
+var defaultRequestTimeoutSeconds = builder.Configuration.GetValue<int?>("RequestTimeouts:DefaultSeconds") ?? 30;
+if (defaultRequestTimeoutSeconds is < 1 or > 300)
+{
+    throw new InvalidOperationException("RequestTimeouts:DefaultSeconds must be between 1 and 300.");
+}
+
+builder.Services.AddRequestTimeouts(options =>
+{
+    options.DefaultPolicy = new RequestTimeoutPolicy
+    {
+        Timeout = TimeSpan.FromSeconds(defaultRequestTimeoutSeconds),
+        TimeoutStatusCode = StatusCodes.Status504GatewayTimeout,
+        WriteTimeoutResponse = async context =>
+        {
+            context.Response.ContentType = "application/json";
+            if (ErrorEnvelopePathClassifier.IsCompatibilityPath(context.Request.Path))
+            {
+                context.Items["Aegis.ErrorCode"] = "request_timeout";
+                await context.Response.WriteAsync(JsonSerializer.Serialize(
+                    new AegisCompatErrorResponseDto("request_timeout", "The request exceeded its execution deadline.")));
+                return;
+            }
+
+            context.Items["Aegis.ErrorCode"] = NativeErrorCodes.RequestTimeout;
+            await context.Response.WriteAsync(JsonSerializer.Serialize(ApiResponse<string>.Fail(
+                NativeErrorCodes.RequestTimeout,
+                "The request exceeded its execution deadline.",
+                RequestTraceContext.GetTraceId(context))));
+        },
+    };
+});
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -255,6 +287,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors("FrontendDev");
 app.UseHttpsRedirection();
 app.UseRouting();
+app.UseRequestTimeouts();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<TenantContextMiddleware>();

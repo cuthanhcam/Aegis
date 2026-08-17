@@ -1,10 +1,10 @@
 using Aegis.Contracts.Permissions;
+using Aegis.Contracts.Common;
 
 namespace Aegis.Application.Features.Permissions
 {
     public sealed class BatchCheckInStoreUseCase
     {
-        private const int MaxBatchSize = 1000;
         private readonly CheckPermissionUseCase _checkPermissionUseCase;
         private readonly ResolveAuthorizationModelUseCase _resolveAuthorizationModelUseCase;
 
@@ -57,9 +57,9 @@ namespace Aegis.Application.Features.Permissions
                 throw new ArgumentException("items are required.");
             }
 
-            if (request.Items.Count > MaxBatchSize)
+            if (request.Items.Count > ApiRequestLimits.MaxBatchChecks)
             {
-                throw new ArgumentException($"items must not exceed {MaxBatchSize}.");
+                throw new ArgumentException($"items must not exceed {ApiRequestLimits.MaxBatchChecks}.");
             }
 
             await resolveAuthorizationModelIdAsync(null, cancellationToken);

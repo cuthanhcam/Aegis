@@ -36,6 +36,7 @@ Aegis native endpoints return a stable envelope so products can handle failures 
 | `PERMISSION_DENIED` | The authenticated actor cannot perform the operation |
 | `INTERNAL_ERROR` | An unexpected server failure was safely redacted |
 | `RATE_LIMIT_EXCEEDED` | The configured request budget was exceeded |
+| `REQUEST_TIMEOUT` | The request exceeded its configured execution deadline |
 | `UNAUTHORIZED` | Required authentication/session identity is absent or invalid |
 | `INVALID_CREDENTIALS` | Login credentials were rejected |
 | `INVALID_REFRESH_TOKEN` | Refresh credentials are invalid or expired |

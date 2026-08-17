@@ -46,6 +46,12 @@ namespace Aegis.Api.Middlewares
             {
                 await WriteErrorAsync(context, StatusCodes.Status403Forbidden, NativeErrorCodes.PermissionDenied, "permission_denied", ex.Message);
             }
+            catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+            {
+                // Preserve the cancellation signal for the outer request-timeout middleware
+                // or server disconnect handling. It is not an internal application failure.
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unhandled exception for {Method} {Path}: {ExceptionType}",

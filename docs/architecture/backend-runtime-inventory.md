@@ -4,7 +4,7 @@ description: A maintained inventory of Aegis HTTP surfaces, configuration, persi
 category: architecture
 audience: [backend-engineer, operator, security-engineer]
 status: published
-last_updated: 2026-08-16
+last_updated: 2026-08-17
 ---
 
 # Backend runtime inventory
@@ -53,6 +53,7 @@ Native and compatibility behavior currently coexist. Phase B1 must generate this
 | `Auth:DemoUsers`            | Required by startup validation                              | Must become development/evaluation-only                                          |
 | `Cors:AllowedOrigins`       | Required list                                               | Environment-specific allowlist; no wildcard with credentials                     |
 | `RateLimiting:Auth:*`       | Fixed-window login limit                                    | Validate positive bounds and trusted proxy/IP behavior                           |
+| `RequestTimeouts:DefaultSeconds` | Global request deadline, default 30 seconds             | Startup validates the supported 1–300 second range                               |
 | `AuthorizationEngine:*`     | depth and parsed-model cache budgets                        | Validate all bounds and document exhaustion behavior                             |
 | `Outbox:*`                  | Present in settings                                         | Worker currently hard-codes batch 100/poll 10 seconds; bind and validate options |
 | `Seed:Development:Enabled`  | Controls development seed                                   | Environment guard remains mandatory                                              |
