@@ -86,4 +86,6 @@ Iteration 1 evidence: local locked restore, zero-warning Release build, 268 unit
 
 Iteration 2 evidence: the committed 53-path baseline and runtime candidate have identical SHA-256 hashes; the JSON diff report contains zero removed paths, operations, or schemas. Kiota 1.34.1 generated the TypeScript client and TypeScript 7.0.2 compiled it in strict mode with zero npm audit findings. Full backend verification passed 268 unit and 25 integration tests with zero build warnings or errors. Kiota's TypeScript target remains preview, so its version and proof dependencies are pinned and generated sources remain disposable artifacts.
 
+The iteration 2 merge commit is `f356cd4`; `develop` Actions run `32041840093` passed. B1 remains `In progress` until lifecycle classification tests and the explicitly deferred pipeline publication gate are resolved.
+
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
