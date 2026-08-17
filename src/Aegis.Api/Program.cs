@@ -169,6 +169,8 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "Centralized, explainable authorization API.",
     });
+    options.AddServer(new OpenApiServer { Url = "/" });
+    options.CustomSchemaIds(ContractSchemaId);
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -257,5 +259,17 @@ app.MapGet("/metrics", (IAuthorizationMetrics metrics) =>
 app.MapControllers();
 
 app.Run();
+
+static string ContractSchemaId(Type type)
+{
+    if (type == typeof(ApiError))
+    {
+        return "AegisApiError";
+    }
+
+    return type.IsConstructedGenericType
+        ? string.Concat(type.GetGenericArguments().Select(ContractSchemaId)) + type.Name.Split('`')[0]
+        : type.Name.Replace("[]", "Array", StringComparison.Ordinal);
+}
 
 public partial class Program;

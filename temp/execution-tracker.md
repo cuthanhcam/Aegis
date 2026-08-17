@@ -75,13 +75,15 @@ Use this file as a release ledger, not as a substitute for issue tracking. Link 
 - [x] Accept the native API versioning, compatibility, and error-code policy in ADR 0006.
 - [x] Add executable guards for versioned controller routes and explicit HTTP methods.
 - [x] Add a repeatable OpenAPI v1 export command sourced from the executable application graph.
-- [ ] Commit a reviewed OpenAPI baseline and produce a machine-readable breaking-change diff.
-- [ ] Generate and compile a TypeScript client without beginning the console rewrite.
+- [x] Commit a reviewed OpenAPI baseline and produce a machine-readable breaking-change diff.
+- [x] Generate and compile a TypeScript client without beginning the console rewrite.
 - [ ] Add lifecycle tests for additive, deprecated, and breaking contract changes.
 - [ ] Publish the OpenAPI artifact from CI after repository-owner approval to modify the pipeline.
 
 B1 remains `In progress`. This slice establishes policy and the export mechanism; it does not change runtime authorization behavior or the frozen frontend.
 
 Iteration 1 evidence: local locked restore, zero-warning Release build, 268 unit tests, 25 integration tests, a 53-path OpenAPI v1 export, and `develop` Actions run `31955813080` all passed for merge commit `c39e396`.
+
+Iteration 2 evidence: the committed 53-path baseline and runtime candidate have identical SHA-256 hashes; the JSON diff report contains zero removed paths, operations, or schemas. Kiota 1.34.1 generated the TypeScript client and TypeScript 7.0.2 compiled it in strict mode with zero npm audit findings. Full backend verification passed 268 unit and 25 integration tests with zero build warnings or errors. Kiota's TypeScript target remains preview, so its version and proof dependencies are pinned and generated sources remain disposable artifacts.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
