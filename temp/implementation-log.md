@@ -55,3 +55,14 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Evidence: locked restore and Release build completed with zero warnings and zero errors; 268 unit tests and 25 integration tests passed. The exporter generated a valid OpenAPI v1 JSON document containing 53 paths, while the contract guards verified every controller route and HTTP method declaration.
 - Merge evidence: feature commit `0240cff` was merged locally into `develop` as `c39e396` and pushed. GitHub Actions `.NET CI` run `31955813080` completed successfully for that merge commit without any pipeline modification.
 - Follow-up: add the committed contract baseline, diff report, and generated-client proof in the next B1 branch.
+
+## 2026-08-17 — Governed contracts B1, iteration 2
+
+- Branch: `chore/api-contract-baseline-b1`
+- Status: In progress
+- Result: committed the reproducible OpenAPI v1 baseline; added a machine-readable removal detector; and proved that the contract generates a strictly compiling TypeScript client without reactivating or coupling to the legacy frontend.
+- Contract correction: generation exposed a name collision between Aegis `ApiError` and Kiota's runtime `ApiError`. The wire payload remains unchanged, while the OpenAPI component now uses the stable `AegisApiError` schema ID. The document also declares the deployment-neutral `/` server.
+- Toolchain: repository-local Microsoft Kiota 1.34.1, `@microsoft/kiota-bundle` 1.0.0-preview.103, and TypeScript 7.0.2 are exact-pinned for reproducibility. Kiota TypeScript is preview; generated sources are ignored build evidence, not accepted frontend architecture.
+- Evidence: baseline and candidate SHA-256 hashes matched; 53 paths were compared with zero removed paths, operations, or schemas. Generated-client dependency audit reported zero vulnerabilities and strict compilation passed. Locked restore, Release build, 268 unit tests, and 25 integration tests passed with zero warnings and errors.
+- Pipeline constraint: workflow files remain unchanged. CI artifact publication and automatic invocation of the new contract commands still require repository-owner approval.
+- Follow-up: add executable lifecycle fixtures that prove additive changes pass and breaking removals fail, then complete the remaining B1 release evidence.
