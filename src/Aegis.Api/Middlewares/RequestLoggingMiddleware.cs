@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Security.Claims;
+using Aegis.Api.Observability;
 
 namespace Aegis.Api.Middlewares
 {
@@ -29,7 +30,7 @@ namespace Aegis.Api.Middlewares
                 var tenantId = GetTenantId(context) ?? "-";
                 var userId = GetUserId(context) ?? "anonymous";
                 var requestId = context.TraceIdentifier;
-                var traceId = Activity.Current?.TraceId.ToString() ?? requestId;
+                var traceId = RequestTraceContext.GetTraceId(context);
                 var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
                 var statusCode = context.Response.StatusCode;
                 var errorCode = context.Items.TryGetValue("Aegis.ErrorCode", out var errorCodeValue)

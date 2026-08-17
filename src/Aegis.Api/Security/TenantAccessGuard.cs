@@ -22,12 +22,12 @@ namespace Aegis.Api.Security
             var tenantId = ResolveTenantId(controller.User);
             if (string.IsNullOrWhiteSpace(tenantId))
             {
-                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail(NativeErrorCodes.TenantForbidden, "Tenant claim is required."));
             }
 
             if (!tenantId.Equals(routeTenantId, StringComparison.OrdinalIgnoreCase))
             {
-                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail("TENANT_FORBIDDEN", "Tenant claim does not match the requested tenant."));
+                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail(NativeErrorCodes.TenantForbidden, "Tenant claim does not match the requested tenant."));
             }
 
             return null;
@@ -39,25 +39,25 @@ namespace Aegis.Api.Security
                 && !string.IsNullOrWhiteSpace(contextualTenantId)
                 && !contextualTenantId.Equals(queryTenantId, StringComparison.OrdinalIgnoreCase))
             {
-                return controller.BadRequest(ApiResponse<T>.Fail("TENANT_MISMATCH", "Tenant in query does not match authenticated/header tenant context."));
+                return controller.BadRequest(ApiResponse<T>.Fail(NativeErrorCodes.TenantMismatch, "Tenant in query does not match authenticated/header tenant context."));
             }
 
             var claimTenantId = ResolveTenantId(controller.User);
             if (string.IsNullOrWhiteSpace(claimTenantId))
             {
-                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail(NativeErrorCodes.TenantForbidden, "Tenant claim is required."));
             }
 
             if (!string.IsNullOrWhiteSpace(queryTenantId)
                 && !claimTenantId.Equals(queryTenantId, StringComparison.OrdinalIgnoreCase))
             {
-                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail("TENANT_FORBIDDEN", "Tenant claim does not match the requested tenant."));
+                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail(NativeErrorCodes.TenantForbidden, "Tenant claim does not match the requested tenant."));
             }
 
             if (!string.IsNullOrWhiteSpace(contextualTenantId)
                 && !claimTenantId.Equals(contextualTenantId, StringComparison.OrdinalIgnoreCase))
             {
-                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail("TENANT_FORBIDDEN", "Tenant claim does not match the authenticated tenant context."));
+                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail(NativeErrorCodes.TenantForbidden, "Tenant claim does not match the authenticated tenant context."));
             }
 
             return null;
@@ -72,13 +72,13 @@ namespace Aegis.Api.Security
             var tenantId = ResolveTenantId(controller.User);
             if (string.IsNullOrWhiteSpace(tenantId))
             {
-                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail("TENANT_FORBIDDEN", "Tenant claim is required."));
+                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail(NativeErrorCodes.TenantForbidden, "Tenant claim is required."));
             }
 
             var store = await storeRegistry.GetForTenantAsync(tenantId, storeId, cancellationToken);
             if (store is null)
             {
-                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail("STORE_FORBIDDEN", "Store does not belong to the authenticated tenant."));
+                return controller.StatusCode(StatusCodes.Status403Forbidden, ApiResponse<T>.Fail(NativeErrorCodes.StoreForbidden, "Store does not belong to the authenticated tenant."));
             }
 
             return null;

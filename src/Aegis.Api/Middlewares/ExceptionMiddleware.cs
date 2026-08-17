@@ -1,5 +1,6 @@
 using Aegis.Contracts.Common;
 using Aegis.Contracts.Compatibility;
+using Aegis.Api.Observability;
 using System.Text.Json;
 
 namespace Aegis.Api.Middlewares
@@ -27,29 +28,29 @@ namespace Aegis.Api.Middlewares
             }
             catch (CompatibilityApiException ex)
             {
-                await WriteErrorAsync(context, ex.StatusCode, ex.ErrorCode, ex.Message);
+                await WriteErrorAsync(context, ex.StatusCode, NativeCodeForStatus(ex.StatusCode), ex.ErrorCode, ex.Message);
             }
             catch (ArgumentException ex)
             {
-                await WriteErrorAsync(context, StatusCodes.Status400BadRequest, "validation_error", ex.Message);
+                await WriteErrorAsync(context, StatusCodes.Status400BadRequest, NativeErrorCodes.ValidationError, "validation_error", ex.Message);
             }
             catch (InvalidOperationException ex)
             {
-                await WriteErrorAsync(context, StatusCodes.Status400BadRequest, "invalid_operation", ex.Message);
+                await WriteErrorAsync(context, StatusCodes.Status400BadRequest, NativeErrorCodes.InvalidOperation, "invalid_operation", ex.Message);
             }
             catch (KeyNotFoundException ex)
             {
-                await WriteErrorAsync(context, StatusCodes.Status404NotFound, "not_found", ex.Message);
+                await WriteErrorAsync(context, StatusCodes.Status404NotFound, NativeErrorCodes.NotFound, "not_found", ex.Message);
             }
             catch (UnauthorizedAccessException ex)
             {
-                await WriteErrorAsync(context, StatusCodes.Status403Forbidden, "permission_denied", ex.Message);
+                await WriteErrorAsync(context, StatusCodes.Status403Forbidden, NativeErrorCodes.PermissionDenied, "permission_denied", ex.Message);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unhandled exception for {Method} {Path}: {ExceptionType}",
                     context.Request.Method, context.Request.Path, ex.GetType().Name);
-                await WriteErrorAsync(context, StatusCodes.Status500InternalServerError, "internal_error", "Unexpected error occurred.");
+                await WriteErrorAsync(context, StatusCodes.Status500InternalServerError, NativeErrorCodes.InternalError, "internal_error", "Unexpected error occurred.");
             }
         }
 
@@ -58,21 +59,33 @@ namespace Aegis.Api.Middlewares
         /// Compatibility endpoints: AegisCompatErrorResponseDto (flat envelope)
         /// Native endpoints: ApiResponse<T>.Fail (nested envelope)
         /// </summary>
-        private static Task WriteErrorAsync(HttpContext context, int statusCode, string code, string message)
+        private static Task WriteErrorAsync(HttpContext context, int statusCode, string nativeCode, string compatibilityCode, string message)
         {
-            context.Items["Aegis.ErrorCode"] = code;
+            var isCompatibilityPath = ErrorEnvelopePathClassifier.IsCompatibilityPath(context.Request.Path);
+            var responseCode = isCompatibilityPath ? compatibilityCode : nativeCode;
+            context.Items["Aegis.ErrorCode"] = responseCode;
             context.Response.StatusCode = statusCode;
             context.Response.ContentType = "application/json";
 
-            if (ErrorEnvelopePathClassifier.IsCompatibilityPath(context.Request.Path))
+            if (isCompatibilityPath)
             {
                 return context.Response.WriteAsync(
-                    JsonSerializer.Serialize(new AegisCompatErrorResponseDto(code.ToLowerInvariant(), message)));
+                    JsonSerializer.Serialize(new AegisCompatErrorResponseDto(compatibilityCode.ToLowerInvariant(), message)));
             }
 
             return context.Response.WriteAsync(
-                JsonSerializer.Serialize(ApiResponse<string>.Fail(code, message)));
+                JsonSerializer.Serialize(ApiResponse<string>.Fail(nativeCode, message, RequestTraceContext.GetTraceId(context))));
         }
+
+        private static string NativeCodeForStatus(int statusCode) => statusCode switch
+        {
+            StatusCodes.Status400BadRequest => NativeErrorCodes.ValidationError,
+            StatusCodes.Status401Unauthorized => NativeErrorCodes.Unauthorized,
+            StatusCodes.Status403Forbidden => NativeErrorCodes.PermissionDenied,
+            StatusCodes.Status404NotFound => NativeErrorCodes.NotFound,
+            _ when statusCode >= StatusCodes.Status500InternalServerError => NativeErrorCodes.InternalError,
+            _ => NativeErrorCodes.InvalidOperation,
+        };
 
         /// <summary>
         /// Path classification now lives in ErrorEnvelopePathClassifier for reuse across middleware and API behavior.

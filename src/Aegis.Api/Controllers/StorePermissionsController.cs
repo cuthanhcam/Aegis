@@ -58,7 +58,7 @@ namespace Aegis.Api.Controllers
             var result = await _rbacAdminService.GetPermissionInStoreAsync(tenantId, storeId, relation, objectRef, cancellationToken);
             if (result is null)
             {
-                return this.NotFoundResponse<PermissionDto>("PERMISSION_NOT_FOUND", "Permission was not found.");
+                return this.NotFoundResponse<PermissionDto>(NativeErrorCodes.PermissionNotFound, "Permission was not found.");
             }
 
             return this.OkResponse(result);

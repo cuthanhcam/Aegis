@@ -214,6 +214,10 @@ public sealed class PermissionEndpointAuthorizationTests
         Assert.NotNull(payload);
         Assert.False(payload!.Success);
         Assert.Equal("VALIDATION_ERROR", payload.Error!.Code);
+        Assert.False(string.IsNullOrWhiteSpace(payload.Error.TraceId));
+        Assert.NotNull(payload.Error.Details);
+        Assert.Contains("Username", payload.Error.Details.Keys, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("Password", payload.Error.Details.Keys, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -243,6 +247,7 @@ public sealed class PermissionEndpointAuthorizationTests
         Assert.NotNull(payload);
         Assert.False(payload!.Success);
         Assert.Equal("RATE_LIMIT_EXCEEDED", payload.Error!.Code);
+        Assert.False(string.IsNullOrWhiteSpace(payload.Error.TraceId));
     }
 
     [Fact]
@@ -260,6 +265,7 @@ public sealed class PermissionEndpointAuthorizationTests
         var payload = await response.Content.ReadFromJsonAsync<ApiResponse<CheckResponseDto>>(JsonOptions);
         Assert.False(payload!.Success);
         Assert.Equal("TENANT_MISMATCH", payload.Error!.Code);
+        Assert.False(string.IsNullOrWhiteSpace(payload.Error.TraceId));
     }
 
     [Fact]

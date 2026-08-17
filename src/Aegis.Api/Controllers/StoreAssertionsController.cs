@@ -110,7 +110,7 @@ namespace Aegis.Api.Controllers
             var result = await _assertionAppService.GetRunAsync(storeId, runId, cancellationToken);
             if (result is null)
             {
-                return this.NotFoundResponse<AegisAssertionRunRecordDto>("ASSERTION_RUN_NOT_FOUND", $"Assertion run '{runId}' was not found.");
+                return this.NotFoundResponse<AegisAssertionRunRecordDto>(NativeErrorCodes.AssertionRunNotFound, $"Assertion run '{runId}' was not found.");
             }
 
             return this.OkResponse(result);

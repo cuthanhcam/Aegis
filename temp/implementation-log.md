@@ -79,3 +79,13 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Portability correction: a post-checkout baseline uses CRLF while the generated candidate uses LF. Raw-byte hashing produced a false difference, so the comparator now hashes canonicalized JSON and remains sensitive to semantic structure instead of formatting.
 - Evidence: lifecycle harness passed all five classifications; baseline and candidate semantic SHA-256 hashes matched across line endings. Generated TypeScript client strict compilation and npm audit passed. Locked restore, Release build, 268 unit tests, and 25 integration tests passed with zero build warnings or errors.
 - Merge evidence: feature commit `a997c5e` was merged locally into `develop` as `3f095da` and pushed. GitHub Actions `.NET CI` run `32042633435` completed successfully without modifying the workflow.
+
+## 2026-08-17 — Governed contracts B1, iteration 4
+
+- Branch: `refactor/api-error-contract-b1`
+- Status: In progress
+- Intended result: reconcile the full B1 scope and establish a consistent, diagnosable native error contract without breaking compatibility endpoints or authorization behavior.
+- Contract: ADR 0007 preserves the v1 `ApiResponse<T>` envelope and adds optional `traceId` and field-keyed validation `details`. `NativeErrorCodes` centralizes stable uppercase identifiers; compatibility endpoints keep their lowercase flat contract.
+- Runtime: a global MVC result filter enriches controller errors and request logging metadata. Validation, rate limiting, and exception handling use one distributed trace identifier and safe native/compatibility code mapping.
+- Verification: registry and targeted validation, rate-limit, and tenant-error tests pass. The additive OpenAPI baseline update contains only `traceId` and validation `details`; semantic diff and all five lifecycle fixtures passed. Generated TypeScript client strict compilation and npm audit passed. Locked restore, Release build, 269 unit tests, and 25 integration tests passed with zero warnings or errors. Actions evidence is pending.
+- Tracker correction: B1 now lists error, request semantics, mutation safety, application boundaries, and model lifecycle work instead of presenting pipeline publication as the only remaining item.

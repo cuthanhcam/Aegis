@@ -24,7 +24,7 @@ namespace Aegis.Api.Controllers.Helpers
         {
             return deleted
                 ? controller.OkResponse("deleted")
-                : controller.NotFoundResponse<string>("NOT_FOUND", "Resource was not found.");
+                : controller.NotFoundResponse<string>(NativeErrorCodes.NotFound, "Resource was not found.");
         }
     }
 }

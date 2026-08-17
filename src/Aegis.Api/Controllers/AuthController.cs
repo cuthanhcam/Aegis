@@ -40,7 +40,7 @@ namespace Aegis.Api.Controllers
             var result = await _authAppService.LoginAsync(request, cancellationToken);
             if (result is null)
             {
-                return Unauthorized(ApiResponse<LoginResponseDto>.Fail("INVALID_CREDENTIALS", "Invalid username or password."));
+                return Unauthorized(ApiResponse<LoginResponseDto>.Fail(NativeErrorCodes.InvalidCredentials, "Invalid username or password."));
             }
 
             if (!string.IsNullOrWhiteSpace(result.RefreshToken))
@@ -65,7 +65,7 @@ namespace Aegis.Api.Controllers
             if (result is null)
             {
                 AuthControllerHelpers.DeleteRefreshCookie(Response, RefreshCookieName, "/api/v1/auth");
-                return Unauthorized(ApiResponse<LoginResponseDto>.Fail("INVALID_REFRESH_TOKEN", "refresh token is invalid or expired."));
+                return Unauthorized(ApiResponse<LoginResponseDto>.Fail(NativeErrorCodes.InvalidRefreshToken, "refresh token is invalid or expired."));
             }
 
             if (!string.IsNullOrWhiteSpace(result.RefreshToken))
@@ -115,7 +115,7 @@ namespace Aegis.Api.Controllers
 
             if (string.IsNullOrWhiteSpace(subject) || string.IsNullOrWhiteSpace(tenantId))
             {
-                return Unauthorized(ApiResponse<string>.Fail("UNAUTHORIZED", "Missing subject or tenant in token claims."));
+                return Unauthorized(ApiResponse<string>.Fail(NativeErrorCodes.Unauthorized, "Missing subject or tenant in token claims."));
             }
 
             var revokedCount = await _authAppService.LogoutAllAsync(tenantId, subject, cancellationToken);
