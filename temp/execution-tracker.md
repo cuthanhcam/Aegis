@@ -104,4 +104,6 @@ Iteration 3 lifecycle evidence covers five disposable contracts: additive path a
 
 The iteration 3 merge commit is `3f095da`; `develop` Actions run `32042633435` passed. All locally authorized B1 contract-governance gates are now evidenced.
 
+Iteration 4 native-error evidence: additive OpenAPI diff, generated-client strict compilation, five contract lifecycle fixtures, 269 unit tests, 25 integration tests, and `develop` Actions run `32043384214` all passed for merge commit `b8f2375`.
+
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
