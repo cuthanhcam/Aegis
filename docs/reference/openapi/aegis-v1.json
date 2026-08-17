@@ -3113,6 +3113,8 @@
             "name": "page_size",
             "in": "query",
             "schema": {
+              "maximum": 100,
+              "minimum": 1,
               "type": "integer",
               "format": "int32"
             }
@@ -3121,6 +3123,8 @@
             "name": "continuation_token",
             "in": "query",
             "schema": {
+              "maxLength": 512,
+              "minLength": 0,
               "type": "string"
             }
           },
@@ -3128,6 +3132,8 @@
             "name": "type",
             "in": "query",
             "schema": {
+              "maxLength": 128,
+              "minLength": 0,
               "type": "string"
             }
           }

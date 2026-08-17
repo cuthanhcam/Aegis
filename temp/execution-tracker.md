@@ -94,6 +94,16 @@ B1 remains `In progress`. This slice establishes policy and the export mechanism
 - [ ] Harden model lifecycle activation, concurrent reads, conflicts, and rollback consistency.
 - [ ] Complete the B1 exit review and record the owner-deferred CI artifact-publication exception.
 
+Request-semantics progress:
+
+- [x] Centralize v1 page, batch, cursor-length, and filter-length limits.
+- [x] Emit opaque versioned native cursors while accepting legacy numeric cursors during rolling upgrades.
+- [x] Enforce relationship-change page bounds and native/compatibility batch caps.
+- [x] Apply a startup-validated global request deadline and preserve cooperative cancellation.
+- [x] Guard cancellation-token presence on every asynchronous controller action.
+- [ ] Migrate remaining unpaged collection endpoints with explicit ordering and non-breaking response plans.
+- [ ] Define endpoint-specific filters and sorting only where justified by consumer workflows.
+
 Iteration 1 evidence: local locked restore, zero-warning Release build, 268 unit tests, 25 integration tests, a 53-path OpenAPI v1 export, and `develop` Actions run `31955813080` all passed for merge commit `c39e396`.
 
 Iteration 2 evidence: the committed 53-path baseline and runtime candidate have identical SHA-256 hashes; the JSON diff report contains zero removed paths, operations, or schemas. Kiota 1.34.1 generated the TypeScript client and TypeScript 7.0.2 compiled it in strict mode with zero npm audit findings. Full backend verification passed 268 unit and 25 integration tests with zero build warnings or errors. Kiota's TypeScript target remains preview, so its version and proof dependencies are pinned and generated sources remain disposable artifacts.
@@ -105,5 +115,7 @@ Iteration 3 lifecycle evidence covers five disposable contracts: additive path a
 The iteration 3 merge commit is `3f095da`; `develop` Actions run `32042633435` passed. All locally authorized B1 contract-governance gates are now evidenced.
 
 Iteration 4 native-error evidence: additive OpenAPI diff, generated-client strict compilation, five contract lifecycle fixtures, 269 unit tests, 25 integration tests, and `develop` Actions run `32043384214` all passed for merge commit `b8f2375`.
+
+Iteration 5 request-semantics local evidence: regenerated OpenAPI semantic diff and all five lifecycle fixtures passed; the generated TypeScript client passed strict compilation and npm audit; locked restore, zero-warning Release build, 276 unit tests, and 26 integration tests passed. `develop` merge and Actions evidence remain pending.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.

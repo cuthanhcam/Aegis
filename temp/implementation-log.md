@@ -90,3 +90,13 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Verification: registry and targeted validation, rate-limit, and tenant-error tests pass. The additive OpenAPI baseline update contains only `traceId` and validation `details`; semantic diff and all five lifecycle fixtures passed. Generated TypeScript client strict compilation and npm audit passed. Locked restore, Release build, 269 unit tests, and 25 integration tests passed with zero warnings or errors.
 - Merge evidence: feature commit `7abb814` was merged locally into `develop` as `b8f2375` and pushed. GitHub Actions `.NET CI` run `32043384214` completed successfully without modifying the workflow.
 - Tracker correction: B1 now lists error, request semantics, mutation safety, application boundaries, and model lifecycle work instead of presenting pipeline publication as the only remaining item.
+
+## 2026-08-17 — Governed contracts B1, iteration 5
+
+- Branch: `feat/request-semantics-b1`
+- Status: In progress
+- Intended result: establish shared request-cost limits, opaque native cursors, bounded deadlines, and cancellation enforcement without breaking existing collection response shapes.
+- Contract: ADR 0008 and the request-semantics reference define page size 50/100, batch cap 1,000, cursor/filter length limits, a 30-second default deadline, and conservative retry rules.
+- Compatibility: native relationship changes now emit versioned opaque cursors but accept legacy numeric tokens for rolling upgrades. Compatibility reads retain their existing token format and envelope. Native and compatibility batch checks share the resource cap.
+- Runtime: ASP.NET Core request-timeout middleware applies a validated 1–300 second configuration range and returns envelope-specific HTTP 504 errors. Cancellation escapes exception translation so the timeout middleware or disconnected client remains authoritative.
+- Verification: targeted codec, page-limit, cursor-reuse, OpenAPI-governance, and cancellation-signature tests pass. The regenerated OpenAPI baseline passes semantic diff and all five lifecycle classifications; the generated TypeScript client passes strict compilation and npm audit. Locked restore, zero-warning Release build, 276 unit tests, and 26 integration tests pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.

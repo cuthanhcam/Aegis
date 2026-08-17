@@ -12,6 +12,7 @@ public static class NativeErrorCodes
     public const string PermissionDenied = "PERMISSION_DENIED";
     public const string InternalError = "INTERNAL_ERROR";
     public const string RateLimitExceeded = "RATE_LIMIT_EXCEEDED";
+    public const string RequestTimeout = "REQUEST_TIMEOUT";
     public const string TenantForbidden = "TENANT_FORBIDDEN";
     public const string TenantMismatch = "TENANT_MISMATCH";
     public const string TenantRequired = "TENANT_REQUIRED";

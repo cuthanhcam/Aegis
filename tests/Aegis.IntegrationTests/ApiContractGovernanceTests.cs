@@ -28,6 +28,11 @@ public sealed class ApiContractGovernanceTests : IClassFixture<TestApiFactory>
                 $"{action.ControllerName}.{action.ActionName} must use an explicit /api/v1 route; found '{route ?? "<none>"}'.");
             Assert.True(action.ActionConstraints?.OfType<Microsoft.AspNetCore.Mvc.ActionConstraints.HttpMethodActionConstraint>().Any() == true,
                 $"{action.ControllerName}.{action.ActionName} must declare an HTTP method attribute.");
+
+            if (typeof(Task).IsAssignableFrom(action.MethodInfo.ReturnType))
+            {
+                Assert.Contains(action.Parameters, parameter => parameter.ParameterType == typeof(CancellationToken));
+            }
         }
     }
 
