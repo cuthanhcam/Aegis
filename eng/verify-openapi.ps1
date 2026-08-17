@@ -2,7 +2,8 @@
 param(
     [string]$BaselinePath = "docs/reference/openapi/aegis-v1.json",
     [string]$CandidatePath = "artifacts/openapi/aegis-v1.candidate.json",
-    [string]$ReportPath = "artifacts/openapi/contract-diff.json"
+    [string]$ReportPath = "artifacts/openapi/contract-diff.json",
+    [switch]$SkipExport
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,7 +14,11 @@ $report = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $ReportPath))
 
 if (-not (Test-Path -LiteralPath $baseline)) { throw "OpenAPI baseline '$baseline' does not exist." }
 
-& "$PSScriptRoot/export-openapi.ps1" -OutputPath $CandidatePath
+if (-not $SkipExport) {
+    & "$PSScriptRoot/export-openapi.ps1" -OutputPath $CandidatePath
+}
+
+if (-not (Test-Path -LiteralPath $candidate)) { throw "OpenAPI candidate '$candidate' does not exist." }
 
 function Get-PropertyNames($value) {
     if ($null -eq $value) { return @() }
@@ -24,6 +29,8 @@ $baselineJson = Get-Content -LiteralPath $baseline -Raw
 $candidateJson = Get-Content -LiteralPath $candidate -Raw
 $baselineDocument = $baselineJson | ConvertFrom-Json
 $candidateDocument = $candidateJson | ConvertFrom-Json
+$baselineCanonicalJson = $baselineDocument | ConvertTo-Json -Depth 100 -Compress
+$candidateCanonicalJson = $candidateDocument | ConvertTo-Json -Depth 100 -Compress
 $httpMethods = @("get", "put", "post", "delete", "patch", "options", "head", "trace")
 $removedPaths = @(Get-PropertyNames $baselineDocument.paths | Where-Object { $_ -notin (Get-PropertyNames $candidateDocument.paths) })
 $removedSchemas = @(Get-PropertyNames $baselineDocument.components.schemas | Where-Object { $_ -notin (Get-PropertyNames $candidateDocument.components.schemas) })
@@ -42,8 +49,8 @@ foreach ($path in (Get-PropertyNames $baselineDocument.paths)) {
 
 $sha256 = [System.Security.Cryptography.SHA256]::Create()
 try {
-    $baselineHash = [BitConverter]::ToString($sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($baselineJson))).Replace("-", "").ToLowerInvariant()
-    $candidateHash = [BitConverter]::ToString($sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($candidateJson))).Replace("-", "").ToLowerInvariant()
+    $baselineHash = [BitConverter]::ToString($sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($baselineCanonicalJson))).Replace("-", "").ToLowerInvariant()
+    $candidateHash = [BitConverter]::ToString($sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($candidateCanonicalJson))).Replace("-", "").ToLowerInvariant()
 }
 finally { $sha256.Dispose() }
 
@@ -53,8 +60,8 @@ $breakingChanges = @($removedPaths | ForEach-Object { "removed path: $_" }) +
 $result = [ordered]@{
     baseline = $BaselinePath
     candidate = $CandidatePath
-    baselineSha256 = $baselineHash
-    candidateSha256 = $candidateHash
+    baselineSemanticSha256 = $baselineHash
+    candidateSemanticSha256 = $candidateHash
     identical = $baselineHash -eq $candidateHash
     breaking = $breakingChanges.Count -gt 0
     breakingChanges = $breakingChanges
