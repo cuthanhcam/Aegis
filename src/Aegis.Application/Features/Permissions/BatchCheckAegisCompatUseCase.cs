@@ -2,6 +2,7 @@ using Aegis.Application.Features.Query;
 using Aegis.Application.Interfaces;
 using Aegis.Contracts.Compatibility;
 using Aegis.Contracts.Permissions;
+using Aegis.Contracts.Common;
 
 namespace Aegis.Application.Features.Permissions
 {
@@ -38,6 +39,14 @@ namespace Aegis.Application.Features.Permissions
             if (request.Checks is null || request.Checks.Count == 0)
             {
                 throw new ArgumentException("checks are required.");
+            }
+
+            if (request.Checks.Count > ApiRequestLimits.MaxBatchChecks)
+            {
+                throw new CompatibilityApiException(
+                    400,
+                    "batch_size_invalid",
+                    $"checks must not exceed {ApiRequestLimits.MaxBatchChecks}.");
             }
 
             var store = await _storeRegistry.GetAsync(storeId, cancellationToken);

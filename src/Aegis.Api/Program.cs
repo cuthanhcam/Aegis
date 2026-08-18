@@ -2,6 +2,8 @@ using Aegis.Api.Middlewares;
 using Aegis.Api.Security;
 using Aegis.Api.Health;
 using Aegis.Api.Metrics;
+using Aegis.Api.Filters;
+using Aegis.Api.Observability;
 using Aegis.Application;
 using Aegis.Authorization.Core.Metrics;
 using Aegis.Contracts.Common;
@@ -14,6 +16,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.Http.Timeouts;
 using Microsoft.OpenApi.Models;
 using System.Text.Json;
 using System.Text;
@@ -31,13 +34,23 @@ if (string.IsNullOrWhiteSpace(jwtOptions.Secret))
 
 builder.Services
     .AddControllers()
+    .AddMvcOptions(options => options.Filters.Add<NativeErrorMetadataFilter>())
     .ConfigureApiBehaviorOptions(options =>
     {
         options.InvalidModelStateResponseFactory = context =>
         {
-            var firstError = context.ModelState.Values
-                .SelectMany(v => v.Errors)
-                .Select(e => e.ErrorMessage)
+            var validationErrors = context.ModelState
+                .Where(entry => entry.Value?.Errors.Count > 0)
+                .ToDictionary(
+                    entry => entry.Key,
+                    entry => entry.Value!.Errors
+                        .Select(error => string.IsNullOrWhiteSpace(error.ErrorMessage)
+                            ? "The supplied value is invalid."
+                            : error.ErrorMessage)
+                        .ToArray(),
+                    StringComparer.Ordinal);
+            var firstError = validationErrors.Values
+                .SelectMany(errors => errors)
                 .FirstOrDefault(message => !string.IsNullOrWhiteSpace(message))
                 ?? "Request payload validation failed.";
 
@@ -46,7 +59,11 @@ builder.Services
                 return new BadRequestObjectResult(new AegisCompatErrorResponseDto("validation_error", firstError));
             }
 
-            return new BadRequestObjectResult(ApiResponse<string>.Fail("VALIDATION_ERROR", firstError));
+            return new BadRequestObjectResult(ApiResponse<string>.Fail(
+                NativeErrorCodes.ValidationError,
+                firstError,
+                RequestTraceContext.GetTraceId(context.HttpContext),
+                validationErrors));
         };
     });
 builder.Services.AddAegisApplication();
@@ -73,6 +90,37 @@ builder.Services.AddOptions<JwtOptions>()
 
 var authRatePermitLimit = builder.Configuration.GetValue<int?>("RateLimiting:Auth:PermitLimit") ?? 10;
 var authRateWindowSeconds = builder.Configuration.GetValue<int?>("RateLimiting:Auth:WindowSeconds") ?? 60;
+var defaultRequestTimeoutSeconds = builder.Configuration.GetValue<int?>("RequestTimeouts:DefaultSeconds") ?? 30;
+if (defaultRequestTimeoutSeconds is < 1 or > 300)
+{
+    throw new InvalidOperationException("RequestTimeouts:DefaultSeconds must be between 1 and 300.");
+}
+
+builder.Services.AddRequestTimeouts(options =>
+{
+    options.DefaultPolicy = new RequestTimeoutPolicy
+    {
+        Timeout = TimeSpan.FromSeconds(defaultRequestTimeoutSeconds),
+        TimeoutStatusCode = StatusCodes.Status504GatewayTimeout,
+        WriteTimeoutResponse = async context =>
+        {
+            context.Response.ContentType = "application/json";
+            if (ErrorEnvelopePathClassifier.IsCompatibilityPath(context.Request.Path))
+            {
+                context.Items["Aegis.ErrorCode"] = "request_timeout";
+                await context.Response.WriteAsync(JsonSerializer.Serialize(
+                    new AegisCompatErrorResponseDto("request_timeout", "The request exceeded its execution deadline.")));
+                return;
+            }
+
+            context.Items["Aegis.ErrorCode"] = NativeErrorCodes.RequestTimeout;
+            await context.Response.WriteAsync(JsonSerializer.Serialize(ApiResponse<string>.Fail(
+                NativeErrorCodes.RequestTimeout,
+                "The request exceeded its execution deadline.",
+                RequestTraceContext.GetTraceId(context))));
+        },
+    };
+});
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -107,7 +155,10 @@ builder.Services.AddRateLimiter(options =>
         }
 
         await response.WriteAsync(
-            JsonSerializer.Serialize(ApiResponse<string>.Fail("RATE_LIMIT_EXCEEDED", "Too many requests.")),
+            JsonSerializer.Serialize(ApiResponse<string>.Fail(
+                NativeErrorCodes.RateLimitExceeded,
+                "Too many requests.",
+                RequestTraceContext.GetTraceId(rateLimitContext.HttpContext))),
             cancellationToken);
     };
 });
@@ -169,6 +220,8 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "Centralized, explainable authorization API.",
     });
+    options.AddServer(new OpenApiServer { Url = "/" });
+    options.CustomSchemaIds(ContractSchemaId);
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -234,6 +287,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors("FrontendDev");
 app.UseHttpsRedirection();
 app.UseRouting();
+app.UseRequestTimeouts();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<TenantContextMiddleware>();
@@ -257,5 +311,17 @@ app.MapGet("/metrics", (IAuthorizationMetrics metrics) =>
 app.MapControllers();
 
 app.Run();
+
+static string ContractSchemaId(Type type)
+{
+    if (type == typeof(ApiError))
+    {
+        return "AegisApiError";
+    }
+
+    return type.IsConstructedGenericType
+        ? string.Concat(type.GetGenericArguments().Select(ContractSchemaId)) + type.Name.Split('`')[0]
+        : type.Name.Replace("[]", "Array", StringComparison.Ordinal);
+}
 
 public partial class Program;

@@ -5,6 +5,7 @@ using Aegis.Contracts.Common;
 using Aegis.Contracts.Relationships;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 
 namespace Aegis.Api.Controllers
 {
@@ -47,9 +48,9 @@ namespace Aegis.Api.Controllers
         [ProducesResponseType(typeof(ApiResponse<ReadChangesResponseDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<ApiResponse<ReadChangesResponseDto>>> ReadChanges(
             [FromRoute] string storeId,
-            [FromQuery(Name = "page_size")] int? pageSize,
-            [FromQuery(Name = "continuation_token")] string? continuationToken,
-            [FromQuery] string? type,
+            [FromQuery(Name = "page_size"), Range(1, ApiRequestLimits.MaxPageSize)] int? pageSize,
+            [FromQuery(Name = "continuation_token"), StringLength(ApiRequestLimits.MaxContinuationTokenLength)] string? continuationToken,
+            [FromQuery, StringLength(ApiRequestLimits.MaxResourceTypeFilterLength)] string? type,
             CancellationToken cancellationToken)
         {
             var accessResult = await TenantAccessGuard.ValidateStoreTenantAsync<ReadChangesResponseDto>(this, _storeRegistry, storeId, cancellationToken);

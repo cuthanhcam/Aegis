@@ -71,7 +71,7 @@ namespace Aegis.Api.Controllers
             var result = await _rbacAdminService.UpdateUserAsync(tenantId, userId, request, cancellationToken);
             if (result is null)
             {
-                return this.NotFoundResponse<UserDto>("USER_NOT_FOUND", $"User '{userId}' was not found.");
+                return this.NotFoundResponse<UserDto>(NativeErrorCodes.UserNotFound, $"User '{userId}' was not found.");
             }
 
             return this.OkResponse(result);

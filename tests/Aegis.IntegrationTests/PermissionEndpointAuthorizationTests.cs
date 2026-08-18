@@ -5,6 +5,7 @@ using Aegis.Contracts.Administration;
 using Aegis.Contracts.Common;
 using Aegis.Contracts.Query;
 using Aegis.Contracts.Permissions;
+using Aegis.Contracts.Relationships;
 using Aegis.Authorization.Core.Interfaces;
 using Aegis.Authorization.Core.Models;
 using Microsoft.AspNetCore.Authentication;
@@ -214,6 +215,10 @@ public sealed class PermissionEndpointAuthorizationTests
         Assert.NotNull(payload);
         Assert.False(payload!.Success);
         Assert.Equal("VALIDATION_ERROR", payload.Error!.Code);
+        Assert.False(string.IsNullOrWhiteSpace(payload.Error.TraceId));
+        Assert.NotNull(payload.Error.Details);
+        Assert.Contains("Username", payload.Error.Details.Keys, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("Password", payload.Error.Details.Keys, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -243,6 +248,7 @@ public sealed class PermissionEndpointAuthorizationTests
         Assert.NotNull(payload);
         Assert.False(payload!.Success);
         Assert.Equal("RATE_LIMIT_EXCEEDED", payload.Error!.Code);
+        Assert.False(string.IsNullOrWhiteSpace(payload.Error.TraceId));
     }
 
     [Fact]
@@ -260,6 +266,49 @@ public sealed class PermissionEndpointAuthorizationTests
         var payload = await response.Content.ReadFromJsonAsync<ApiResponse<CheckResponseDto>>(JsonOptions);
         Assert.False(payload!.Success);
         Assert.Equal("TENANT_MISMATCH", payload.Error!.Code);
+        Assert.False(string.IsNullOrWhiteSpace(payload.Error.TraceId));
+    }
+
+    [Fact]
+    public async Task Relationship_changes_enforces_page_limit_and_emits_opaque_cursor()
+    {
+        await using var factory = new TestApiFactory();
+        const string tenantId = "tenant-a";
+        string storeId;
+
+        using (var scope = factory.AppServices.CreateScope())
+        {
+            var storeRegistry = scope.ServiceProvider.GetRequiredService<IStoreRegistry>();
+            var relationshipService = scope.ServiceProvider.GetRequiredService<IRelationshipService>();
+            var store = await storeRegistry.CreateForTenantAsync(tenantId, "request-semantics-store");
+            storeId = store.Id;
+            await relationshipService.UpsertAsync(
+                tenantId,
+                storeId,
+                new RelationshipWriteRequestDto("user:alice", "viewer", "document:one"));
+        }
+
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, tenantId);
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
+
+        var invalidResponse = await client.GetAsync($"/api/v1/stores/{storeId}/relationships/changes?page_size=101");
+        Assert.Equal(HttpStatusCode.BadRequest, invalidResponse.StatusCode);
+        var invalidPayload = await invalidResponse.Content.ReadFromJsonAsync<ApiResponse<string>>(JsonOptions);
+        Assert.Equal(NativeErrorCodes.ValidationError, invalidPayload!.Error!.Code);
+        Assert.False(string.IsNullOrWhiteSpace(invalidPayload.Error.TraceId));
+
+        var firstPageResponse = await client.GetAsync($"/api/v1/stores/{storeId}/relationships/changes?page_size=1");
+        Assert.Equal(HttpStatusCode.OK, firstPageResponse.StatusCode);
+        var firstPage = await firstPageResponse.Content.ReadFromJsonAsync<ApiResponse<ReadChangesResponseDto>>(JsonOptions);
+        var cursor = firstPage!.Data!.ContinuationToken;
+        Assert.False(string.IsNullOrWhiteSpace(cursor));
+        Assert.False(int.TryParse(cursor, out _));
+
+        var nextPageResponse = await client.GetAsync(
+            $"/api/v1/stores/{storeId}/relationships/changes?page_size=1&continuation_token={Uri.EscapeDataString(cursor)}");
+        Assert.Equal(HttpStatusCode.OK, nextPageResponse.StatusCode);
     }
 
     [Fact]

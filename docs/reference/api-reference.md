@@ -37,7 +37,9 @@ Common error envelope:
   "data": null,
   "error": {
     "code": "STORE_FORBIDDEN",
-    "message": "Store does not belong to the authenticated tenant."
+    "message": "Store does not belong to the authenticated tenant.",
+    "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+    "details": null
   }
 }
 ```
@@ -327,8 +329,10 @@ Query parameters:
 | Name | Description |
 | --- | --- |
 | `page_size` | Optional page size. |
-| `continuation_token` | Optional continuation token. |
-| `type` | Optional change type filter. |
+| `continuation_token` | Opaque token returned by the previous page; never parse or construct it. |
+| `type` | Optional object-type filter, maximum 128 characters. |
+
+`page_size` defaults to 50 and must be between 1 and 100. See [API request semantics](./request-semantics.md) for cursor, deadline, cancellation, and retry rules.
 
 ## Authorization Models
 
