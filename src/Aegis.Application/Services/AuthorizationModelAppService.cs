@@ -114,6 +114,7 @@ namespace Aegis.Application.Services
         public async Task<PublishAuthorizationModelResponseDto?> PublishAsync(
             string storeId,
             string authorizationModelId,
+            long expectedRevision,
             CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(authorizationModelId))
@@ -128,13 +129,26 @@ namespace Aegis.Application.Services
                 return null;
             }
 
+            if (model.Revision != expectedRevision)
+            {
+                throw new ConcurrencyConflictException("The authorization model lifecycle changed before publish started.");
+            }
+
             var validation = await ValidateAsync(new ValidateAuthorizationModelRequestDto(model.SchemaVersion, model.Model), cancellationToken);
             ThrowIfInvalid(validation);
 
             if (_authorizationModelRepository is not null)
             {
-                var updated = await _authorizationModelRepository.PublishAsync(storeId, authorizationModelId, cancellationToken);
+                var updated = await _authorizationModelRepository.PublishAsync(storeId, authorizationModelId, expectedRevision, cancellationToken);
                 var published = updated.FirstOrDefault(x => x.Id.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase));
+                if (published is null)
+                {
+                    var stillExists = await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
+                    if (stillExists is not null)
+                    {
+                        throw new ConcurrencyConflictException("The authorization model lifecycle changed before publish completed.");
+                    }
+                }
                 return published is null ? null : new PublishAuthorizationModelResponseDto(ToDto(published), published.Id, published.SchemaVersion);
             }
 
@@ -166,6 +180,7 @@ namespace Aegis.Application.Services
         public async Task<RollbackAuthorizationModelResponseDto?> RollbackAsync(
             string storeId,
             string authorizationModelId,
+            long expectedRevision,
             CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(authorizationModelId))
@@ -181,13 +196,26 @@ namespace Aegis.Application.Services
                 return null;
             }
 
+            if (target.Revision != expectedRevision)
+            {
+                throw new ConcurrencyConflictException("The authorization model lifecycle changed before rollback started.");
+            }
+
             var validation = await ValidateAsync(new ValidateAuthorizationModelRequestDto(target.SchemaVersion, target.Model), cancellationToken);
             ThrowIfInvalid(validation);
 
             AuthorizationModelDto? active;
             if (_authorizationModelRepository is not null)
             {
-                var rolledBack = await _authorizationModelRepository.RollbackAsync(storeId, authorizationModelId, cancellationToken);
+                var rolledBack = await _authorizationModelRepository.RollbackAsync(storeId, authorizationModelId, expectedRevision, cancellationToken);
+                if (rolledBack is null)
+                {
+                    var stillExists = await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
+                    if (stillExists is not null)
+                    {
+                        throw new ConcurrencyConflictException("The authorization model lifecycle changed before rollback completed.");
+                    }
+                }
                 active = rolledBack is null ? null : ToDto(rolledBack);
             }
             else

@@ -99,8 +99,8 @@ namespace Aegis.UnitTests.Application.Services
             var first = await service.CreateAsync(store.Id, new CreateAuthorizationModelRequestDto("1.1", "type user\n\ntype document\n  relations\n    define viewer: [user]"));
             var second = await service.CreateAsync(store.Id, new CreateAuthorizationModelRequestDto("1.1", "type user\n\ntype document\n  relations\n    define viewer: [user]\n    define editor: [user]"));
 
-            await service.PublishAsync(store.Id, first.Id);
-            var published = await service.PublishAsync(store.Id, second.Id);
+            await service.PublishAsync(store.Id, first.Id, first.Revision);
+            var published = await service.PublishAsync(store.Id, second.Id, second.Revision);
             var models = await service.ListAsync(store.Id);
 
             Assert.NotNull(published);
@@ -118,10 +118,11 @@ namespace Aegis.UnitTests.Application.Services
             var service = new AuthorizationModelAppService(registry, registry, registry, new NoopDomainEventDispatcher(), new InMemoryAuditStore());
             var first = await service.CreateAsync(store.Id, new CreateAuthorizationModelRequestDto("1.1", "type user\n\ntype document\n  relations\n    define viewer: [user]"));
             var second = await service.CreateAsync(store.Id, new CreateAuthorizationModelRequestDto("1.1", "type user\n\ntype document\n  relations\n    define viewer: [user]\n    define editor: [user]"));
-            await service.PublishAsync(store.Id, first.Id);
-            await service.PublishAsync(store.Id, second.Id);
+            await service.PublishAsync(store.Id, first.Id, first.Revision);
+            await service.PublishAsync(store.Id, second.Id, second.Revision);
 
-            var rollback = await service.RollbackAsync(store.Id, first.Id);
+            var archivedFirst = await service.GetByIdAsync(store.Id, first.Id);
+            var rollback = await service.RollbackAsync(store.Id, first.Id, archivedFirst!.Revision);
 
             Assert.NotNull(rollback);
             Assert.Equal(first.Id, rollback.ActiveModelId);

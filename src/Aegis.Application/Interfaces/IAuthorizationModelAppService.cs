@@ -29,11 +29,13 @@ public interface IAuthorizationModelAppService
     Task<PublishAuthorizationModelResponseDto?> PublishAsync(
         string storeId,
         string authorizationModelId,
+        long expectedRevision,
         CancellationToken cancellationToken = default);
 
     Task<RollbackAuthorizationModelResponseDto?> RollbackAsync(
         string storeId,
         string authorizationModelId,
+        long expectedRevision,
         CancellationToken cancellationToken = default);
 
     Task<AuthorizationModelDiffDto?> DiffAsync(

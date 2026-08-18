@@ -108,7 +108,7 @@ Mutation-safety progress:
 
 - [x] Add strong ETags and atomic revision checks to authorization-model update and delete.
 - [x] Define stable HTTP 428/412 native error semantics and safe client recovery guidance.
-- [ ] Extend transaction-scoped preconditions to authorization-model publish and rollback.
+- [x] Extend transaction-scoped preconditions to authorization-model publish and rollback.
 - [ ] Add durable, tenant-scoped idempotency reservation and response replay for retryable creates/writes.
 
 Iteration 1 evidence: local locked restore, zero-warning Release build, 268 unit tests, 25 integration tests, a 53-path OpenAPI v1 export, and `develop` Actions run `31955813080` all passed for merge commit `c39e396`.
@@ -132,5 +132,11 @@ Iteration 5 Actions evidence: replacement `.NET CI` run `32044320783` passed for
 Iteration 6 model-concurrency local evidence: ETag/precondition endpoint coverage, additive OpenAPI semantic diff, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 276 unit tests, and 27 integration tests passed. `develop` merge and Actions evidence remain pending.
 
 Iteration 6 merge evidence: feature commit `7109d94` was merged locally into `develop` as `b1c8243`; `.NET CI` run `32142650670` passed. The workflow remained unchanged.
+
+Iteration 7 lifecycle-concurrency scope: serialize publish/rollback at the store boundary, validate the target revision inside the transaction, return the active model's new ETag, and retain durable idempotency as the remaining mutation-safety item.
+
+The database invariant is defense in depth: migration 011 deterministically archives duplicate historical published rows, then enforces at most one published authorization model per store with a partial unique index.
+
+Iteration 7 local evidence: lifecycle precondition coverage, additive OpenAPI semantic diff, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 276 unit tests, and 28 integration tests passed. `develop` merge and Actions evidence remain pending.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.

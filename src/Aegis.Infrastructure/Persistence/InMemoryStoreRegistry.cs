@@ -11,6 +11,7 @@ namespace Aegis.Infrastructure.Persistence
     {
         private readonly ConcurrentDictionary<string, StoreDto> _stores = new(StringComparer.OrdinalIgnoreCase);
         private readonly ConcurrentDictionary<string, AuthorizationModelDto> _models = new(StringComparer.OrdinalIgnoreCase);
+        private readonly object _authorizationModelsGate = new();
 
         public Task<StoreDto> CreateAsync(string name, CancellationToken cancellationToken = default)
         {
@@ -301,86 +302,66 @@ namespace Aegis.Infrastructure.Persistence
         Task<IReadOnlyList<AuthorizationModel>> IAuthorizationModelRepository.PublishAsync(
             string storeId,
             string authorizationModelId,
+            long expectedRevision,
             CancellationToken cancellationToken)
         {
-            var now = DateTimeOffset.UtcNow;
-            var updated = new List<AuthorizationModel>();
-            foreach (var item in _models.Values.Where(x => x.StoreId == storeId).ToList())
+            lock (_authorizationModelsGate)
             {
-                var key = $"{item.StoreId}:{item.Id}";
-                AuthorizationModelDto next;
-                if (item.Id.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase))
+                var targetKey = $"{storeId}:{authorizationModelId}";
+                if (!_models.TryGetValue(targetKey, out var target) || target.Revision != expectedRevision)
                 {
-                    next = item with
-                    {
-                        State = AuthorizationModelLifecycleStates.Published,
-                        PublishedAt = now,
-                        ArchivedAt = null,
-                        SupersededBy = null,
-                        Revision = item.Revision + 1,
-                    };
-                }
-                else if (item.State == AuthorizationModelLifecycleStates.Published)
-                {
-                    next = item with
-                    {
-                        State = AuthorizationModelLifecycleStates.Archived,
-                        ArchivedAt = now,
-                        SupersededBy = authorizationModelId,
-                        Revision = item.Revision + 1,
-                    };
-                }
-                else
-                {
-                    continue;
+                    return Task.FromResult<IReadOnlyList<AuthorizationModel>>([]);
                 }
 
-                _models[key] = next;
-                updated.Add(ToAggregate(next));
+                var now = DateTimeOffset.UtcNow;
+                var updated = new List<AuthorizationModel>();
+                foreach (var item in _models.Values.Where(x => x.StoreId == storeId).ToList())
+                {
+                    var key = $"{item.StoreId}:{item.Id}";
+                    AuthorizationModelDto next;
+                    if (item.Id.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        next = item with
+                        {
+                            State = AuthorizationModelLifecycleStates.Published,
+                            PublishedAt = now,
+                            ArchivedAt = null,
+                            SupersededBy = null,
+                            Revision = item.Revision + 1,
+                        };
+                    }
+                    else if (item.State == AuthorizationModelLifecycleStates.Published)
+                    {
+                        next = item with
+                        {
+                            State = AuthorizationModelLifecycleStates.Archived,
+                            ArchivedAt = now,
+                            SupersededBy = authorizationModelId,
+                            Revision = item.Revision + 1,
+                        };
+                    }
+                    else
+                    {
+                        continue;
+                    }
+
+                    _models[key] = next;
+                    updated.Add(ToAggregate(next));
+                }
+
+                return Task.FromResult<IReadOnlyList<AuthorizationModel>>(updated);
             }
-
-            return Task.FromResult<IReadOnlyList<AuthorizationModel>>(updated);
         }
 
-        Task<AuthorizationModel?> IAuthorizationModelRepository.RollbackAsync(
+        async Task<AuthorizationModel?> IAuthorizationModelRepository.RollbackAsync(
             string storeId,
             string authorizationModelId,
+            long expectedRevision,
             CancellationToken cancellationToken)
         {
-            var targetKey = $"{storeId}:{authorizationModelId}";
-            if (!_models.TryGetValue(targetKey, out var target))
-            {
-                return Task.FromResult<AuthorizationModel?>(null);
-            }
-
-            var now = DateTimeOffset.UtcNow;
-            foreach (var item in _models.Values.Where(x => x.StoreId == storeId).ToList())
-            {
-                var key = $"{item.StoreId}:{item.Id}";
-                if (item.Id.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase))
-                {
-                    _models[key] = item with
-                    {
-                        State = AuthorizationModelLifecycleStates.Published,
-                        PublishedAt = now,
-                        ArchivedAt = null,
-                        SupersededBy = null,
-                        Revision = item.Revision + 1,
-                    };
-                }
-                else if (item.State == AuthorizationModelLifecycleStates.Published)
-                {
-                    _models[key] = item with
-                    {
-                        State = AuthorizationModelLifecycleStates.Archived,
-                        ArchivedAt = now,
-                        SupersededBy = authorizationModelId,
-                        Revision = item.Revision + 1,
-                    };
-                }
-            }
-
-            return Task.FromResult<AuthorizationModel?>(ToAggregate(_models[targetKey]));
+            var updated = await ((IAuthorizationModelRepository)this)
+                .PublishAsync(storeId, authorizationModelId, expectedRevision, cancellationToken);
+            return updated.FirstOrDefault(x => x.Id.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase));
         }
 
         Task<bool> IAuthorizationModelRepository.DeleteAsync(AuthorizationModel authorizationModel, long expectedRevision, CancellationToken cancellationToken)
