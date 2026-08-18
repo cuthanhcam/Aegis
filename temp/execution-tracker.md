@@ -104,6 +104,13 @@ Request-semantics progress:
 - [ ] Migrate remaining unpaged collection endpoints with explicit ordering and non-breaking response plans.
 - [ ] Define endpoint-specific filters and sorting only where justified by consumer workflows.
 
+Mutation-safety progress:
+
+- [x] Add strong ETags and atomic revision checks to authorization-model update and delete.
+- [x] Define stable HTTP 428/412 native error semantics and safe client recovery guidance.
+- [x] Extend transaction-scoped preconditions to authorization-model publish and rollback.
+- [ ] Add durable, tenant-scoped idempotency reservation and response replay for retryable creates/writes.
+
 Iteration 1 evidence: local locked restore, zero-warning Release build, 268 unit tests, 25 integration tests, a 53-path OpenAPI v1 export, and `develop` Actions run `31955813080` all passed for merge commit `c39e396`.
 
 Iteration 2 evidence: the committed 53-path baseline and runtime candidate have identical SHA-256 hashes; the JSON diff report contains zero removed paths, operations, or schemas. Kiota 1.34.1 generated the TypeScript client and TypeScript 7.0.2 compiled it in strict mode with zero npm audit findings. Full backend verification passed 268 unit and 25 integration tests with zero build warnings or errors. Kiota's TypeScript target remains preview, so its version and proof dependencies are pinned and generated sources remain disposable artifacts.
@@ -121,5 +128,17 @@ Iteration 5 request-semantics local evidence: regenerated OpenAPI semantic diff 
 Iteration 5 merge evidence: feature commit `b587fa0` was merged locally into `develop` as `33de240`. Actions run `32044172154` failed at `Set up job` before checkout and before any repository command; it is retained as infrastructure evidence, not treated as a product-code failure. A traceable docs-only merge supplies the replacement verification run.
 
 Iteration 5 Actions evidence: replacement `.NET CI` run `32044320783` passed for docs-evidence merge `653311c`, covering the unchanged request-semantics source tree. No workflow file was modified.
+
+Iteration 6 model-concurrency local evidence: ETag/precondition endpoint coverage, additive OpenAPI semantic diff, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 276 unit tests, and 27 integration tests passed. `develop` merge and Actions evidence remain pending.
+
+Iteration 6 merge evidence: feature commit `7109d94` was merged locally into `develop` as `b1c8243`; `.NET CI` run `32142650670` passed. The workflow remained unchanged.
+
+Iteration 7 lifecycle-concurrency scope: serialize publish/rollback at the store boundary, validate the target revision inside the transaction, return the active model's new ETag, and retain durable idempotency as the remaining mutation-safety item.
+
+The database invariant is defense in depth: migration 011 deterministically archives duplicate historical published rows, then enforces at most one published authorization model per store with a partial unique index.
+
+Iteration 7 local evidence: lifecycle precondition coverage, additive OpenAPI semantic diff, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 276 unit tests, and 28 integration tests passed. `develop` merge and Actions evidence remain pending.
+
+Iteration 7 merge evidence: feature commit `c7a5a8f` was merged locally into `develop` as `6a0474a`; `.NET CI` run `32143817767` passed. The workflow remained unchanged.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.

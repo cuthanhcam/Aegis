@@ -1,6 +1,7 @@
 using Aegis.Contracts.Common;
 using Aegis.Contracts.Compatibility;
 using Aegis.Api.Observability;
+using Aegis.Application.Contracts;
 using System.Text.Json;
 
 namespace Aegis.Api.Middlewares
@@ -29,6 +30,14 @@ namespace Aegis.Api.Middlewares
             catch (CompatibilityApiException ex)
             {
                 await WriteErrorAsync(context, ex.StatusCode, NativeCodeForStatus(ex.StatusCode), ex.ErrorCode, ex.Message);
+            }
+            catch (PreconditionRequiredException ex)
+            {
+                await WriteErrorAsync(context, StatusCodes.Status428PreconditionRequired, NativeErrorCodes.PreconditionRequired, "precondition_required", ex.Message);
+            }
+            catch (ConcurrencyConflictException ex)
+            {
+                await WriteErrorAsync(context, StatusCodes.Status412PreconditionFailed, NativeErrorCodes.ConcurrencyConflict, "concurrency_conflict", ex.Message);
             }
             catch (ArgumentException ex)
             {

@@ -357,6 +357,14 @@ Returns one model version.
 }
 ```
 
+### POST `/stores/{storeId}/authorization-models/{authorizationModelId}/publish`
+
+Publishes the selected model and archives the previously published model atomically. Requires the selected model's current strong `If-Match` value and returns its new ETag.
+
+### POST `/stores/{storeId}/authorization-models/{authorizationModelId}/rollback`
+
+Restores the selected historical model as active and archives the previously active model atomically. Requires the selected model's current strong `If-Match` value and returns its new ETag.
+
 ### POST `/stores/{storeId}/authorization-models/validate`
 
 Validates model DSL without creating a model.
@@ -380,11 +388,11 @@ Response:
 
 ### PUT `/stores/{storeId}/authorization-models/{authorizationModelId}`
 
-Updates an existing model version.
+Updates an existing model version. First retrieve the resource ETag, then send it as a strong `If-Match` header. Success returns the new ETag. Missing and stale preconditions return HTTP 428 and HTTP 412 respectively.
 
 ### DELETE `/stores/{storeId}/authorization-models/{authorizationModelId}`
 
-Deletes a model version.
+Deletes a model version and requires the current strong `If-Match` header. See [Mutation safety](mutation-safety.md).
 
 ## Graph Queries
 

@@ -197,7 +197,7 @@ namespace Aegis.Infrastructure.Persistence
         public async Task<IReadOnlyList<AuthorizationModelDto>> ListAsync(string storeId, CancellationToken cancellationToken = default)
         {
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
-            const string sql = @"SELECT id, store_id, schema_version, model, created_at, state, published_at, archived_at, superseded_by
+            const string sql = @"SELECT id, store_id, schema_version, model, created_at, state, published_at, archived_at, superseded_by, revision
                                  FROM authorization_models
                                  WHERE store_id = @store_id
                                  ORDER BY (state = 'Published') DESC, COALESCE(published_at, created_at) DESC, created_at DESC;";
@@ -222,7 +222,7 @@ namespace Aegis.Infrastructure.Persistence
         public async Task<AuthorizationModelDto?> GetPublishedAsync(string storeId, CancellationToken cancellationToken = default)
         {
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
-            const string sql = @"SELECT id, store_id, schema_version, model, created_at, state, published_at, archived_at, superseded_by
+            const string sql = @"SELECT id, store_id, schema_version, model, created_at, state, published_at, archived_at, superseded_by, revision
                                  FROM authorization_models
                                  WHERE store_id = @store_id AND state = 'Published'
                                  ORDER BY COALESCE(published_at, created_at) DESC
@@ -236,7 +236,7 @@ namespace Aegis.Infrastructure.Persistence
         public async Task<AuthorizationModelDto?> GetByIdAsync(string storeId, string authorizationModelId, CancellationToken cancellationToken = default)
         {
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
-            const string sql = @"SELECT id, store_id, schema_version, model, created_at, state, published_at, archived_at, superseded_by
+            const string sql = @"SELECT id, store_id, schema_version, model, created_at, state, published_at, archived_at, superseded_by, revision
                                  FROM authorization_models
                                  WHERE store_id = @store_id AND id = @id;";
             await using var command = new NpgsqlCommand(sql, connection);
@@ -259,9 +259,10 @@ namespace Aegis.Infrastructure.Persistence
                                      model = @model,
                                      state = CASE WHEN state = 'Published' THEN 'Deprecated' ELSE 'Draft' END,
                                      archived_at = NULL,
-                                     superseded_by = NULL
+                                     superseded_by = NULL,
+                                     revision = revision + 1
                                  WHERE store_id = @store_id AND id = @id
-                                 RETURNING id, store_id, schema_version, model, created_at, state, published_at, archived_at, superseded_by;";
+                                 RETURNING id, store_id, schema_version, model, created_at, state, published_at, archived_at, superseded_by, revision;";
             await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue("store_id", storeId);
             command.Parameters.AddWithValue("id", authorizationModelId);
@@ -290,9 +291,10 @@ namespace Aegis.Infrastructure.Persistence
                                  SET state = @state,
                                      published_at = @published_at,
                                      archived_at = @archived_at,
-                                     superseded_by = @superseded_by
+                                     superseded_by = @superseded_by,
+                                     revision = revision + 1
                                  WHERE store_id = @store_id AND id = @id
-                                 RETURNING id, store_id, schema_version, model, created_at, state, published_at, archived_at, superseded_by;";
+                                 RETURNING id, store_id, schema_version, model, created_at, state, published_at, archived_at, superseded_by, revision;";
             await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue("store_id", storeId);
             command.Parameters.AddWithValue("id", authorizationModelId);
@@ -318,15 +320,16 @@ namespace Aegis.Infrastructure.Persistence
         {
             return ExecuteAsync(async connection =>
             {
-                const string sql = @"INSERT INTO authorization_models (id, store_id, schema_version, model, created_at, state, published_at, archived_at, superseded_by)
-                                     VALUES (@id, @store_id, @schema_version, @model, @created_at, @state, @published_at, @archived_at, @superseded_by)
+                const string sql = @"INSERT INTO authorization_models (id, store_id, schema_version, model, created_at, state, published_at, archived_at, superseded_by, revision)
+                                     VALUES (@id, @store_id, @schema_version, @model, @created_at, @state, @published_at, @archived_at, @superseded_by, @revision)
                                      ON CONFLICT (id) DO UPDATE SET
                                         schema_version = EXCLUDED.schema_version,
                                         model = EXCLUDED.model,
                                         state = EXCLUDED.state,
                                         published_at = EXCLUDED.published_at,
                                         archived_at = EXCLUDED.archived_at,
-                                        superseded_by = EXCLUDED.superseded_by;";
+                                        superseded_by = EXCLUDED.superseded_by,
+                                        revision = authorization_models.revision + 1;";
                 await using var command = new NpgsqlCommand(sql, connection);
                 command.Parameters.AddWithValue("id", authorizationModel.Id);
                 command.Parameters.AddWithValue("store_id", authorizationModel.StoreId);
@@ -337,6 +340,7 @@ namespace Aegis.Infrastructure.Persistence
                 command.Parameters.AddWithValue("published_at", (object?)authorizationModel.PublishedAt ?? DBNull.Value);
                 command.Parameters.AddWithValue("archived_at", (object?)authorizationModel.ArchivedAt ?? DBNull.Value);
                 command.Parameters.AddWithValue("superseded_by", (object?)authorizationModel.SupersededBy ?? DBNull.Value);
+                command.Parameters.AddWithValue("revision", authorizationModel.Revision);
                 await command.ExecuteNonQueryAsync(cancellationToken);
                 _authorizationCache?.InvalidateTenant(authorizationModel.StoreId);
             }, cancellationToken);
@@ -366,9 +370,31 @@ namespace Aegis.Infrastructure.Persistence
             return dto is null ? null : ToAggregate(dto);
         }
 
-        async Task<AuthorizationModel?> IAuthorizationModelRepository.UpdateAsync(AuthorizationModel authorizationModel, CancellationToken cancellationToken)
+        async Task<AuthorizationModel?> IAuthorizationModelRepository.UpdateAsync(AuthorizationModel authorizationModel, long expectedRevision, CancellationToken cancellationToken)
         {
-            var dto = await UpdateAsync(authorizationModel.StoreId, authorizationModel.Id, authorizationModel.SchemaVersion, authorizationModel.Model, cancellationToken);
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            const string sql = @"UPDATE authorization_models
+                                 SET schema_version = @schema_version,
+                                     model = @model,
+                                     state = @state,
+                                     published_at = @published_at,
+                                     archived_at = @archived_at,
+                                     superseded_by = @superseded_by,
+                                     revision = revision + 1
+                                 WHERE store_id = @store_id AND id = @id AND revision = @expected_revision
+                                 RETURNING id, store_id, schema_version, model, created_at, state, published_at, archived_at, superseded_by, revision;";
+            await using var command = new NpgsqlCommand(sql, connection);
+            command.Parameters.AddWithValue("store_id", authorizationModel.StoreId);
+            command.Parameters.AddWithValue("id", authorizationModel.Id);
+            command.Parameters.AddWithValue("schema_version", authorizationModel.SchemaVersion);
+            command.Parameters.AddWithValue("model", authorizationModel.Model);
+            command.Parameters.AddWithValue("state", authorizationModel.State);
+            command.Parameters.AddWithValue("published_at", (object?)authorizationModel.PublishedAt ?? DBNull.Value);
+            command.Parameters.AddWithValue("archived_at", (object?)authorizationModel.ArchivedAt ?? DBNull.Value);
+            command.Parameters.AddWithValue("superseded_by", (object?)authorizationModel.SupersededBy ?? DBNull.Value);
+            command.Parameters.AddWithValue("expected_revision", expectedRevision);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            var dto = await reader.ReadAsync(cancellationToken) ? ReadAuthorizationModel(reader) : null;
             if (dto is not null)
             {
                 _authorizationCache?.InvalidateTenant(authorizationModel.StoreId);
@@ -380,22 +406,39 @@ namespace Aegis.Infrastructure.Persistence
         async Task<IReadOnlyList<AuthorizationModel>> IAuthorizationModelRepository.PublishAsync(
             string storeId,
             string authorizationModelId,
+            long expectedRevision,
             CancellationToken cancellationToken)
         {
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
             await using var tx = await connection.BeginTransactionAsync(cancellationToken);
             var now = DateTimeOffset.UtcNow;
 
-            const string updateSql = @"UPDATE authorization_models
+            const string lockStoreSql = "SELECT 1 FROM stores WHERE id = @store_id FOR UPDATE;";
+            await using (var lockCommand = new NpgsqlCommand(lockStoreSql, connection, tx))
+            {
+                lockCommand.Parameters.AddWithValue("store_id", storeId);
+                await lockCommand.ExecuteScalarAsync(cancellationToken);
+            }
+
+            const string updateSql = @"WITH target AS (
+                                           SELECT id
+                                           FROM authorization_models
+                                           WHERE store_id = @store_id AND id = @id AND revision = @expected_revision
+                                       )
+                                       UPDATE authorization_models
                                        SET state = CASE WHEN id = @id THEN 'Published' WHEN state = 'Published' THEN 'Archived' ELSE state END,
                                            published_at = CASE WHEN id = @id THEN @now ELSE published_at END,
                                            archived_at = CASE WHEN id <> @id AND state = 'Published' THEN @now ELSE archived_at END,
-                                           superseded_by = CASE WHEN id <> @id AND state = 'Published' THEN @id ELSE NULL END
-                                       WHERE store_id = @store_id AND (id = @id OR state = 'Published')
-                                       RETURNING id, store_id, schema_version, model, created_at, state, published_at, archived_at, superseded_by;";
+                                           superseded_by = CASE WHEN id <> @id AND state = 'Published' THEN @id ELSE NULL END,
+                                           revision = revision + 1
+                                       WHERE store_id = @store_id
+                                         AND (id = @id OR state = 'Published')
+                                         AND EXISTS (SELECT 1 FROM target)
+                                       RETURNING id, store_id, schema_version, model, created_at, state, published_at, archived_at, superseded_by, revision;";
             await using var command = new NpgsqlCommand(updateSql, connection, tx);
             command.Parameters.AddWithValue("store_id", storeId);
             command.Parameters.AddWithValue("id", authorizationModelId);
+            command.Parameters.AddWithValue("expected_revision", expectedRevision);
             command.Parameters.AddWithValue("now", now);
             var updated = new List<AuthorizationModel>();
             await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
@@ -414,20 +457,27 @@ namespace Aegis.Infrastructure.Persistence
         async Task<AuthorizationModel?> IAuthorizationModelRepository.RollbackAsync(
             string storeId,
             string authorizationModelId,
+            long expectedRevision,
             CancellationToken cancellationToken)
         {
-            var updated = await ((IAuthorizationModelRepository)this).PublishAsync(storeId, authorizationModelId, cancellationToken);
+            var updated = await ((IAuthorizationModelRepository)this).PublishAsync(storeId, authorizationModelId, expectedRevision, cancellationToken);
             return updated.FirstOrDefault(x => x.Id.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase));
         }
 
-        Task<bool> IAuthorizationModelRepository.DeleteAsync(AuthorizationModel authorizationModel, CancellationToken cancellationToken)
+        Task<bool> IAuthorizationModelRepository.DeleteAsync(AuthorizationModel authorizationModel, long expectedRevision, CancellationToken cancellationToken)
         {
-            return DeleteAndInvalidateAsync(authorizationModel, cancellationToken);
+            return DeleteAndInvalidateAsync(authorizationModel, expectedRevision, cancellationToken);
         }
 
-        private async Task<bool> DeleteAndInvalidateAsync(AuthorizationModel authorizationModel, CancellationToken cancellationToken)
+        private async Task<bool> DeleteAndInvalidateAsync(AuthorizationModel authorizationModel, long expectedRevision, CancellationToken cancellationToken)
         {
-            var deleted = await DeleteAsync(authorizationModel.StoreId, authorizationModel.Id, cancellationToken);
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            const string sql = "DELETE FROM authorization_models WHERE store_id = @store_id AND id = @id AND revision = @expected_revision;";
+            await using var command = new NpgsqlCommand(sql, connection);
+            command.Parameters.AddWithValue("store_id", authorizationModel.StoreId);
+            command.Parameters.AddWithValue("id", authorizationModel.Id);
+            command.Parameters.AddWithValue("expected_revision", expectedRevision);
+            var deleted = await command.ExecuteNonQueryAsync(cancellationToken) > 0;
             if (deleted)
             {
                 _authorizationCache?.InvalidateTenant(authorizationModel.StoreId);
@@ -447,7 +497,8 @@ namespace Aegis.Infrastructure.Persistence
                 reader.IsDBNull(5) ? AuthorizationModelLifecycleStates.Draft : reader.GetString(5),
                 reader.IsDBNull(6) ? null : reader.GetFieldValue<DateTimeOffset>(6),
                 reader.IsDBNull(7) ? null : reader.GetFieldValue<DateTimeOffset>(7),
-                reader.IsDBNull(8) ? null : reader.GetString(8));
+                reader.IsDBNull(8) ? null : reader.GetString(8),
+                reader.GetInt64(9));
         }
 
         private static AuthorizationModel ToAggregate(AuthorizationModelDto dto)
@@ -461,7 +512,8 @@ namespace Aegis.Infrastructure.Persistence
                 dto.State,
                 dto.PublishedAt,
                 dto.ArchivedAt,
-                dto.SupersededBy);
+                dto.SupersededBy,
+                dto.Revision);
         }
 
         private Task ExecuteAsync(Func<NpgsqlConnection, Task> action, CancellationToken cancellationToken)
