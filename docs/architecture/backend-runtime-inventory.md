@@ -63,7 +63,7 @@ Configuration access is currently split between `Program.cs`, Infrastructure reg
 
 ## Persistence and migrations
 
-PostgreSQL is the durable provider; in-memory implementations support tests and evaluation. Nine embedded forward migrations currently cover initial schema, RBAC conditions, relationship effects/indexes, store and tenant scoping, authorization model lifecycle, and assertion-run history.
+PostgreSQL is the durable provider; in-memory implementations support tests and evaluation. Ten embedded forward migrations currently cover initial schema, RBAC conditions, relationship effects/indexes, store and tenant scoping, authorization model lifecycle and revisions, and assertion-run history.
 
 The migration runner orders embedded resource names, records successful names in `schema_migrations`, and executes each migration transactionally. It does not yet record checksums, acquire a migration lock, enforce expand/contract compatibility, or separate migration authority fully from application startup. These are Phase B3 gaps.
 

@@ -102,3 +102,13 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Verification: targeted codec, page-limit, cursor-reuse, OpenAPI-governance, and cancellation-signature tests pass. The regenerated OpenAPI baseline passes semantic diff and all five lifecycle classifications; the generated TypeScript client passes strict compilation and npm audit. Locked restore, zero-warning Release build, 276 unit tests, and 26 integration tests pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.
 - Merge evidence: feature commit `b587fa0` was merged locally into `develop` as `33de240` and pushed. Actions run `32044172154` failed during `Set up job`, before checkout or any repository step; no source or pipeline correction is justified by that infrastructure-only result. A docs-only merge will provide a traceable replacement run.
 - Actions evidence: replacement `.NET CI` run `32044320783` passed for docs-evidence merge `653311c`, validating the same request-semantics source tree without any pipeline modification.
+
+## 2026-08-18 — Governed contracts B1, iteration 6
+
+- Branch: `feat/model-concurrency-b1`
+- Status: In progress
+- Intended result: prevent silent lost updates for authorization-model definition changes and deletes, while documenting the durable idempotency design boundary.
+- Contract: ADR 0009 requires strong ETags and `If-Match`; missing preconditions map to HTTP 428 `PRECONDITION_REQUIRED`, stale revisions to HTTP 412 `CONCURRENCY_CONFLICT`, and malformed tags to HTTP 400 validation errors.
+- Persistence: migration 010 adds a positive monotonic revision. PostgreSQL uses revision predicates in the update/delete statements; the in-memory provider uses compare-and-swap behavior.
+- Scope boundary: multi-row publish/rollback preconditions and durable idempotency replay remain open and are not represented as completed.
+- Verification: the ETag endpoint flow passes; locked restore and zero-warning Release build pass with 276 unit tests and 27 integration tests. The additive OpenAPI baseline, semantic diff, all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.

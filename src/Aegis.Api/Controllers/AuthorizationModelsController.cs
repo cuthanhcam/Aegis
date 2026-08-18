@@ -59,6 +59,7 @@ namespace Aegis.Api.Controllers
                 return this.NotFoundResponse<AuthorizationModelDto>(NativeErrorCodes.AuthorizationModelNotFound, "No authorization model was found.");
             }
 
+            Response.Headers.ETag = EntityTagPreconditions.Format(result.Revision);
             return this.OkResponse(result);
         }
 
@@ -82,6 +83,7 @@ namespace Aegis.Api.Controllers
                 return this.NotFoundResponse<AuthorizationModelDto>(NativeErrorCodes.AuthorizationModelNotFound, $"Authorization model '{authorizationModelId}' was not found.");
             }
 
+            Response.Headers.ETag = EntityTagPreconditions.Format(result.Revision);
             return this.OkResponse(result);
         }
 
@@ -169,6 +171,7 @@ namespace Aegis.Api.Controllers
             }
 
             var result = await _authorizationModelAppService.CreateAsync(storeId, request, cancellationToken);
+            Response.Headers.ETag = EntityTagPreconditions.Format(result.Revision);
             return this.CreatedResponse(result);
         }
 
@@ -192,10 +195,13 @@ namespace Aegis.Api.Controllers
         [HttpPut("{authorizationModelId}")]
         [ProducesResponseType(typeof(ApiResponse<AuthorizationModelDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<AuthorizationModelDto>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status412PreconditionFailed)]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status428PreconditionRequired)]
         public async Task<ActionResult<ApiResponse<AuthorizationModelDto>>> Update(
             [FromRoute] string storeId,
             [FromRoute] string authorizationModelId,
             [FromBody] CreateAuthorizationModelRequestDto request,
+            [FromHeader(Name = "If-Match")] string? ifMatch,
             CancellationToken cancellationToken)
         {
             var storeAccess = await TenantAccessGuard.ValidateStoreTenantAsync<AuthorizationModelDto>(this, _storeRegistry, storeId, cancellationToken);
@@ -204,20 +210,25 @@ namespace Aegis.Api.Controllers
                 return storeAccess;
             }
 
-            var result = await _authorizationModelAppService.UpdateAsync(storeId, authorizationModelId, request, cancellationToken);
+            var expectedRevision = EntityTagPreconditions.RequireRevision(ifMatch);
+            var result = await _authorizationModelAppService.UpdateAsync(storeId, authorizationModelId, request, expectedRevision, cancellationToken);
             if (result is null)
             {
                 return this.NotFoundResponse<AuthorizationModelDto>(NativeErrorCodes.AuthorizationModelNotFound, $"Authorization model '{authorizationModelId}' was not found.");
             }
 
+            Response.Headers.ETag = EntityTagPreconditions.Format(result.Revision);
             return this.OkResponse(result);
         }
 
         [HttpDelete("{authorizationModelId}")]
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status412PreconditionFailed)]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status428PreconditionRequired)]
         public async Task<ActionResult<ApiResponse<string>>> Delete(
             [FromRoute] string storeId,
             [FromRoute] string authorizationModelId,
+            [FromHeader(Name = "If-Match")] string? ifMatch,
             CancellationToken cancellationToken)
         {
             var storeAccess = await TenantAccessGuard.ValidateStoreTenantAsync<string>(this, _storeRegistry, storeId, cancellationToken);
@@ -226,7 +237,8 @@ namespace Aegis.Api.Controllers
                 return storeAccess;
             }
 
-            var deleted = await _authorizationModelAppService.DeleteAsync(storeId, authorizationModelId, cancellationToken);
+            var expectedRevision = EntityTagPreconditions.RequireRevision(ifMatch);
+            var deleted = await _authorizationModelAppService.DeleteAsync(storeId, authorizationModelId, expectedRevision, cancellationToken);
             return this.DeletedResponse(deleted);
         }
     }

@@ -28,7 +28,8 @@ namespace Aegis.Contracts.Administration
         string State = AuthorizationModelLifecycleStates.Draft,
         DateTimeOffset? PublishedAt = null,
         DateTimeOffset? ArchivedAt = null,
-        string? SupersededBy = null);
+        string? SupersededBy = null,
+        long Revision = 1);
 
     public sealed record PublishAuthorizationModelResponseDto(
         AuthorizationModelDto PublishedModel,

@@ -37,6 +37,8 @@ Aegis native endpoints return a stable envelope so products can handle failures 
 | `INTERNAL_ERROR` | An unexpected server failure was safely redacted |
 | `RATE_LIMIT_EXCEEDED` | The configured request budget was exceeded |
 | `REQUEST_TIMEOUT` | The request exceeded its configured execution deadline |
+| `PRECONDITION_REQUIRED` | A required mutation precondition was omitted |
+| `CONCURRENCY_CONFLICT` | The supplied resource revision is stale |
 | `UNAUTHORIZED` | Required authentication/session identity is absent or invalid |
 | `INVALID_CREDENTIALS` | Login credentials were rejected |
 | `INVALID_REFRESH_TOKEN` | Refresh credentials are invalid or expired |

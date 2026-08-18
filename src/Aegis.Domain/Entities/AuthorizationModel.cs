@@ -24,6 +24,8 @@ namespace Aegis.Domain.Entities
 
         public string? SupersededBy { get; private set; }
 
+        public long Revision { get; private set; } = 1;
+
         private AuthorizationModel()
         {
             // For serializers/ORM tools.
@@ -38,7 +40,8 @@ namespace Aegis.Domain.Entities
             string state = DraftState,
             DateTimeOffset? publishedAt = null,
             DateTimeOffset? archivedAt = null,
-            string? supersededBy = null)
+            string? supersededBy = null,
+            long revision = 1)
             : base(id)
         {
             StoreId = NormalizeStoreId(storeId);
@@ -49,6 +52,7 @@ namespace Aegis.Domain.Entities
             PublishedAt = publishedAt;
             ArchivedAt = archivedAt;
             SupersededBy = string.IsNullOrWhiteSpace(supersededBy) ? null : supersededBy.Trim();
+            Revision = revision > 0 ? revision : throw new ArgumentOutOfRangeException(nameof(revision));
         }
 
         /// <summary>
@@ -77,14 +81,15 @@ namespace Aegis.Domain.Entities
             string state = DraftState,
             DateTimeOffset? publishedAt = null,
             DateTimeOffset? archivedAt = null,
-            string? supersededBy = null)
+            string? supersededBy = null,
+            long revision = 1)
         {
             if (string.IsNullOrWhiteSpace(id))
             {
                 throw new ArgumentException("authorizationModelId is required.", nameof(id));
             }
 
-            return new AuthorizationModel(id.Trim(), storeId, schemaVersion, model, createdAt, state, publishedAt, archivedAt, supersededBy);
+            return new AuthorizationModel(id.Trim(), storeId, schemaVersion, model, createdAt, state, publishedAt, archivedAt, supersededBy, revision);
         }
 
         /// <summary>
