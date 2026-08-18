@@ -12,6 +12,7 @@ Architecture decision records explain why Aegis has a particular boundary. They 
 | [0006](0006-govern-public-api-contracts.md) | Accepted | Govern versioning and compatibility of public API contracts |
 | [0007](0007-native-error-envelope.md) | Accepted | Preserve and enrich the native v1 error envelope |
 | [0008](0008-govern-request-semantics.md) | Accepted | Govern request limits, cursors, deadlines, and cancellation |
+| [0009](0009-authorization-model-optimistic-concurrency.md) | Accepted | Protect authorization-model edits with strong entity tags |
 
 ## ADR template
 

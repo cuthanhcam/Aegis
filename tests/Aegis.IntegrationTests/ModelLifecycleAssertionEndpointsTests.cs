@@ -7,6 +7,7 @@ using Aegis.Contracts.Compatibility;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace Aegis.IntegrationTests;
@@ -17,6 +18,49 @@ public sealed class ModelLifecycleAssertionEndpointsTests
     {
         PropertyNameCaseInsensitive = true,
     };
+
+    [Fact]
+    public async Task Model_update_requires_current_strong_entity_tag()
+    {
+        await using var factory = new TestApiFactory();
+        var seed = await SeedPhaseOneAsync(factory.AppServices);
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, seed.TenantId);
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
+
+        var resource = $"/api/v1/stores/{seed.StoreId}/authorization-models/{seed.FirstModelId}";
+        var get = await client.GetAsync(resource);
+        Assert.Equal(HttpStatusCode.OK, get.StatusCode);
+        Assert.Equal("\"1\"", get.Headers.ETag?.Tag);
+
+        var updateBody = new CreateAuthorizationModelRequestDto(
+            "1.1",
+            "type user\ntype document\n  define viewer: [user]\n  define editor: [user]");
+        var missing = await client.PutAsJsonAsync(resource, updateBody);
+        Assert.Equal((HttpStatusCode)428, missing.StatusCode);
+        var missingPayload = await missing.Content.ReadFromJsonAsync<ApiResponse<string>>(JsonOptions);
+        Assert.Equal(NativeErrorCodes.PreconditionRequired, missingPayload!.Error!.Code);
+
+        using var acceptedRequest = new HttpRequestMessage(HttpMethod.Put, resource)
+        {
+            Content = JsonContent.Create(updateBody),
+        };
+        acceptedRequest.Headers.IfMatch.Add(new EntityTagHeaderValue("\"1\""));
+        var accepted = await client.SendAsync(acceptedRequest);
+        Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
+        Assert.Equal("\"2\"", accepted.Headers.ETag?.Tag);
+
+        using var staleRequest = new HttpRequestMessage(HttpMethod.Put, resource)
+        {
+            Content = JsonContent.Create(updateBody),
+        };
+        staleRequest.Headers.IfMatch.Add(new EntityTagHeaderValue("\"1\""));
+        var stale = await client.SendAsync(staleRequest);
+        Assert.Equal(HttpStatusCode.PreconditionFailed, stale.StatusCode);
+        var stalePayload = await stale.Content.ReadFromJsonAsync<ApiResponse<string>>(JsonOptions);
+        Assert.Equal(NativeErrorCodes.ConcurrencyConflict, stalePayload!.Error!.Code);
+    }
 
     [Fact]
     public async Task Model_lifecycle_and_assertion_runner_endpoints_cover_phase_one_flows()

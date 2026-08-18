@@ -24,7 +24,7 @@ namespace Aegis.Domain.Repositories
 
         Task<AuthorizationModel?> GetByIdAsync(string storeId, string authorizationModelId, CancellationToken cancellationToken = default);
 
-        Task<AuthorizationModel?> UpdateAsync(AuthorizationModel authorizationModel, CancellationToken cancellationToken = default);
+        Task<AuthorizationModel?> UpdateAsync(AuthorizationModel authorizationModel, long expectedRevision, CancellationToken cancellationToken = default);
 
         Task<AuthorizationModel?> GetPublishedByStoreAsync(string storeId, CancellationToken cancellationToken = default)
         {
@@ -47,6 +47,6 @@ namespace Aegis.Domain.Repositories
             throw new NotSupportedException("Authorization model rollback is not supported by this repository.");
         }
 
-        Task<bool> DeleteAsync(AuthorizationModel authorizationModel, CancellationToken cancellationToken = default);
+        Task<bool> DeleteAsync(AuthorizationModel authorizationModel, long expectedRevision, CancellationToken cancellationToken = default);
     }
 }

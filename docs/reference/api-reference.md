@@ -380,11 +380,11 @@ Response:
 
 ### PUT `/stores/{storeId}/authorization-models/{authorizationModelId}`
 
-Updates an existing model version.
+Updates an existing model version. First retrieve the resource ETag, then send it as a strong `If-Match` header. Success returns the new ETag. Missing and stale preconditions return HTTP 428 and HTTP 412 respectively.
 
 ### DELETE `/stores/{storeId}/authorization-models/{authorizationModelId}`
 
-Deletes a model version.
+Deletes a model version and requires the current strong `If-Match` header. See [Mutation safety](mutation-safety.md).
 
 ## Graph Queries
 

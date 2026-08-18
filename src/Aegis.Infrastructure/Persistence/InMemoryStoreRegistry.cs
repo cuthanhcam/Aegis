@@ -175,6 +175,7 @@ namespace Aegis.Infrastructure.Persistence
                 PublishedAt = current.State == AuthorizationModelLifecycleStates.Published ? current.PublishedAt : null,
                 ArchivedAt = null,
                 SupersededBy = null,
+                Revision = current.Revision + 1,
             };
 
             _models[key] = updated;
@@ -202,6 +203,7 @@ namespace Aegis.Infrastructure.Persistence
                 PublishedAt = publishedAt,
                 ArchivedAt = archivedAt,
                 SupersededBy = supersededBy,
+                Revision = current.Revision + 1,
             };
 
             _models[key] = updated;
@@ -225,7 +227,8 @@ namespace Aegis.Infrastructure.Persistence
                 authorizationModel.State,
                 authorizationModel.PublishedAt,
                 authorizationModel.ArchivedAt,
-                authorizationModel.SupersededBy);
+                authorizationModel.SupersededBy,
+                authorizationModel.Revision);
 
             _models[$"{authorizationModel.StoreId}:{authorizationModel.Id}"] = dto;
             return Task.CompletedTask;
@@ -272,10 +275,10 @@ namespace Aegis.Infrastructure.Persistence
             return Task.FromResult(model);
         }
 
-        Task<AuthorizationModel?> IAuthorizationModelRepository.UpdateAsync(AuthorizationModel authorizationModel, CancellationToken cancellationToken)
+        Task<AuthorizationModel?> IAuthorizationModelRepository.UpdateAsync(AuthorizationModel authorizationModel, long expectedRevision, CancellationToken cancellationToken)
         {
             var key = $"{authorizationModel.StoreId}:{authorizationModel.Id}";
-            if (!_models.TryGetValue(key, out var current))
+            if (!_models.TryGetValue(key, out var current) || current.Revision != expectedRevision)
             {
                 return Task.FromResult<AuthorizationModel?>(null);
             }
@@ -288,10 +291,11 @@ namespace Aegis.Infrastructure.Persistence
                 PublishedAt = authorizationModel.PublishedAt,
                 ArchivedAt = authorizationModel.ArchivedAt,
                 SupersededBy = authorizationModel.SupersededBy,
+                Revision = current.Revision + 1,
             };
 
-            _models[key] = updated;
-            return Task.FromResult<AuthorizationModel?>(ToAggregate(updated));
+            return Task.FromResult<AuthorizationModel?>(
+                _models.TryUpdate(key, updated, current) ? ToAggregate(updated) : null);
         }
 
         Task<IReadOnlyList<AuthorizationModel>> IAuthorizationModelRepository.PublishAsync(
@@ -313,6 +317,7 @@ namespace Aegis.Infrastructure.Persistence
                         PublishedAt = now,
                         ArchivedAt = null,
                         SupersededBy = null,
+                        Revision = item.Revision + 1,
                     };
                 }
                 else if (item.State == AuthorizationModelLifecycleStates.Published)
@@ -322,6 +327,7 @@ namespace Aegis.Infrastructure.Persistence
                         State = AuthorizationModelLifecycleStates.Archived,
                         ArchivedAt = now,
                         SupersededBy = authorizationModelId,
+                        Revision = item.Revision + 1,
                     };
                 }
                 else
@@ -359,6 +365,7 @@ namespace Aegis.Infrastructure.Persistence
                         PublishedAt = now,
                         ArchivedAt = null,
                         SupersededBy = null,
+                        Revision = item.Revision + 1,
                     };
                 }
                 else if (item.State == AuthorizationModelLifecycleStates.Published)
@@ -368,6 +375,7 @@ namespace Aegis.Infrastructure.Persistence
                         State = AuthorizationModelLifecycleStates.Archived,
                         ArchivedAt = now,
                         SupersededBy = authorizationModelId,
+                        Revision = item.Revision + 1,
                     };
                 }
             }
@@ -375,9 +383,15 @@ namespace Aegis.Infrastructure.Persistence
             return Task.FromResult<AuthorizationModel?>(ToAggregate(_models[targetKey]));
         }
 
-        Task<bool> IAuthorizationModelRepository.DeleteAsync(AuthorizationModel authorizationModel, CancellationToken cancellationToken)
+        Task<bool> IAuthorizationModelRepository.DeleteAsync(AuthorizationModel authorizationModel, long expectedRevision, CancellationToken cancellationToken)
         {
-            return DeleteAsync(authorizationModel.StoreId, authorizationModel.Id, cancellationToken);
+            var key = $"{authorizationModel.StoreId}:{authorizationModel.Id}";
+            if (!_models.TryGetValue(key, out var current) || current.Revision != expectedRevision)
+            {
+                return Task.FromResult(false);
+            }
+
+            return Task.FromResult(_models.TryRemove(new KeyValuePair<string, AuthorizationModelDto>(key, current)));
         }
 
         private static string NewUlidLikeId()
@@ -396,7 +410,8 @@ namespace Aegis.Infrastructure.Persistence
                 dto.State,
                 dto.PublishedAt,
                 dto.ArchivedAt,
-                dto.SupersededBy);
+                dto.SupersededBy,
+                dto.Revision);
         }
     }
 }

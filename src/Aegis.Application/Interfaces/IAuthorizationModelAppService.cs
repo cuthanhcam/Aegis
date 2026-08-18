@@ -46,10 +46,12 @@ public interface IAuthorizationModelAppService
         string storeId,
         string authorizationModelId,
         CreateAuthorizationModelRequestDto request,
+        long expectedRevision,
         CancellationToken cancellationToken = default);
 
     Task<bool> DeleteAsync(
         string storeId,
         string authorizationModelId,
+        long expectedRevision,
         CancellationToken cancellationToken = default);
 }
