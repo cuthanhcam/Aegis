@@ -139,4 +139,6 @@ The database invariant is defense in depth: migration 011 deterministically arch
 
 Iteration 7 local evidence: lifecycle precondition coverage, additive OpenAPI semantic diff, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 276 unit tests, and 28 integration tests passed. `develop` merge and Actions evidence remain pending.
 
+Iteration 7 merge evidence: feature commit `c7a5a8f` was merged locally into `develop` as `6a0474a`; `.NET CI` run `32143817767` passed. The workflow remained unchanged.
+
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
