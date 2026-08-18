@@ -34,6 +34,7 @@ namespace Aegis.Domain.Repositories
         Task<IReadOnlyList<AuthorizationModel>> PublishAsync(
             string storeId,
             string authorizationModelId,
+            long expectedRevision,
             CancellationToken cancellationToken = default)
         {
             throw new NotSupportedException("Authorization model publishing is not supported by this repository.");
@@ -42,6 +43,7 @@ namespace Aegis.Domain.Repositories
         Task<AuthorizationModel?> RollbackAsync(
             string storeId,
             string authorizationModelId,
+            long expectedRevision,
             CancellationToken cancellationToken = default)
         {
             throw new NotSupportedException("Authorization model rollback is not supported by this repository.");

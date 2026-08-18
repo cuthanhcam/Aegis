@@ -113,3 +113,12 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Scope boundary: multi-row publish/rollback preconditions and durable idempotency replay remain open and are not represented as completed.
 - Verification: the ETag endpoint flow passes; locked restore and zero-warning Release build pass with 276 unit tests and 27 integration tests. The additive OpenAPI baseline, semantic diff, all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.
 - Merge evidence: feature commit `7109d94` was merged locally into `develop` as `b1c8243` and pushed. GitHub Actions `.NET CI` run `32142650670` passed without modifying the workflow.
+
+## 2026-08-18 — Governed contracts B1, iteration 7
+
+- Branch: `feat/model-lifecycle-concurrency-b1`
+- Status: In progress
+- Intended result: close the multi-row concurrency gap for authorization-model publish and rollback.
+- Contract: both transitions require the target model's strong `If-Match`, return the active model's next ETag, and use the existing HTTP 428/412 native errors.
+- Persistence: PostgreSQL locks the owning store row and validates the target revision within the same transaction that publishes the target and archives the previous active model. Migration 011 repairs historical duplicate-published rows deterministically and adds a partial unique index enforcing one published model per store. The in-memory provider applies the transition within one critical section.
+- Verification: targeted lifecycle service and endpoint tests pass. Locked restore and zero-warning Release build pass with 276 unit tests and 28 integration tests. The additive OpenAPI baseline, semantic diff, all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.

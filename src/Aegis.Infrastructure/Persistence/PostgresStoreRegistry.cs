@@ -406,23 +406,39 @@ namespace Aegis.Infrastructure.Persistence
         async Task<IReadOnlyList<AuthorizationModel>> IAuthorizationModelRepository.PublishAsync(
             string storeId,
             string authorizationModelId,
+            long expectedRevision,
             CancellationToken cancellationToken)
         {
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
             await using var tx = await connection.BeginTransactionAsync(cancellationToken);
             var now = DateTimeOffset.UtcNow;
 
-            const string updateSql = @"UPDATE authorization_models
+            const string lockStoreSql = "SELECT 1 FROM stores WHERE id = @store_id FOR UPDATE;";
+            await using (var lockCommand = new NpgsqlCommand(lockStoreSql, connection, tx))
+            {
+                lockCommand.Parameters.AddWithValue("store_id", storeId);
+                await lockCommand.ExecuteScalarAsync(cancellationToken);
+            }
+
+            const string updateSql = @"WITH target AS (
+                                           SELECT id
+                                           FROM authorization_models
+                                           WHERE store_id = @store_id AND id = @id AND revision = @expected_revision
+                                       )
+                                       UPDATE authorization_models
                                        SET state = CASE WHEN id = @id THEN 'Published' WHEN state = 'Published' THEN 'Archived' ELSE state END,
                                            published_at = CASE WHEN id = @id THEN @now ELSE published_at END,
                                            archived_at = CASE WHEN id <> @id AND state = 'Published' THEN @now ELSE archived_at END,
                                            superseded_by = CASE WHEN id <> @id AND state = 'Published' THEN @id ELSE NULL END,
                                            revision = revision + 1
-                                       WHERE store_id = @store_id AND (id = @id OR state = 'Published')
+                                       WHERE store_id = @store_id
+                                         AND (id = @id OR state = 'Published')
+                                         AND EXISTS (SELECT 1 FROM target)
                                        RETURNING id, store_id, schema_version, model, created_at, state, published_at, archived_at, superseded_by, revision;";
             await using var command = new NpgsqlCommand(updateSql, connection, tx);
             command.Parameters.AddWithValue("store_id", storeId);
             command.Parameters.AddWithValue("id", authorizationModelId);
+            command.Parameters.AddWithValue("expected_revision", expectedRevision);
             command.Parameters.AddWithValue("now", now);
             var updated = new List<AuthorizationModel>();
             await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
@@ -441,9 +457,10 @@ namespace Aegis.Infrastructure.Persistence
         async Task<AuthorizationModel?> IAuthorizationModelRepository.RollbackAsync(
             string storeId,
             string authorizationModelId,
+            long expectedRevision,
             CancellationToken cancellationToken)
         {
-            var updated = await ((IAuthorizationModelRepository)this).PublishAsync(storeId, authorizationModelId, cancellationToken);
+            var updated = await ((IAuthorizationModelRepository)this).PublishAsync(storeId, authorizationModelId, expectedRevision, cancellationToken);
             return updated.FirstOrDefault(x => x.Id.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase));
         }
 

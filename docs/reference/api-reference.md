@@ -357,6 +357,14 @@ Returns one model version.
 }
 ```
 
+### POST `/stores/{storeId}/authorization-models/{authorizationModelId}/publish`
+
+Publishes the selected model and archives the previously published model atomically. Requires the selected model's current strong `If-Match` value and returns its new ETag.
+
+### POST `/stores/{storeId}/authorization-models/{authorizationModelId}/rollback`
+
+Restores the selected historical model as active and archives the previously active model atomically. Requires the selected model's current strong `If-Match` value and returns its new ETag.
+
 ### POST `/stores/{storeId}/authorization-models/validate`
 
 Validates model DSL without creating a model.
