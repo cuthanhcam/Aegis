@@ -214,6 +214,8 @@ Iteration 15 merge evidence: feature commit `086a73f` was merged locally into `d
 
 Iteration 16 application-boundary scope: audit store-create callers, remove create overloads from the broad store service, and make `CreateStoreUseCase` repository/event dependencies strict.
 
-Iteration 16 local evidence: 11 targeted store-use-case, remaining store-service, and dependency-injection tests passed; caller search confirms `StoresController` creates stores only through `CreateStoreUseCase`. Locked restore, zero-warning Release build, 287 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed. `develop` merge and Actions evidence remain pending.
+Iteration 16 local evidence: 11 targeted store-use-case, remaining store-service, and dependency-injection tests passed; caller search confirms `StoresController` creates stores only through `CreateStoreUseCase`. Locked restore, zero-warning Release build, 287 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 16 merge evidence: feature commit `bc3988f` was merged locally into `develop` as `7f9617d`; `.NET CI` run `33189134472` passed. The workflow remained unchanged.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
