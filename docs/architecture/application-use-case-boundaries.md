@@ -15,7 +15,8 @@ The API adapter authenticates and authorizes the caller, resolves tenant/actor c
 | Authorization-model create | `CreateAuthorizationModelUseCase` | Authorization-model repository; idempotent reservation and model insert share its transaction | Extracted |
 | Model update | `UpdateAuthorizationModelUseCase` | Authorization-model repository revision predicate | Extracted |
 | Model delete | `DeleteAuthorizationModelUseCase` | Authorization-model repository revision predicate | Extracted |
-| Model publish/rollback | Broad model application service | Store-serialized authorization-model repository transaction | Planned extraction |
+| Model publish | `PublishAuthorizationModelUseCase` | Store-serialized authorization-model repository transaction | Extracted |
+| Model rollback | `RollbackAuthorizationModelUseCase` | Store-serialized authorization-model repository transaction | Extracted |
 | User mutations | Broad RBAC administration service | Provider-specific RBAC store | Pending transaction review |
 | Assertion write/run/generate | Broad assertion application service | Assertion stores and audit/outbox paths | Pending transaction review |
 
@@ -40,6 +41,12 @@ The repository remains the atomic owner of an idempotent create: reservation loo
 `AuthorizationModelsController` parses the required strong `If-Match` precondition and passes its expected revision to the command. `UpdateAuthorizationModelUseCase` validates the model definition, verifies store/model identity, mutates the aggregate, and invokes the repository compare-and-write predicate. `DeleteAuthorizationModelUseCase` marks the loaded aggregate for deletion and invokes the equivalent compare-and-delete predicate.
 
 A failed repository mutation is re-read to preserve the external distinction between a model that disappeared and one that still exists at another revision. Only the latter becomes `ConcurrencyConflictException` and HTTP 412. Domain events are dispatched only after a successful update or delete; failed and missing mutations do not emit misleading audit/event activity. The broad application service retains temporary delegates while controller callers migrate command by command.
+
+## Authorization-model lifecycle flows
+
+`PublishAuthorizationModelUseCase` and `RollbackAuthorizationModelUseCase` validate the target snapshot and its expected revision before asking the repository to transition lifecycle state. The production repository owns the store-scoped lock, rechecks the target revision inside the transaction, archives the previous active model, publishes the target, and returns the committed state. The partial unique database index remains defense in depth for the single-published-model invariant.
+
+When a repository transition returns no target, each use case re-reads the model to classify a concurrent lifecycle change as a precondition conflict rather than not found. Rollback audit is written only after the repository returns a committed active model. The registry-only multi-call path remains a compatibility path for legacy/test providers and is not the production atomicity guarantee.
 
 ## Review checklist
 

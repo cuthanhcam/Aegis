@@ -129,7 +129,7 @@ Application-boundary progress:
 - [x] Extract authorization-model DSL validation into an independent application component.
 - [x] Extract model creation and idempotent replay into `CreateAuthorizationModelUseCase`.
 - [x] Extract model update and delete with repository-owned revision predicates.
-- [ ] Extract model publish and rollback lifecycle commands.
+- [x] Extract model publish and rollback while retaining repository-owned store serialization.
 - [ ] Split user and assertion mutations after repository transaction review.
 - [ ] Remove temporary create delegates from broad application-service interfaces after caller migration.
 
@@ -198,5 +198,9 @@ Iteration 13 application-boundary scope: extract authorization-model update and 
 Iteration 13 local evidence: 14 targeted command, compatibility-service, and dependency-injection unit tests plus the strong-ETag update endpoint integration test passed. Locked restore, zero-warning Release build, 286 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 Iteration 13 merge evidence: feature commit `05c5976` was merged locally into `develop` as `1a7b5dc`; `.NET CI` run `33187045638` passed. The workflow remained unchanged.
+
+Iteration 14 application-boundary scope: extract authorization-model publish and rollback commands while preserving store-scoped transaction serialization, target revision rechecks, the single-published invariant, and post-commit rollback audit.
+
+Iteration 14 local evidence: 14 targeted lifecycle, compatibility-service, and dependency-injection unit tests plus two lifecycle endpoint integration tests passed. Locked restore, zero-warning Release build, 289 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed. `develop` merge and Actions evidence remain pending.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.

@@ -194,3 +194,15 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Follow-up: extract store-serialized publish and rollback lifecycle commands, then remove model mutation delegates after caller review.
 - Verification: 14 targeted command, compatibility-service, and dependency-injection unit tests and the strong-ETag update endpoint integration test pass. Locked restore and zero-warning Release build pass with 286 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Merge evidence: feature commit `05c5976` was merged locally into `develop` as `1a7b5dc` and pushed. GitHub Actions `.NET CI` run `33187045638` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 14
+
+- Branch: `refactor/authorization-model-lifecycle-b1`
+- Status: In progress
+- Intended result: isolate authorization-model publish and rollback orchestration without weakening the atomic lifecycle invariant.
+- Boundary: the API owns strong `If-Match` parsing and response ETags. Publish/rollback use cases own target validation, preflight revision checks, repository transition coordination, conflict classification, response mapping, and post-success rollback audit.
+- Transaction safety: the production repository retains the store-scoped lock and rechecks the target revision inside the lifecycle transaction. Archiving the previous active model and publishing the target remain atomic; the partial unique index still enforces at most one published row.
+- Compatibility safety: the registry-only multi-call transition remains available for legacy/test providers but is explicitly not the production atomicity boundary. Broad-service lifecycle methods remain temporary delegates.
+- Contract impact: none intended; routes, required ETags, HTTP 428/412/not-found behavior, response payloads, and tenant/store guards remain unchanged.
+- Follow-up: review and remove model mutation delegates after internal caller migration, then assess user/assertion transaction ownership.
+- Verification: 14 targeted lifecycle, compatibility-service, and dependency-injection unit tests and two lifecycle endpoint integration tests pass. Locked restore and zero-warning Release build pass with 289 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.
