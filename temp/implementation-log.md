@@ -220,3 +220,15 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Follow-up: audit and remove temporary store-create delegates, then assess user/assertion mutation transaction ownership.
 - Verification: 12 targeted query-service, lifecycle-use-case, and dependency-injection tests pass. Locked restore and zero-warning Release build pass with 287 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Merge evidence: feature commit `086a73f` was merged locally into `develop` as `d04d35b` and pushed. GitHub Actions `.NET CI` run `33188518304` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 16
+
+- Branch: `refactor/remove-store-create-delegates-b1`
+- Status: In progress
+- Intended result: close the remaining store-create compatibility debt after all production callers migrated to the command boundary.
+- Caller evidence: `StoresController.Create` depends directly on `CreateStoreUseCase`; no production or test caller invokes create through `IStoreAppService` or `StoreAppService`.
+- Interface change: remove unscoped create, tenant-scoped create, and idempotent create from `IStoreAppService` and its implementation. The remaining service surface owns list/get/delete behavior.
+- Composition safety: remove `CreateStoreUseCase.CreateCompatibility` and nullable repository/dispatcher fields. The public constructor is now the only composition path and requires both dependencies.
+- Contract impact: none; HTTP route, payload, idempotency behavior, tenant/actor derivation, status codes, and store isolation remain unchanged.
+- Follow-up: audit dormant compatibility factories inside the authorization-model command classes, then review user/assertion mutation transaction ownership.
+- Verification: 11 targeted store-use-case, remaining store-service, and dependency-injection tests pass. Locked restore and zero-warning Release build pass with 287 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.

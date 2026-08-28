@@ -4,23 +4,6 @@ namespace Aegis.Application.Interfaces;
 
 public interface IStoreAppService
 {
-    Task<StoreDto> CreateAsync(
-        CreateStoreRequestDto request,
-        CancellationToken cancellationToken = default);
-
-    Task<StoreDto> CreateAsync(
-        string tenantId,
-        CreateStoreRequestDto request,
-        CancellationToken cancellationToken = default);
-
-    Task<StoreDto> CreateIdempotentAsync(
-        string tenantId,
-        CreateStoreRequestDto request,
-        string actorId,
-        string idempotencyKey,
-        string requestFingerprint,
-        CancellationToken cancellationToken = default);
-
     Task<IReadOnlyList<StoreDto>> ListAsync(CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<StoreDto>> ListAsync(

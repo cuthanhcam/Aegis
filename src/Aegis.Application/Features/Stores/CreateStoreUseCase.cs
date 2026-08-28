@@ -9,8 +9,8 @@ namespace Aegis.Application.Features.Stores;
 public sealed class CreateStoreUseCase
 {
     private readonly IStoreRegistry _storeRegistry;
-    private readonly IStoreRepository? _storeRepository;
-    private readonly IDomainEventDispatcher? _domainEventDispatcher;
+    private readonly IStoreRepository _storeRepository;
+    private readonly IDomainEventDispatcher _domainEventDispatcher;
 
     public CreateStoreUseCase(
         IStoreRegistry storeRegistry,
@@ -22,26 +22,6 @@ public sealed class CreateStoreUseCase
         _domainEventDispatcher = domainEventDispatcher;
     }
 
-    private CreateStoreUseCase(
-        IStoreRegistry storeRegistry,
-        IStoreRepository? storeRepository,
-        IDomainEventDispatcher? domainEventDispatcher,
-        bool compatibilityPath)
-    {
-        _ = compatibilityPath;
-        _storeRegistry = storeRegistry;
-        _storeRepository = storeRepository;
-        _domainEventDispatcher = domainEventDispatcher;
-    }
-
-    internal static CreateStoreUseCase CreateCompatibility(
-        IStoreRegistry storeRegistry,
-        IStoreRepository? storeRepository,
-        IDomainEventDispatcher? domainEventDispatcher)
-    {
-        return new CreateStoreUseCase(storeRegistry, storeRepository, domainEventDispatcher, true);
-    }
-
     public async Task<StoreDto> ExecuteAsync(
         string tenantId,
         CreateStoreRequestDto request,
@@ -51,11 +31,6 @@ public sealed class CreateStoreUseCase
         if (!string.IsNullOrWhiteSpace(tenantId))
         {
             return await _storeRegistry.CreateForTenantAsync(tenantId, request.Name, cancellationToken);
-        }
-
-        if (_storeRepository is null)
-        {
-            return await _storeRegistry.CreateAsync(request.Name, cancellationToken);
         }
 
         var store = Store.Create(request.Name);
@@ -74,11 +49,6 @@ public sealed class CreateStoreUseCase
     {
         ValidateIdempotencyContext(tenantId, actorId, idempotencyKey, requestFingerprint);
         ValidateName(request);
-        if (_storeRepository is null)
-        {
-            throw new NotSupportedException("Durable idempotency requires a store repository.");
-        }
-
         var store = Store.Create(request.Name);
         var mutation = new IdempotentMutation(
             tenantId,

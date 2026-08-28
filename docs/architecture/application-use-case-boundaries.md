@@ -22,7 +22,7 @@ The API adapter authenticates and authorizes the caller, resolves tenant/actor c
 
 ## Store-create flow
 
-`StoresController` retains HTTP ownership of tenant/actor resolution and idempotency-header validation. `CreateStoreUseCase` owns store-name and command-context validation, constructs the aggregate, calls the atomic repository operation, suppresses duplicate event dispatch on replay, and maps the result. `StoreAppService` handles store list/get/delete and exposes temporary create delegates only for internal migration compatibility.
+`StoresController` retains HTTP ownership of tenant/actor resolution and idempotency-header validation. `CreateStoreUseCase` owns store-name and command-context validation, constructs the aggregate, calls the atomic repository operation, suppresses duplicate event dispatch on replay, and maps the result. `StoreAppService` now handles store list/get/delete only; create delegates and the nullable compatibility constructor were removed after caller migration completed.
 
 ## Authorization-model validation boundary
 
@@ -51,6 +51,8 @@ When a repository transition returns no target, each use case re-reads the model
 ## Remaining model application service
 
 `IAuthorizationModelAppService` is now read/analysis-oriented. It lists and resolves model snapshots, computes diffs, and exposes the compatibility validation endpoint. It no longer accepts create, update, delete, publish, or rollback commands, and its implementation no longer depends on event dispatch or audit infrastructure. This narrower surface prevents new callers from bypassing the explicit transaction boundaries.
+
+`IStoreAppService` follows the same rule for creation: it retains store query and deletion behavior, while creation is available only through `CreateStoreUseCase`. The use case requires its repository and event dispatcher explicitly; nullable compatibility composition is no longer permitted.
 
 ## Review checklist
 
