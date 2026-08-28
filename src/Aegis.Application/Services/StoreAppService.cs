@@ -71,6 +71,58 @@ namespace Aegis.Application.Services
             return CreateWithDomainAsync(store, cancellationToken);
         }
 
+        public async Task<StoreDto> CreateIdempotentAsync(
+            string tenantId,
+            CreateStoreRequestDto request,
+            string actorId,
+            string idempotencyKey,
+            string requestFingerprint,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(tenantId)
+                || string.IsNullOrWhiteSpace(actorId)
+                || string.IsNullOrWhiteSpace(idempotencyKey)
+                || string.IsNullOrWhiteSpace(requestFingerprint)
+                || requestFingerprint.Length != 64
+                || requestFingerprint.Any(character => !char.IsAsciiHexDigit(character)))
+            {
+                throw new ArgumentException("A valid tenant, actor, idempotency key, and SHA-256 request fingerprint are required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new ArgumentException("Store name is required.");
+            }
+
+            if (_storeRepository is null)
+            {
+                throw new NotSupportedException("Durable idempotency requires a store repository.");
+            }
+
+            var store = Store.Create(request.Name);
+            var mutation = new IdempotentMutation(
+                tenantId,
+                actorId,
+                "store.create",
+                idempotencyKey,
+                requestFingerprint,
+                DateTimeOffset.UtcNow.AddHours(24));
+            var result = await _storeRepository.AddIdempotentAsync(store, mutation, cancellationToken);
+            if (result.Created)
+            {
+                await _domainEventDispatcher.DispatchAndClearAsync(store, cancellationToken);
+            }
+
+            return new StoreDto(
+                result.Store.Id,
+                result.Store.Name,
+                result.Store.CreatedAt,
+                result.Store.UpdatedAt,
+                null,
+                null,
+                tenantId);
+        }
+
         public Task<IReadOnlyList<StoreDto>> ListAsync(CancellationToken cancellationToken = default)
         {
             return _storeRegistry.ListAsync(cancellationToken);

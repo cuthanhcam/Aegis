@@ -134,3 +134,13 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Scope boundary: no other mutation claims idempotency yet, and Redis is not treated as the durable replay authority.
 - Verification: targeted create/replay/conflict coverage passes. Locked restore and zero-warning Release build pass with 276 unit tests and 29 integration tests. The additive OpenAPI baseline, semantic diff, all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.
 - Merge evidence: feature commit `ef647c5` was merged locally into `develop` as `24f42d8` and pushed. GitHub Actions `.NET CI` run `33182265773` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 9
+
+- Branch: `feat/store-create-idempotency-b1`
+- Status: In progress
+- Intended result: review every mutation class and protect store creation, the next high-risk resource-allocation endpoint, from duplicate commits.
+- Risk review: store/model creates require replay; model edits/lifecycle use concurrency; relationship/RBAC natural-key writes need parity tests; user and assertion mutations wait for explicit use-case transaction ownership; authentication retains protocol-specific defenses.
+- Persistence: migration 013 adds a dedicated store-creation reservation because no resource ID exists before commit. Reservation, store insert, and response commit atomically; replays do not dispatch another domain event.
+- Known boundary: resource/response replay is atomic, but the current domain-event/outbox path is not enlisted in the resource transaction. Transactional outbox persistence remains tracked rather than being implied by idempotency success.
+- Verification: targeted store create/replay/conflict coverage passes. Locked restore and zero-warning Release build pass with 276 unit tests and 30 integration tests. The additive OpenAPI baseline, semantic diff, all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.

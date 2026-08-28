@@ -172,6 +172,110 @@ namespace Aegis.Infrastructure.Persistence
             }, cancellationToken);
         }
 
+        async Task<IdempotentStoreAddResult> IStoreRepository.AddIdempotentAsync(
+            Store store,
+            IdempotentMutation mutation,
+            CancellationToken cancellationToken)
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            await using var tx = await connection.BeginTransactionAsync(cancellationToken);
+            var now = DateTimeOffset.UtcNow;
+
+            const string deleteExpiredSql = @"DELETE FROM store_creation_idempotency_records
+                                              WHERE tenant_id = @tenant_id
+                                                AND actor_id = @actor_id
+                                                AND operation = @operation
+                                                AND idempotency_key = @idempotency_key
+                                                AND expires_at <= @now;";
+            await using (var deleteExpired = new NpgsqlCommand(deleteExpiredSql, connection, tx))
+            {
+                AddStoreIdempotencyScopeParameters(deleteExpired, mutation);
+                deleteExpired.Parameters.AddWithValue("now", now);
+                await deleteExpired.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            const string reserveSql = @"INSERT INTO store_creation_idempotency_records
+                                           (tenant_id, actor_id, operation, idempotency_key, request_fingerprint, response_json, created_at, expires_at)
+                                       VALUES
+                                           (@tenant_id, @actor_id, @operation, @idempotency_key, @request_fingerprint, NULL, @created_at, @expires_at)
+                                       ON CONFLICT DO NOTHING
+                                       RETURNING 1;";
+            var reserved = false;
+            await using (var reserve = new NpgsqlCommand(reserveSql, connection, tx))
+            {
+                AddStoreIdempotencyScopeParameters(reserve, mutation);
+                reserve.Parameters.AddWithValue("request_fingerprint", mutation.RequestFingerprint);
+                reserve.Parameters.AddWithValue("created_at", now);
+                reserve.Parameters.AddWithValue("expires_at", mutation.ExpiresAt);
+                reserved = await reserve.ExecuteScalarAsync(cancellationToken) is not null;
+            }
+
+            if (reserved)
+            {
+                const string insertStoreSql = @"INSERT INTO stores (id, tenant_id, name, created_at, updated_at)
+                                                VALUES (@id, @tenant_id, @name, @created_at, @updated_at);";
+                await using (var insertStore = new NpgsqlCommand(insertStoreSql, connection, tx))
+                {
+                    insertStore.Parameters.AddWithValue("id", store.Id);
+                    insertStore.Parameters.AddWithValue("tenant_id", mutation.TenantId);
+                    insertStore.Parameters.AddWithValue("name", store.Name);
+                    insertStore.Parameters.AddWithValue("created_at", store.CreatedAt);
+                    insertStore.Parameters.AddWithValue("updated_at", store.UpdatedAt);
+                    await insertStore.ExecuteNonQueryAsync(cancellationToken);
+                }
+
+                var response = new StoreDto(store.Id, store.Name, store.CreatedAt, store.UpdatedAt, null, null, mutation.TenantId);
+                const string completeSql = @"UPDATE store_creation_idempotency_records
+                                             SET response_json = @response_json
+                                             WHERE tenant_id = @tenant_id
+                                               AND actor_id = @actor_id
+                                               AND operation = @operation
+                                               AND idempotency_key = @idempotency_key;";
+                await using (var complete = new NpgsqlCommand(completeSql, connection, tx))
+                {
+                    AddStoreIdempotencyScopeParameters(complete, mutation);
+                    complete.Parameters.AddWithValue("response_json", NpgsqlTypes.NpgsqlDbType.Jsonb, JsonSerializer.Serialize(response));
+                    await complete.ExecuteNonQueryAsync(cancellationToken);
+                }
+
+                await tx.CommitAsync(cancellationToken);
+                return new IdempotentStoreAddResult(store, true);
+            }
+
+            const string replaySql = @"SELECT request_fingerprint, response_json
+                                       FROM store_creation_idempotency_records
+                                       WHERE tenant_id = @tenant_id
+                                         AND actor_id = @actor_id
+                                         AND operation = @operation
+                                         AND idempotency_key = @idempotency_key
+                                       FOR UPDATE;";
+            await using var replay = new NpgsqlCommand(replaySql, connection, tx);
+            AddStoreIdempotencyScopeParameters(replay, mutation);
+            await using var reader = await replay.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+            {
+                throw new InvalidOperationException("Store idempotency reservation disappeared before replay.");
+            }
+
+            if (!string.Equals(reader.GetString(0).TrimEnd(), mutation.RequestFingerprint, StringComparison.Ordinal))
+            {
+                throw new IdempotencyConflictException("Idempotency-Key was already used with a different request payload.");
+            }
+
+            if (reader.IsDBNull(1))
+            {
+                throw new InvalidOperationException("Store idempotency response is incomplete.");
+            }
+
+            var replayDto = JsonSerializer.Deserialize<StoreDto>(reader.GetString(1))
+                ?? throw new InvalidOperationException("Stored store idempotency response is invalid.");
+            await reader.DisposeAsync();
+            await tx.CommitAsync(cancellationToken);
+            return new IdempotentStoreAddResult(
+                Store.Rehydrate(replayDto.Id, replayDto.Name, replayDto.CreatedAt, replayDto.UpdatedAt),
+                false);
+        }
+
         async Task<Store?> IStoreRepository.GetByIdAsync(string storeId, CancellationToken cancellationToken)
         {
             var dto = await GetAsync(storeId, cancellationToken);
@@ -655,6 +759,16 @@ namespace Aegis.Infrastructure.Persistence
             command.Parameters.AddWithValue("tenant_id", mutation.TenantId);
             command.Parameters.AddWithValue("actor_id", mutation.ActorId);
             command.Parameters.AddWithValue("store_id", storeId);
+            command.Parameters.AddWithValue("operation", mutation.Operation);
+            command.Parameters.AddWithValue("idempotency_key", mutation.Key);
+        }
+
+        private static void AddStoreIdempotencyScopeParameters(
+            NpgsqlCommand command,
+            IdempotentMutation mutation)
+        {
+            command.Parameters.AddWithValue("tenant_id", mutation.TenantId);
+            command.Parameters.AddWithValue("actor_id", mutation.ActorId);
             command.Parameters.AddWithValue("operation", mutation.Operation);
             command.Parameters.AddWithValue("idempotency_key", mutation.Key);
         }

@@ -29,4 +29,11 @@ internal static class IdempotencyHeaders
         var canonical = $"{schema.Length}:{schema}{model.Length}:{model}";
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
     }
+
+    public static string Fingerprint(CreateStoreRequestDto request)
+    {
+        var name = request.Name?.Trim() ?? string.Empty;
+        var canonical = $"{name.Length}:{name}";
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
+    }
 }

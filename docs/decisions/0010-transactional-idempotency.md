@@ -20,3 +20,9 @@ Records expire after 24 hours. Reuse after expiry is allowed only after the expi
 The first implementation covers native authorization-model creation only. Requests without a key retain existing behavior. Other creates and writes do not claim idempotency until their business commit and replay record share an atomic boundary.
 
 Domain events are dispatched only for the transaction that creates the model, never for a replay. Response identity, creation time, revision, status, and ETag remain stable across retries.
+
+### Implementation evolution: store creation
+
+The next B1 iteration applied the same decision to store creation. Because the store does not exist before the transaction, migration 013 uses a dedicated tenant/actor/operation/key reservation table rather than pretending a future store ID is an existing resource scope. Store insert and replay response commit together, and the store-created domain event is dispatched only for the creating transaction.
+
+The current domain-event dispatcher and outbox persistence are outside these resource transactions. Therefore this ADR guarantees resource/response replay correctness, not atomic event delivery. A crash after resource commit and before event dispatch can still lose the event; dispatching on every replay would instead create duplicates. Transactional outbox persistence and consumer deduplication remain an explicit production-readiness dependency.

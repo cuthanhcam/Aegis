@@ -21,10 +21,10 @@ Weak tags, wildcard tags, lists of tags, and unquoted revisions are not accepted
 
 ## Idempotency scope
 
-Authorization-model creation accepts an optional `Idempotency-Key`. Use a unique value of 8–128 ASCII letters, digits, `.`, `:`, `_`, or `-` for each logical create and retain it until the request outcome is known.
+Store creation and authorization-model creation accept an optional `Idempotency-Key`. Use a unique value of 8–128 ASCII letters, digits, `.`, `:`, `_`, or `-` for each logical create and retain it until the request outcome is known.
 
-The key is scoped to tenant, authenticated actor, store, and operation, then bound to a SHA-256 request fingerprint. The reservation, model insert, and stored response share one PostgreSQL transaction. A same-key/same-payload retry returns the original HTTP 201 model and ETag; same-key/different-payload reuse returns HTTP 409 `IDEMPOTENCY_CONFLICT`. Records have a 24-hour retention window.
+The key is scoped to tenant, authenticated actor, operation, and the resource scope when one already exists, then bound to a SHA-256 request fingerprint. Reservation, resource insert, and stored response share one PostgreSQL transaction. A same-key/same-payload retry returns the original HTTP 201 representation; same-key/different-payload reuse returns HTTP 409 `IDEMPOTENCY_CONFLICT`. Records have a 24-hour retention window.
 
 Other mutations do not yet accept idempotency keys. Extending coverage requires the replay record and that mutation's business commit to share an atomic boundary. Redis can accelerate coordination only when its protocol cannot create a commit/replay gap; it is not the source of truth for this contract.
 
-For model creation, retry with the original key and identical payload. For other mutations, retry only when the endpoint is naturally idempotent and its concurrency precondition is still current. Never blindly retry publish, rollback, or a timed-out request whose commit outcome is unknown. A concurrency precondition prevents stale state transitions; it does not provide response replay after an ambiguous timeout.
+For supported store/model creation, retry with the original key and identical payload. For other mutations, retry only when the endpoint is naturally idempotent and its concurrency precondition is still current. Never blindly retry publish, rollback, or a timed-out request whose commit outcome is unknown. A concurrency precondition prevents stale state transitions; it does not provide response replay after an ambiguous timeout. See the [mutation risk register](mutation-risk-register.md).
