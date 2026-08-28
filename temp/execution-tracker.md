@@ -201,6 +201,8 @@ Iteration 13 merge evidence: feature commit `05c5976` was merged locally into `d
 
 Iteration 14 application-boundary scope: extract authorization-model publish and rollback commands while preserving store-scoped transaction serialization, target revision rechecks, the single-published invariant, and post-commit rollback audit.
 
-Iteration 14 local evidence: 14 targeted lifecycle, compatibility-service, and dependency-injection unit tests plus two lifecycle endpoint integration tests passed. Locked restore, zero-warning Release build, 289 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed. `develop` merge and Actions evidence remain pending.
+Iteration 14 local evidence: 14 targeted lifecycle, compatibility-service, and dependency-injection unit tests plus two lifecycle endpoint integration tests passed. Locked restore, zero-warning Release build, 289 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 14 merge evidence: feature commit `ad0a7ff` was merged locally into `develop` as `16c4925`; `.NET CI` run `33187746559` passed. The workflow remained unchanged.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
