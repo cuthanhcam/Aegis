@@ -19,6 +19,8 @@ namespace Aegis.Application.Services
         private readonly IAuditStore? _auditStore;
         private readonly AuthorizationModelValidator _validator;
         private readonly CreateAuthorizationModelUseCase _createAuthorizationModelUseCase;
+        private readonly UpdateAuthorizationModelUseCase _updateAuthorizationModelUseCase;
+        private readonly DeleteAuthorizationModelUseCase _deleteAuthorizationModelUseCase;
 
         public AuthorizationModelAppService(IStoreRegistry storeRegistry, IAuthorizationModelRegistry authorizationModelRegistry)
         {
@@ -33,6 +35,17 @@ namespace Aegis.Application.Services
                 _authorizationModelRepository,
                 _domainEventDispatcher,
                 _validator);
+            _updateAuthorizationModelUseCase = UpdateAuthorizationModelUseCase.CreateCompatibility(
+                _storeRegistry,
+                _authorizationModelRegistry,
+                _authorizationModelRepository,
+                _domainEventDispatcher,
+                _validator);
+            _deleteAuthorizationModelUseCase = DeleteAuthorizationModelUseCase.CreateCompatibility(
+                _storeRegistry,
+                _authorizationModelRegistry,
+                _authorizationModelRepository,
+                _domainEventDispatcher);
         }
 
         public AuthorizationModelAppService(
@@ -64,6 +77,17 @@ namespace Aegis.Application.Services
                 _authorizationModelRepository,
                 _domainEventDispatcher,
                 _validator);
+            _updateAuthorizationModelUseCase = UpdateAuthorizationModelUseCase.CreateCompatibility(
+                _storeRegistry,
+                _authorizationModelRegistry,
+                _authorizationModelRepository,
+                _domainEventDispatcher,
+                _validator);
+            _deleteAuthorizationModelUseCase = DeleteAuthorizationModelUseCase.CreateCompatibility(
+                _storeRegistry,
+                _authorizationModelRegistry,
+                _authorizationModelRepository,
+                _domainEventDispatcher);
         }
 
         public async Task<AuthorizationModelDto> CreateAsync(
@@ -363,49 +387,12 @@ namespace Aegis.Application.Services
             long expectedRevision,
             CancellationToken cancellationToken = default)
         {
-            var validation = await ValidateAsync(new ValidateAuthorizationModelRequestDto(request.SchemaVersion, request.Model), cancellationToken);
-            ThrowIfInvalid(validation);
-
-            if (string.IsNullOrWhiteSpace(authorizationModelId))
-            {
-                throw new ArgumentException("authorizationModelId is required.");
-            }
-
-            if (_authorizationModelRepository is null)
-            {
-                await EnsureStoreExists(storeId, cancellationToken);
-                var current = await _authorizationModelRegistry.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-                if (current is not null && current.Revision != expectedRevision)
-                {
-                    throw new ConcurrencyConflictException("The authorization model was modified by another request.");
-                }
-
-                return await _authorizationModelRegistry.UpdateAsync(storeId, authorizationModelId, request.SchemaVersion, request.Model, cancellationToken);
-            }
-
-            await EnsureStoreExists(storeId, cancellationToken);
-            var existing = await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-            if (existing is null)
-            {
-                return null;
-            }
-
-            existing.UpdateDefinition(request.SchemaVersion, request.Model);
-            existing.MarkValidated();
-            var updated = await _authorizationModelRepository.UpdateAsync(existing, expectedRevision, cancellationToken);
-            if (updated is null)
-            {
-                var stillExists = await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-                if (stillExists is not null)
-                {
-                    throw new ConcurrencyConflictException("The authorization model was modified by another request.");
-                }
-
-                return null;
-            }
-
-            await _domainEventDispatcher.DispatchAndClearAsync(existing, cancellationToken);
-            return ToDto(updated);
+            return await _updateAuthorizationModelUseCase.ExecuteAsync(
+                storeId,
+                authorizationModelId,
+                request,
+                expectedRevision,
+                cancellationToken);
         }
 
         public async Task<bool> DeleteAsync(
@@ -414,46 +401,11 @@ namespace Aegis.Application.Services
             long expectedRevision,
             CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(authorizationModelId))
-            {
-                throw new ArgumentException("authorizationModelId is required.");
-            }
-
-            await EnsureStoreExists(storeId, cancellationToken);
-
-            if (_authorizationModelRepository is not null)
-            {
-                var existing = await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-                if (existing is null)
-                {
-                    return false;
-                }
-
-                existing.MarkDeleted();
-                var deleted = await _authorizationModelRepository.DeleteAsync(existing, expectedRevision, cancellationToken);
-                if (!deleted)
-                {
-                    var stillExists = await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-                    if (stillExists is not null)
-                    {
-                        throw new ConcurrencyConflictException("The authorization model was modified by another request.");
-                    }
-                }
-                if (deleted)
-                {
-                    await _domainEventDispatcher.DispatchAndClearAsync(existing, cancellationToken);
-                }
-
-                return deleted;
-            }
-
-            var current = await _authorizationModelRegistry.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-            if (current is not null && current.Revision != expectedRevision)
-            {
-                throw new ConcurrencyConflictException("The authorization model was modified by another request.");
-            }
-
-            return await _authorizationModelRegistry.DeleteAsync(storeId, authorizationModelId, cancellationToken);
+            return await _deleteAuthorizationModelUseCase.ExecuteAsync(
+                storeId,
+                authorizationModelId,
+                expectedRevision,
+                cancellationToken);
         }
 
         public Task<AuthorizationModelValidationResultDto> ValidateAsync(
