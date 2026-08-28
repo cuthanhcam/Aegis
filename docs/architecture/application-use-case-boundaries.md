@@ -12,7 +12,7 @@ The API adapter authenticates and authorizes the caller, resolves tenant/actor c
 | --- | --- | --- | --- |
 | Store create | `CreateStoreUseCase` | Store repository for idempotent create; registry compatibility path otherwise | Extracted |
 | Authorization-model validation | `AuthorizationModelValidator` through the compatibility service endpoint | None; pure application computation | Extracted |
-| Authorization-model create | Broad model application service | Authorization-model repository | Next command extraction |
+| Authorization-model create | `CreateAuthorizationModelUseCase` | Authorization-model repository; idempotent reservation and model insert share its transaction | Extracted |
 | Model update/delete | Broad model application service | Authorization-model repository revision predicate | Planned extraction |
 | Model publish/rollback | Broad model application service | Store-serialized authorization-model repository transaction | Planned extraction |
 | User mutations | Broad RBAC administration service | Provider-specific RBAC store | Pending transaction review |
@@ -27,6 +27,12 @@ The API adapter authenticates and authorizes the caller, resolves tenant/actor c
 `AuthorizationModelValidator` owns deterministic validation of schema metadata, type and relation declarations, rewrite expressions, stable issue codes, source line numbers, warnings, and the capability summary. It is a stateless application component: it does not resolve stores, persist models, dispatch events, inspect HTTP context, or depend on `AuthorizationModelAppService`.
 
 The existing validation endpoint and model mutation paths temporarily reach it through `AuthorizationModelAppService`. This preserves the public contract while removing the circular dependency risk for the next extraction: model create and update use cases can now consume the validator directly. Cancellation is checked before parsing and between model lines so large inputs remain cooperative with the request deadline.
+
+## Authorization-model create flow
+
+`AuthorizationModelsController` retains store-tenant authorization, actor resolution, idempotency-header parsing, request fingerprinting, HTTP status selection, and ETag emission. `CreateAuthorizationModelUseCase` validates command context and the DSL, verifies that the store exists, constructs and marks the aggregate as validated, selects the repository transaction, suppresses duplicate domain-event dispatch during replay, and maps the persisted aggregate to the public DTO.
+
+The repository remains the atomic owner of an idempotent create: reservation lookup, fingerprint conflict detection, model insertion, and response storage complete in one transaction. The broad application service exposes temporary create delegates for internal compatibility only; new transport callers depend on the command use case directly.
 
 ## Review checklist
 

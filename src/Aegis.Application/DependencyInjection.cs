@@ -26,6 +26,7 @@ namespace Aegis.Application
             services.AddScoped<ResolveUsersetEntriesFromRelationFiltersUseCase>();
             services.AddScoped<CreateStoreUseCase>();
             services.AddSingleton<AuthorizationModelValidator>();
+            services.AddScoped<CreateAuthorizationModelUseCase>();
 
             // Application Services - Standard Dependency Inversion Pattern
             services.AddScoped<IAuthAppService, AuthAppService>();

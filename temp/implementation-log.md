@@ -168,3 +168,15 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Follow-up: extract authorization-model creation and idempotent replay orchestration into a command use case, followed by update and lifecycle commands.
 - Verification: 14 targeted validator, compatibility-service, and dependency-injection tests pass. Locked restore and zero-warning Release build pass with 281 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Merge evidence: feature commit `2d62cff` was merged locally into `develop` as `31dd355` and pushed. GitHub Actions `.NET CI` run `33185735354` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 12
+
+- Branch: `refactor/authorization-model-create-use-case-b1`
+- Status: In progress
+- Intended result: move authorization-model creation and durable replay orchestration behind one explicit command boundary.
+- Boundary: `CreateAuthorizationModelUseCase` owns command validation, store existence, aggregate construction and validated state, repository transaction selection, replay-aware event dispatch, and DTO mapping. The API owns trusted tenant/actor derivation, header parsing, fingerprinting, status codes, and ETags.
+- Transaction safety: `IAuthorizationModelRepository.AddIdempotentAsync` remains the atomic owner of reservation lookup, fingerprint conflict detection, model insert, and response replay. The use case dispatches creation events only when the repository reports a newly created aggregate.
+- Migration safety: `AuthorizationModelsController.Create` consumes the use case directly. Existing `IAuthorizationModelAppService` create methods delegate temporarily so internal callers remain compatible.
+- Contract impact: none intended; route, payload, status, ETag, idempotency scope, and error mapping remain unchanged.
+- Follow-up: extract model update/delete commands, then store-serialized publish/rollback lifecycle commands.
+- Verification: 13 targeted command, compatibility-service, and dependency-injection unit tests and one replay endpoint integration test pass. Locked restore and zero-warning Release build pass with 283 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.

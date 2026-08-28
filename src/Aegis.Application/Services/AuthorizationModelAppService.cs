@@ -18,6 +18,7 @@ namespace Aegis.Application.Services
         private readonly IDomainEventDispatcher? _domainEventDispatcher;
         private readonly IAuditStore? _auditStore;
         private readonly AuthorizationModelValidator _validator;
+        private readonly CreateAuthorizationModelUseCase _createAuthorizationModelUseCase;
 
         public AuthorizationModelAppService(IStoreRegistry storeRegistry, IAuthorizationModelRegistry authorizationModelRegistry)
         {
@@ -26,6 +27,12 @@ namespace Aegis.Application.Services
             _authorizationModelRepository = authorizationModelRegistry as IAuthorizationModelRepository;
             _domainEventDispatcher = null;
             _validator = new AuthorizationModelValidator();
+            _createAuthorizationModelUseCase = CreateAuthorizationModelUseCase.CreateCompatibility(
+                _storeRegistry,
+                _authorizationModelRegistry,
+                _authorizationModelRepository,
+                _domainEventDispatcher,
+                _validator);
         }
 
         public AuthorizationModelAppService(
@@ -51,6 +58,12 @@ namespace Aegis.Application.Services
             _domainEventDispatcher = domainEventDispatcher;
             _validator = validator ?? throw new ArgumentNullException(nameof(validator));
             _auditStore = auditStore;
+            _createAuthorizationModelUseCase = CreateAuthorizationModelUseCase.CreateCompatibility(
+                _storeRegistry,
+                _authorizationModelRegistry,
+                _authorizationModelRepository,
+                _domainEventDispatcher,
+                _validator);
         }
 
         public async Task<AuthorizationModelDto> CreateAsync(
@@ -58,21 +71,7 @@ namespace Aegis.Application.Services
             CreateAuthorizationModelRequestDto request,
             CancellationToken cancellationToken = default)
         {
-            var validation = await ValidateAsync(new ValidateAuthorizationModelRequestDto(request.SchemaVersion, request.Model), cancellationToken);
-            ThrowIfInvalid(validation);
-
-            if (_authorizationModelRepository is null)
-            {
-                await EnsureStoreExists(storeId, cancellationToken);
-                return await _authorizationModelRegistry.CreateAsync(storeId, request.SchemaVersion, request.Model, cancellationToken);
-            }
-
-            await EnsureStoreExists(storeId, cancellationToken);
-            var authorizationModel = AuthorizationModel.Create(storeId, request.SchemaVersion, request.Model);
-            authorizationModel.MarkValidated();
-            await _authorizationModelRepository.AddAsync(authorizationModel, cancellationToken);
-            await _domainEventDispatcher.DispatchAndClearAsync(authorizationModel, cancellationToken);
-            return ToDto(authorizationModel);
+            return await _createAuthorizationModelUseCase.ExecuteAsync(storeId, request, cancellationToken);
         }
 
         public async Task<AuthorizationModelDto> CreateIdempotentAsync(
@@ -84,41 +83,14 @@ namespace Aegis.Application.Services
             string requestFingerprint,
             CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(tenantId)
-                || string.IsNullOrWhiteSpace(actorId)
-                || string.IsNullOrWhiteSpace(idempotencyKey)
-                || string.IsNullOrWhiteSpace(requestFingerprint)
-                || requestFingerprint.Length != 64
-                || requestFingerprint.Any(character => !char.IsAsciiHexDigit(character)))
-            {
-                throw new ArgumentException("A valid tenant, actor, idempotency key, and SHA-256 request fingerprint are required.");
-            }
-
-            var validation = await ValidateAsync(new ValidateAuthorizationModelRequestDto(request.SchemaVersion, request.Model), cancellationToken);
-            ThrowIfInvalid(validation);
-            await EnsureStoreExists(storeId, cancellationToken);
-
-            if (_authorizationModelRepository is null)
-            {
-                throw new NotSupportedException("Durable idempotency requires an authorization-model repository.");
-            }
-
-            var authorizationModel = AuthorizationModel.Create(storeId, request.SchemaVersion, request.Model);
-            authorizationModel.MarkValidated();
-            var mutation = new IdempotentMutation(
+            return await _createAuthorizationModelUseCase.ExecuteIdempotentAsync(
+                storeId,
+                request,
                 tenantId,
                 actorId,
-                "authorization-model.create",
                 idempotencyKey,
                 requestFingerprint,
-                DateTimeOffset.UtcNow.AddHours(24));
-            var result = await _authorizationModelRepository.AddIdempotentAsync(authorizationModel, mutation, cancellationToken);
-            if (result.Created)
-            {
-                await _domainEventDispatcher.DispatchAndClearAsync(authorizationModel, cancellationToken);
-            }
-
-            return ToDto(result.AuthorizationModel);
+                cancellationToken);
         }
 
         public async Task<IReadOnlyList<AuthorizationModelDto>> ListAsync(string storeId, CancellationToken cancellationToken = default)
