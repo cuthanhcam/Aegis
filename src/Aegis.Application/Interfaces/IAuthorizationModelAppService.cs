@@ -9,6 +9,15 @@ public interface IAuthorizationModelAppService
         CreateAuthorizationModelRequestDto request,
         CancellationToken cancellationToken = default);
 
+    Task<AuthorizationModelDto> CreateIdempotentAsync(
+        string storeId,
+        CreateAuthorizationModelRequestDto request,
+        string tenantId,
+        string actorId,
+        string idempotencyKey,
+        string requestFingerprint,
+        CancellationToken cancellationToken = default);
+
     Task<AuthorizationModelValidationResultDto> ValidateAsync(
         ValidateAuthorizationModelRequestDto request,
         CancellationToken cancellationToken = default);

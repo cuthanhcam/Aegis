@@ -64,6 +64,52 @@ namespace Aegis.Application.Services
             return ToDto(authorizationModel);
         }
 
+        public async Task<AuthorizationModelDto> CreateIdempotentAsync(
+            string storeId,
+            CreateAuthorizationModelRequestDto request,
+            string tenantId,
+            string actorId,
+            string idempotencyKey,
+            string requestFingerprint,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(tenantId)
+                || string.IsNullOrWhiteSpace(actorId)
+                || string.IsNullOrWhiteSpace(idempotencyKey)
+                || string.IsNullOrWhiteSpace(requestFingerprint)
+                || requestFingerprint.Length != 64
+                || requestFingerprint.Any(character => !char.IsAsciiHexDigit(character)))
+            {
+                throw new ArgumentException("A valid tenant, actor, idempotency key, and SHA-256 request fingerprint are required.");
+            }
+
+            var validation = await ValidateAsync(new ValidateAuthorizationModelRequestDto(request.SchemaVersion, request.Model), cancellationToken);
+            ThrowIfInvalid(validation);
+            await EnsureStoreExists(storeId, cancellationToken);
+
+            if (_authorizationModelRepository is null)
+            {
+                throw new NotSupportedException("Durable idempotency requires an authorization-model repository.");
+            }
+
+            var authorizationModel = AuthorizationModel.Create(storeId, request.SchemaVersion, request.Model);
+            authorizationModel.MarkValidated();
+            var mutation = new IdempotentMutation(
+                tenantId,
+                actorId,
+                "authorization-model.create",
+                idempotencyKey,
+                requestFingerprint,
+                DateTimeOffset.UtcNow.AddHours(24));
+            var result = await _authorizationModelRepository.AddIdempotentAsync(authorizationModel, mutation, cancellationToken);
+            if (result.Created)
+            {
+                await _domainEventDispatcher.DispatchAndClearAsync(authorizationModel, cancellationToken);
+            }
+
+            return ToDto(result.AuthorizationModel);
+        }
+
         public async Task<IReadOnlyList<AuthorizationModelDto>> ListAsync(string storeId, CancellationToken cancellationToken = default)
         {
             await EnsureStoreExists(storeId, cancellationToken);

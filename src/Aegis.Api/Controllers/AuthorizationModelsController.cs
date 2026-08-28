@@ -5,6 +5,7 @@ using Aegis.Contracts.Administration;
 using Aegis.Contracts.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Aegis.Api.Controllers
 {
@@ -169,9 +170,11 @@ namespace Aegis.Api.Controllers
 
         [HttpPost]
         [ProducesResponseType(typeof(ApiResponse<AuthorizationModelDto>), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status409Conflict)]
         public async Task<ActionResult<ApiResponse<AuthorizationModelDto>>> Create(
             [FromRoute] string storeId,
             [FromBody] CreateAuthorizationModelRequestDto request,
+            [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
             CancellationToken cancellationToken)
         {
             var storeAccess = await TenantAccessGuard.ValidateStoreTenantAsync<AuthorizationModelDto>(this, _storeRegistry, storeId, cancellationToken);
@@ -180,7 +183,27 @@ namespace Aegis.Api.Controllers
                 return storeAccess;
             }
 
-            var result = await _authorizationModelAppService.CreateAsync(storeId, request, cancellationToken);
+            var validatedKey = IdempotencyHeaders.Validate(idempotencyKey);
+            AuthorizationModelDto result;
+            if (validatedKey is null)
+            {
+                result = await _authorizationModelAppService.CreateAsync(storeId, request, cancellationToken);
+            }
+            else
+            {
+                var tenantId = TenantAccessGuard.ResolveTenantId(User)!;
+                var actorId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? User.FindFirstValue("sub")
+                    ?? throw new UnauthorizedAccessException("Authenticated subject identifier is required for idempotent mutations.");
+                result = await _authorizationModelAppService.CreateIdempotentAsync(
+                    storeId,
+                    request,
+                    tenantId,
+                    actorId,
+                    validatedKey,
+                    IdempotencyHeaders.Fingerprint(request),
+                    cancellationToken);
+            }
             Response.Headers.ETag = EntityTagPreconditions.Format(result.Revision);
             return this.CreatedResponse(result);
         }

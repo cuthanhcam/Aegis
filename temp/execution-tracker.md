@@ -111,6 +111,13 @@ Mutation-safety progress:
 - [x] Extend transaction-scoped preconditions to authorization-model publish and rollback.
 - [ ] Add durable, tenant-scoped idempotency reservation and response replay for retryable creates/writes.
 
+Idempotency progress:
+
+- [x] Make authorization-model creation transactionally replayable across replicas.
+- [x] Scope keys by tenant, actor, store, operation, and request fingerprint.
+- [x] Prevent duplicate domain-event dispatch during response replay.
+- [ ] Extend transactional idempotency to other selected creates/writes after endpoint risk review.
+
 Iteration 1 evidence: local locked restore, zero-warning Release build, 268 unit tests, 25 integration tests, a 53-path OpenAPI v1 export, and `develop` Actions run `31955813080` all passed for merge commit `c39e396`.
 
 Iteration 2 evidence: the committed 53-path baseline and runtime candidate have identical SHA-256 hashes; the JSON diff report contains zero removed paths, operations, or schemas. Kiota 1.34.1 generated the TypeScript client and TypeScript 7.0.2 compiled it in strict mode with zero npm audit findings. Full backend verification passed 268 unit and 25 integration tests with zero build warnings or errors. Kiota's TypeScript target remains preview, so its version and proof dependencies are pinned and generated sources remain disposable artifacts.
@@ -140,5 +147,9 @@ The database invariant is defense in depth: migration 011 deterministically arch
 Iteration 7 local evidence: lifecycle precondition coverage, additive OpenAPI semantic diff, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 276 unit tests, and 28 integration tests passed. `develop` merge and Actions evidence remain pending.
 
 Iteration 7 merge evidence: feature commit `c7a5a8f` was merged locally into `develop` as `6a0474a`; `.NET CI` run `32143817767` passed. The workflow remained unchanged.
+
+Iteration 8 idempotency scope: provide the first durable, transaction-coupled replay contract for authorization-model creation without claiming generic middleware-level exactly-once behavior.
+
+Iteration 8 local evidence: same-key replay and conflicting-payload coverage, additive OpenAPI semantic diff, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 276 unit tests, and 29 integration tests passed. `develop` merge and Actions evidence remain pending.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.

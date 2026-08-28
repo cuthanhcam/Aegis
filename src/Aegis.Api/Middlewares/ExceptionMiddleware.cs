@@ -39,6 +39,10 @@ namespace Aegis.Api.Middlewares
             {
                 await WriteErrorAsync(context, StatusCodes.Status412PreconditionFailed, NativeErrorCodes.ConcurrencyConflict, "concurrency_conflict", ex.Message);
             }
+            catch (IdempotencyConflictException ex)
+            {
+                await WriteErrorAsync(context, StatusCodes.Status409Conflict, NativeErrorCodes.IdempotencyConflict, "idempotency_conflict", ex.Message);
+            }
             catch (ArgumentException ex)
             {
                 await WriteErrorAsync(context, StatusCodes.Status400BadRequest, NativeErrorCodes.ValidationError, "validation_error", ex.Message);

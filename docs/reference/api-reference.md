@@ -350,6 +350,8 @@ Returns one model version.
 
 ### POST `/stores/{storeId}/authorization-models`
 
+Optionally send `Idempotency-Key` to make creation safely replayable for 24 hours. Reuse with a different payload returns HTTP 409 `IDEMPOTENCY_CONFLICT`.
+
 ```json
 {
   "schemaVersion": "1.1",
