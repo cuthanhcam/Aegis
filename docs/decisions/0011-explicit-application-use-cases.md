@@ -21,4 +21,6 @@ The extraction is intentionally incremental; large flag-day interface changes wo
 
 The authorization-model migration completed this condition in B1 iteration 15. Caller audit confirmed that all HTTP mutations use explicit command boundaries, so create, update, delete, publish, and rollback were removed from `IAuthorizationModelAppService`. The remaining service surface is limited to query, diff, and validation behavior. The store-create migration completed in iteration 16: create overloads were removed from `IStoreAppService`, and `CreateStoreUseCase` now requires its repository and dispatcher through strict composition.
 
+Iteration 17 removed the dormant model-command compatibility factories and registry-only mutation branches. Model command constructors now expose the actual transaction, event, validation, and audit dependencies required at runtime. In-memory tests implement the same repository contracts as production instead of selecting a weaker orchestration algorithm.
+
 Authorization-model creation is the next candidate, but its DSL validator must first become an independent application component to avoid a circular dependency on `AuthorizationModelAppService`. User and assertion commands follow after their persistence transaction ownership is explicit.

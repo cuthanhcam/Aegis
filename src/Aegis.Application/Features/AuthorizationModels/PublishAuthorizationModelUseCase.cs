@@ -9,45 +9,17 @@ namespace Aegis.Application.Features.AuthorizationModels;
 public sealed class PublishAuthorizationModelUseCase
 {
     private readonly IStoreRegistry _storeRegistry;
-    private readonly IAuthorizationModelRegistry _authorizationModelRegistry;
-    private readonly IAuthorizationModelRepository? _authorizationModelRepository;
+    private readonly IAuthorizationModelRepository _authorizationModelRepository;
     private readonly AuthorizationModelValidator _validator;
 
     public PublishAuthorizationModelUseCase(
         IStoreRegistry storeRegistry,
-        IAuthorizationModelRegistry authorizationModelRegistry,
         IAuthorizationModelRepository authorizationModelRepository,
         AuthorizationModelValidator validator)
-        : this(storeRegistry, authorizationModelRegistry, authorizationModelRepository, validator, false)
     {
-    }
-
-    private PublishAuthorizationModelUseCase(
-        IStoreRegistry storeRegistry,
-        IAuthorizationModelRegistry authorizationModelRegistry,
-        IAuthorizationModelRepository? authorizationModelRepository,
-        AuthorizationModelValidator validator,
-        bool compatibilityPath)
-    {
-        _ = compatibilityPath;
         _storeRegistry = storeRegistry;
-        _authorizationModelRegistry = authorizationModelRegistry;
         _authorizationModelRepository = authorizationModelRepository;
         _validator = validator;
-    }
-
-    internal static PublishAuthorizationModelUseCase CreateCompatibility(
-        IStoreRegistry storeRegistry,
-        IAuthorizationModelRegistry authorizationModelRegistry,
-        IAuthorizationModelRepository? authorizationModelRepository,
-        AuthorizationModelValidator validator)
-    {
-        return new PublishAuthorizationModelUseCase(
-            storeRegistry,
-            authorizationModelRegistry,
-            authorizationModelRepository,
-            validator,
-            true);
     }
 
     public async Task<PublishAuthorizationModelResponseDto?> ExecuteAsync(
@@ -71,51 +43,22 @@ public sealed class PublishAuthorizationModelUseCase
 
         ThrowIfInvalid(model, cancellationToken);
 
-        if (_authorizationModelRepository is not null)
-        {
-            var updated = await _authorizationModelRepository.PublishAsync(
-                storeId,
-                authorizationModelId,
-                expectedRevision,
-                cancellationToken);
-            var published = updated.FirstOrDefault(item =>
-                item.Id.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase));
-            if (published is null
-                && await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken) is not null)
-            {
-                throw new ConcurrencyConflictException("The authorization model lifecycle changed before publish completed.");
-            }
-
-            return published is null
-                ? null
-                : new PublishAuthorizationModelResponseDto(ToDto(published), published.Id, published.SchemaVersion);
-        }
-
-        var currentPublished = await _authorizationModelRegistry.GetPublishedAsync(storeId, cancellationToken);
-        if (currentPublished is not null
-            && !currentPublished.Id.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase))
-        {
-            await _authorizationModelRegistry.UpdateStateAsync(
-                storeId,
-                currentPublished.Id,
-                AuthorizationModelLifecycleStates.Archived,
-                currentPublished.PublishedAt,
-                DateTimeOffset.UtcNow,
-                authorizationModelId,
-                cancellationToken);
-        }
-
-        var publishedDto = await _authorizationModelRegistry.UpdateStateAsync(
+        var updated = await _authorizationModelRepository.PublishAsync(
             storeId,
             authorizationModelId,
-            AuthorizationModelLifecycleStates.Published,
-            DateTimeOffset.UtcNow,
-            null,
-            null,
+            expectedRevision,
             cancellationToken);
-        return publishedDto is null
+        var published = updated.FirstOrDefault(item =>
+            item.Id.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase));
+        if (published is null
+            && await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken) is not null)
+        {
+            throw new ConcurrencyConflictException("The authorization model lifecycle changed before publish completed.");
+        }
+
+        return published is null
             ? null
-            : new PublishAuthorizationModelResponseDto(publishedDto, publishedDto.Id, publishedDto.SchemaVersion);
+            : new PublishAuthorizationModelResponseDto(ToDto(published), published.Id, published.SchemaVersion);
     }
 
     private async Task<AuthorizationModelDto?> GetByIdAsync(
@@ -123,11 +66,6 @@ public sealed class PublishAuthorizationModelUseCase
         string authorizationModelId,
         CancellationToken cancellationToken)
     {
-        if (_authorizationModelRepository is null)
-        {
-            return await _authorizationModelRegistry.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-        }
-
         var model = await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
         return model is null ? null : ToDto(model);
     }

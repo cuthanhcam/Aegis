@@ -19,7 +19,6 @@ public sealed class CreateAuthorizationModelUseCaseTests
         var useCase = new CreateAuthorizationModelUseCase(
             registry,
             registry,
-            registry,
             dispatcher,
             new AuthorizationModelValidator());
         var request = new CreateAuthorizationModelRequestDto(
@@ -43,7 +42,6 @@ public sealed class CreateAuthorizationModelUseCaseTests
         var store = await registry.CreateAsync("enterprise-docs");
         var dispatcher = new RecordingDispatcher();
         var useCase = new CreateAuthorizationModelUseCase(
-            registry,
             registry,
             registry,
             dispatcher,

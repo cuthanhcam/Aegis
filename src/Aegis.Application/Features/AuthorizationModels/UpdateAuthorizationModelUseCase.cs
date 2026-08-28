@@ -10,51 +10,20 @@ namespace Aegis.Application.Features.AuthorizationModels;
 public sealed class UpdateAuthorizationModelUseCase
 {
     private readonly IStoreRegistry _storeRegistry;
-    private readonly IAuthorizationModelRegistry _authorizationModelRegistry;
-    private readonly IAuthorizationModelRepository? _authorizationModelRepository;
-    private readonly IDomainEventDispatcher? _domainEventDispatcher;
+    private readonly IAuthorizationModelRepository _authorizationModelRepository;
+    private readonly IDomainEventDispatcher _domainEventDispatcher;
     private readonly AuthorizationModelValidator _validator;
 
     public UpdateAuthorizationModelUseCase(
         IStoreRegistry storeRegistry,
-        IAuthorizationModelRegistry authorizationModelRegistry,
         IAuthorizationModelRepository authorizationModelRepository,
         IDomainEventDispatcher domainEventDispatcher,
         AuthorizationModelValidator validator)
-        : this(storeRegistry, authorizationModelRegistry, authorizationModelRepository, domainEventDispatcher, validator, false)
     {
-    }
-
-    private UpdateAuthorizationModelUseCase(
-        IStoreRegistry storeRegistry,
-        IAuthorizationModelRegistry authorizationModelRegistry,
-        IAuthorizationModelRepository? authorizationModelRepository,
-        IDomainEventDispatcher? domainEventDispatcher,
-        AuthorizationModelValidator validator,
-        bool compatibilityPath)
-    {
-        _ = compatibilityPath;
         _storeRegistry = storeRegistry;
-        _authorizationModelRegistry = authorizationModelRegistry;
         _authorizationModelRepository = authorizationModelRepository;
         _domainEventDispatcher = domainEventDispatcher;
         _validator = validator;
-    }
-
-    internal static UpdateAuthorizationModelUseCase CreateCompatibility(
-        IStoreRegistry storeRegistry,
-        IAuthorizationModelRegistry authorizationModelRegistry,
-        IAuthorizationModelRepository? authorizationModelRepository,
-        IDomainEventDispatcher? domainEventDispatcher,
-        AuthorizationModelValidator validator)
-    {
-        return new UpdateAuthorizationModelUseCase(
-            storeRegistry,
-            authorizationModelRegistry,
-            authorizationModelRepository,
-            domainEventDispatcher,
-            validator,
-            true);
     }
 
     public async Task<AuthorizationModelDto?> ExecuteAsync(
@@ -66,22 +35,6 @@ public sealed class UpdateAuthorizationModelUseCase
     {
         ValidateCommand(authorizationModelId, request, cancellationToken);
         await EnsureStoreExistsAsync(storeId, cancellationToken);
-
-        if (_authorizationModelRepository is null)
-        {
-            var current = await _authorizationModelRegistry.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-            if (current is not null && current.Revision != expectedRevision)
-            {
-                throw CreateConflict();
-            }
-
-            return await _authorizationModelRegistry.UpdateAsync(
-                storeId,
-                authorizationModelId,
-                request.SchemaVersion,
-                request.Model,
-                cancellationToken);
-        }
 
         var existing = await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
         if (existing is null)

@@ -11,51 +11,20 @@ namespace Aegis.Application.Features.AuthorizationModels;
 public sealed class RollbackAuthorizationModelUseCase
 {
     private readonly IStoreRegistry _storeRegistry;
-    private readonly IAuthorizationModelRegistry _authorizationModelRegistry;
-    private readonly IAuthorizationModelRepository? _authorizationModelRepository;
+    private readonly IAuthorizationModelRepository _authorizationModelRepository;
     private readonly AuthorizationModelValidator _validator;
-    private readonly IAuditStore? _auditStore;
+    private readonly IAuditStore _auditStore;
 
     public RollbackAuthorizationModelUseCase(
         IStoreRegistry storeRegistry,
-        IAuthorizationModelRegistry authorizationModelRegistry,
         IAuthorizationModelRepository authorizationModelRepository,
         AuthorizationModelValidator validator,
         IAuditStore auditStore)
-        : this(storeRegistry, authorizationModelRegistry, authorizationModelRepository, validator, auditStore, false)
     {
-    }
-
-    private RollbackAuthorizationModelUseCase(
-        IStoreRegistry storeRegistry,
-        IAuthorizationModelRegistry authorizationModelRegistry,
-        IAuthorizationModelRepository? authorizationModelRepository,
-        AuthorizationModelValidator validator,
-        IAuditStore? auditStore,
-        bool compatibilityPath)
-    {
-        _ = compatibilityPath;
         _storeRegistry = storeRegistry;
-        _authorizationModelRegistry = authorizationModelRegistry;
         _authorizationModelRepository = authorizationModelRepository;
         _validator = validator;
         _auditStore = auditStore;
-    }
-
-    internal static RollbackAuthorizationModelUseCase CreateCompatibility(
-        IStoreRegistry storeRegistry,
-        IAuthorizationModelRegistry authorizationModelRegistry,
-        IAuthorizationModelRepository? authorizationModelRepository,
-        AuthorizationModelValidator validator,
-        IAuditStore? auditStore)
-    {
-        return new RollbackAuthorizationModelUseCase(
-            storeRegistry,
-            authorizationModelRegistry,
-            authorizationModelRepository,
-            validator,
-            auditStore,
-            true);
     }
 
     public async Task<RollbackAuthorizationModelResponseDto?> ExecuteAsync(
@@ -66,7 +35,8 @@ public sealed class RollbackAuthorizationModelUseCase
     {
         ValidateModelId(authorizationModelId);
         await EnsureStoreExistsAsync(storeId, cancellationToken);
-        var currentPublished = await _authorizationModelRegistry.GetPublishedAsync(storeId, cancellationToken);
+        var currentPublishedAggregate = await _authorizationModelRepository.GetPublishedByStoreAsync(storeId, cancellationToken);
+        var currentPublished = currentPublishedAggregate is null ? null : ToDto(currentPublishedAggregate);
         var target = await GetByIdAsync(storeId, authorizationModelId, cancellationToken);
         if (target is null)
         {
@@ -80,67 +50,36 @@ public sealed class RollbackAuthorizationModelUseCase
 
         ThrowIfInvalid(target, cancellationToken);
 
-        AuthorizationModelDto? active;
-        if (_authorizationModelRepository is not null)
+        var rolledBack = await _authorizationModelRepository.RollbackAsync(
+            storeId,
+            authorizationModelId,
+            expectedRevision,
+            cancellationToken);
+        if (rolledBack is null
+            && await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken) is not null)
         {
-            var rolledBack = await _authorizationModelRepository.RollbackAsync(
-                storeId,
-                authorizationModelId,
-                expectedRevision,
-                cancellationToken);
-            if (rolledBack is null
-                && await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken) is not null)
-            {
-                throw new ConcurrencyConflictException("The authorization model lifecycle changed before rollback completed.");
-            }
-
-            active = rolledBack is null ? null : ToDto(rolledBack);
+            throw new ConcurrencyConflictException("The authorization model lifecycle changed before rollback completed.");
         }
-        else
-        {
-            if (currentPublished is not null
-                && !currentPublished.Id.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase))
-            {
-                await _authorizationModelRegistry.UpdateStateAsync(
-                    storeId,
-                    currentPublished.Id,
-                    AuthorizationModelLifecycleStates.Archived,
-                    currentPublished.PublishedAt,
-                    DateTimeOffset.UtcNow,
-                    authorizationModelId,
-                    cancellationToken);
-            }
 
-            active = await _authorizationModelRegistry.UpdateStateAsync(
-                storeId,
-                authorizationModelId,
-                AuthorizationModelLifecycleStates.Published,
-                DateTimeOffset.UtcNow,
-                null,
-                null,
-                cancellationToken);
-        }
+        var active = rolledBack is null ? null : ToDto(rolledBack);
 
         if (active is null)
         {
             return null;
         }
 
-        if (_auditStore is not null)
-        {
-            await _auditStore.WriteAsync(
-                new AuditEvent(
-                    storeId,
-                    "model.rollback",
-                    "system",
-                    "rollback",
-                    authorizationModelId,
-                    "Allow",
-                    "MODEL_ROLLED_BACK",
-                    DateTimeOffset.UtcNow,
-                    storeId),
-                cancellationToken);
-        }
+        await _auditStore.WriteAsync(
+            new AuditEvent(
+                storeId,
+                "model.rollback",
+                "system",
+                "rollback",
+                authorizationModelId,
+                "Allow",
+                "MODEL_ROLLED_BACK",
+                DateTimeOffset.UtcNow,
+                storeId),
+            cancellationToken);
 
         return new RollbackAuthorizationModelResponseDto(
             active,
@@ -153,11 +92,6 @@ public sealed class RollbackAuthorizationModelUseCase
         string authorizationModelId,
         CancellationToken cancellationToken)
     {
-        if (_authorizationModelRepository is null)
-        {
-            return await _authorizationModelRegistry.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-        }
-
         var model = await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
         return model is null ? null : ToDto(model);
     }

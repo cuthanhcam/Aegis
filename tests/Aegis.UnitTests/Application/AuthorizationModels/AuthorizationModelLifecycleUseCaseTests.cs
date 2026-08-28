@@ -20,7 +20,6 @@ public sealed class AuthorizationModelLifecycleUseCaseTests
         var useCase = new PublishAuthorizationModelUseCase(
             registry,
             registry,
-            registry,
             new AuthorizationModelValidator());
 
         await useCase.ExecuteAsync(store.Id, first.Id, first.Revision);
@@ -43,7 +42,6 @@ public sealed class AuthorizationModelLifecycleUseCaseTests
         var useCase = new PublishAuthorizationModelUseCase(
             registry,
             registry,
-            registry,
             new AuthorizationModelValidator());
 
         await Assert.ThrowsAsync<ConcurrencyConflictException>(() =>
@@ -61,8 +59,8 @@ public sealed class AuthorizationModelLifecycleUseCaseTests
         var first = await registry.CreateAsync(store.Id, "1.1", "type document");
         var second = await registry.CreateAsync(store.Id, "1.1", "type document\n  relations\n    define viewer: [user]");
         var validator = new AuthorizationModelValidator();
-        var publish = new PublishAuthorizationModelUseCase(registry, registry, registry, validator);
-        var rollback = new RollbackAuthorizationModelUseCase(registry, registry, registry, validator, auditStore);
+        var publish = new PublishAuthorizationModelUseCase(registry, registry, validator);
+        var rollback = new RollbackAuthorizationModelUseCase(registry, registry, validator, auditStore);
         await publish.ExecuteAsync(store.Id, first.Id, first.Revision);
         await publish.ExecuteAsync(store.Id, second.Id, second.Revision);
         var archivedFirst = await registry.GetByIdAsync(store.Id, first.Id);
