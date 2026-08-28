@@ -1,6 +1,7 @@
 using Aegis.Api.Controllers.Helpers;
 using Aegis.Api.Security;
 using Aegis.Application.Interfaces;
+using Aegis.Application.Features.AuthorizationModels;
 using Aegis.Contracts.Administration;
 using Aegis.Contracts.Common;
 using Microsoft.AspNetCore.Authorization;
@@ -16,13 +17,16 @@ namespace Aegis.Api.Controllers
     {
         private readonly IAuthorizationModelAppService _authorizationModelAppService;
         private readonly IStoreRegistry _storeRegistry;
+        private readonly CreateAuthorizationModelUseCase _createAuthorizationModelUseCase;
 
         public AuthorizationModelsController(
             IAuthorizationModelAppService authorizationModelAppService,
-            IStoreRegistry storeRegistry)
+            IStoreRegistry storeRegistry,
+            CreateAuthorizationModelUseCase createAuthorizationModelUseCase)
         {
             _authorizationModelAppService = authorizationModelAppService;
             _storeRegistry = storeRegistry;
+            _createAuthorizationModelUseCase = createAuthorizationModelUseCase;
         }
 
         [HttpGet]
@@ -187,7 +191,7 @@ namespace Aegis.Api.Controllers
             AuthorizationModelDto result;
             if (validatedKey is null)
             {
-                result = await _authorizationModelAppService.CreateAsync(storeId, request, cancellationToken);
+                result = await _createAuthorizationModelUseCase.ExecuteAsync(storeId, request, cancellationToken);
             }
             else
             {
@@ -195,7 +199,7 @@ namespace Aegis.Api.Controllers
                 var actorId = User.FindFirstValue(ClaimTypes.NameIdentifier)
                     ?? User.FindFirstValue("sub")
                     ?? throw new UnauthorizedAccessException("Authenticated subject identifier is required for idempotent mutations.");
-                result = await _authorizationModelAppService.CreateIdempotentAsync(
+                result = await _createAuthorizationModelUseCase.ExecuteIdempotentAsync(
                     storeId,
                     request,
                     tenantId,
