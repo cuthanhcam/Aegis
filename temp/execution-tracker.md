@@ -221,6 +221,8 @@ Iteration 16 merge evidence: feature commit `bc3988f` was merged locally into `d
 
 Iteration 17 application-boundary scope: remove dormant compatibility constructors and alternate registry mutation paths from authorization-model commands so repository transaction ownership is mandatory and visible.
 
-Iteration 17 local evidence: 15 targeted authorization-model command, query-service, and dependency-injection tests passed; dead-code search finds no compatibility factory or nullable persistence/event/audit dependency in the model command directory. Locked restore, zero-warning Release build, 287 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed. `develop` merge and Actions evidence remain pending.
+Iteration 17 local evidence: 15 targeted authorization-model command, query-service, and dependency-injection tests passed; dead-code search finds no compatibility factory or nullable persistence/event/audit dependency in the model command directory. Locked restore, zero-warning Release build, 287 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 17 merge evidence: feature commit `b70eaa1` was merged locally into `develop` as `c6519df`; `.NET CI` run `33189763090` passed. The workflow remained unchanged.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
