@@ -195,6 +195,8 @@ Iteration 12 merge evidence: feature commit `fc53d80` was merged locally into `d
 
 Iteration 13 application-boundary scope: extract authorization-model update and delete commands while preserving strong ETag preconditions, not-found versus stale-revision classification, and post-success event dispatch.
 
-Iteration 13 local evidence: 14 targeted command, compatibility-service, and dependency-injection unit tests plus the strong-ETag update endpoint integration test passed. Locked restore, zero-warning Release build, 286 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed. `develop` merge and Actions evidence remain pending.
+Iteration 13 local evidence: 14 targeted command, compatibility-service, and dependency-injection unit tests plus the strong-ETag update endpoint integration test passed. Locked restore, zero-warning Release build, 286 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 13 merge evidence: feature commit `05c5976` was merged locally into `develop` as `1a7b5dc`; `.NET CI` run `33187045638` passed. The workflow remained unchanged.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
