@@ -75,6 +75,7 @@ namespace Aegis.Infrastructure
                 services.AddSingleton<IAuditStore>(sp => sp.GetRequiredService<PostgresAuditStore>());
                 services.AddSingleton<PostgresAssertionRunStore>();
                 services.AddSingleton<IAssertionRunStore>(sp => sp.GetRequiredService<PostgresAssertionRunStore>());
+                services.AddSingleton<IAssertionRepository, PostgresAssertionRepository>();
             }
             else
             {
@@ -91,6 +92,7 @@ namespace Aegis.Infrastructure
                 services.AddSingleton<IRbacAdminStore>(sp => sp.GetRequiredService<InMemoryRbacStore>());
                 services.AddSingleton<IAuditStore, InMemoryAuditStore>();
                 services.AddSingleton<IAssertionRunStore, InMemoryAssertionRunStore>();
+                services.AddSingleton<IAssertionRepository, InMemoryAssertionRepository>();
             }
 
             services.AddSingleton<IAuthorizationModelProvider, AuthorizationModelProvider>();

@@ -1,5 +1,7 @@
 using Aegis.Application.DomainEvents;
+using Aegis.Application.Features.Permissions;
 using Aegis.Application.Services;
+using Aegis.Authorization.Core.Engine;
 using Aegis.Authorization.Core.Interfaces;
 using Aegis.Authorization.Core.Models;
 using Aegis.Contracts.Administration;
@@ -29,7 +31,20 @@ namespace Aegis.UnitTests.Application.Services
             var storeRegistry = new InMemoryStoreRegistry();
             var relationshipStore = new InMemoryRelationshipStore();
             var rbacStore = new InMemoryRbacStore();
-            var assertionService = new AssertionAppService(storeRegistry, storeRegistry);
+            var auditStore = new InMemoryAuditStore();
+            var checker = new CheckPermissionUseCase(
+                new AuthorizationEngine(
+                    relationshipStore,
+                    rbacStore,
+                    authorizationModelProvider: new AuthorizationModelProvider(storeRegistry)),
+                auditStore);
+            var assertionService = new AssertionAppService(
+                storeRegistry,
+                storeRegistry,
+                checker,
+                new InMemoryAssertionRepository(),
+                new InMemoryAssertionRunStore(),
+                auditStore);
             var service = new StoreAppService(
                 storeRegistry,
                 relationshipStore,

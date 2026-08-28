@@ -20,7 +20,7 @@ The API adapter authenticates and authorizes the caller, resolves tenant/actor c
 | User create | `CreateUserUseCase` | RBAC administration repository insert | Extracted |
 | User update | `UpdateUserUseCase` | RBAC administration repository update-and-return | Extracted |
 | User delete | `DeleteUserUseCase` | RBAC administration repository transaction | Extracted |
-| Assertion write/run/generate | Broad assertion application service | No durable assertion repository yet | Blocked by persistence boundary |
+| Assertion write/run/generate | Broad assertion application service | Versioned assertion repository; command extraction pending | Repository foundation complete |
 
 ## Store-create flow
 
@@ -70,9 +70,11 @@ Role and permission mutations are intentionally still on `IRbacAdminService`. Th
 
 ## Assertion transaction review
 
-Assertion write, run, and audit-generation commands are not extraction-ready. Assertion definitions currently live in a process-local static dictionary inside `AssertionAppService`; run history alone has a persistence abstraction. The service also permits nullable runner, run-store, and audit dependencies through a compatibility constructor. Consequently, there is no repository contract that can truthfully own an atomic assertion replacement, generated-set append, or definition/run-history consistency boundary.
+Assertion definitions now use `IAssertionRepository`; the process-local static dictionary and nullable compatibility composition have been removed. A snapshot is scoped by both store and authorization model and carries a monotonically increasing internal revision. Reads return revision zero with an empty collection when no set has been written. Replace writes one complete snapshot, while `AppendDistinctAsync` serializes read/deduplicate/capacity-check/write as one mutation.
 
-The required precursor is a store- and authorization-model-scoped assertion repository with explicit replace and append semantics, optimistic concurrency or another documented lost-update policy, and a purge operation coordinated with store deletion. Run records should remain append-only and identify the assertion-definition revision they executed. Only after those contracts and migrations exist should write, run, and generate commands be extracted; wrapping the current dictionary in command classes would change names without improving durability or transaction safety.
+The PostgreSQL provider stores one JSONB assertion set per `(store_id, authorization_model_id)` through migration 014. A transaction-scoped advisory lock serializes both first-write and existing-row mutations, avoiding the missing-row race that `SELECT ... FOR UPDATE` alone cannot prevent. The in-memory provider uses an equivalent per-key critical section. Both implementations deduplicate audit-generated assertions and enforce the 100-item capacity before committing, so a rejected append leaves the prior revision unchanged. Store purge removes definition snapshots as well as append-only run history.
+
+`AssertionAppService` still owns validation and orchestration temporarily, but read, write, run, and audit generation all consume the same repository snapshot. Its permission checker, definition repository, run-history store, and audit store are mandatory dependencies. The next extraction may therefore introduce explicit write, run, and generate use cases without inventing transaction ownership. A subsequent additive contract decision is still required before exposing the internal definition revision or recording it on public run DTOs.
 
 ## Review checklist
 

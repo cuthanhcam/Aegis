@@ -131,7 +131,8 @@ Application-boundary progress:
 - [x] Extract model update and delete with repository-owned revision predicates.
 - [x] Extract model publish and rollback while retaining repository-owned store serialization.
 - [x] Split user create/update/delete mutations after repository transaction review and remove their broad-service delegates.
-- [ ] Introduce a durable assertion repository before splitting assertion write/run/generate commands.
+- [x] Introduce a durable, versioned assertion repository with atomic replace/append and store purge semantics.
+- [ ] Split assertion write/run/generate commands and decide how definition revision appears in run history.
 - [x] Remove authorization-model mutation delegates after production and test caller migration.
 - [x] Remove temporary store-create delegates and nullable compatibility composition after caller audit.
 - [x] Remove dormant model-command compatibility factories and registry-only mutation fallbacks.
@@ -233,5 +234,9 @@ Iteration 18 transaction review: PostgreSQL create is a single insert-returning 
 Iteration 18 local evidence: 7 targeted user-boundary and dependency-injection tests passed. Locked restore, zero-warning Release build, 290 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 Iteration 18 merge evidence: feature commit `75ec6c0` was merged locally into `develop` as `6b18cb1`; `.NET CI` run `33191447242` passed. The workflow remained unchanged.
+
+Iteration 19 persistence scope: replace process-local assertion definitions with a store/model-scoped repository and make replacement, audit append, capacity enforcement, and purge explicit persistence operations.
+
+Iteration 19 local evidence: 15 targeted assertion/store tests and the assertion lifecycle endpoint integration test passed. Locked restore, zero-warning Release build, 293 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed. Merge evidence remains pending.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
