@@ -46,13 +46,15 @@ A failed repository mutation is re-read to preserve the external distinction bet
 
 `PublishAuthorizationModelUseCase` and `RollbackAuthorizationModelUseCase` validate the target snapshot and its expected revision before asking the repository to transition lifecycle state. The production repository owns the store-scoped lock, rechecks the target revision inside the transaction, archives the previous active model, publishes the target, and returns the committed state. The partial unique database index remains defense in depth for the single-published-model invariant.
 
-When a repository transition returns no target, each use case re-reads the model to classify a concurrent lifecycle change as a precondition conflict rather than not found. Rollback audit is written only after the repository returns a committed active model. The registry-only multi-call path remains a compatibility path for legacy/test providers and is not the production atomicity guarantee.
+When a repository transition returns no target, each use case re-reads the model to classify a concurrent lifecycle change as a precondition conflict rather than not found. Rollback audit is written only after the repository returns a committed active model. Registry-only mutation fallbacks have been removed; every model command now requires the repository transaction contract through strict composition. Rollback also resolves the previous published snapshot through that repository boundary.
 
 ## Remaining model application service
 
 `IAuthorizationModelAppService` is now read/analysis-oriented. It lists and resolves model snapshots, computes diffs, and exposes the compatibility validation endpoint. It no longer accepts create, update, delete, publish, or rollback commands, and its implementation no longer depends on event dispatch or audit infrastructure. This narrower surface prevents new callers from bypassing the explicit transaction boundaries.
 
 `IStoreAppService` follows the same rule for creation: it retains store query and deletion behavior, while creation is available only through `CreateStoreUseCase`. The use case requires its repository and event dispatcher explicitly; nullable compatibility composition is no longer permitted.
+
+All authorization-model command classes now follow strict composition as well. Create, update, delete, publish, and rollback require their repository and any event/audit collaborator directly. There are no private compatibility constructors, nullable persistence dependencies, or alternate multi-call mutation algorithms hidden behind the same command API.
 
 ## Review checklist
 

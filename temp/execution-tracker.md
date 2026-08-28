@@ -133,6 +133,7 @@ Application-boundary progress:
 - [ ] Split user and assertion mutations after repository transaction review.
 - [x] Remove authorization-model mutation delegates after production and test caller migration.
 - [x] Remove temporary store-create delegates and nullable compatibility composition after caller audit.
+- [x] Remove dormant model-command compatibility factories and registry-only mutation fallbacks.
 
 Iteration 1 evidence: local locked restore, zero-warning Release build, 268 unit tests, 25 integration tests, a 53-path OpenAPI v1 export, and `develop` Actions run `31955813080` all passed for merge commit `c39e396`.
 
@@ -217,5 +218,9 @@ Iteration 16 application-boundary scope: audit store-create callers, remove crea
 Iteration 16 local evidence: 11 targeted store-use-case, remaining store-service, and dependency-injection tests passed; caller search confirms `StoresController` creates stores only through `CreateStoreUseCase`. Locked restore, zero-warning Release build, 287 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 Iteration 16 merge evidence: feature commit `bc3988f` was merged locally into `develop` as `7f9617d`; `.NET CI` run `33189134472` passed. The workflow remained unchanged.
+
+Iteration 17 application-boundary scope: remove dormant compatibility constructors and alternate registry mutation paths from authorization-model commands so repository transaction ownership is mandatory and visible.
+
+Iteration 17 local evidence: 15 targeted authorization-model command, query-service, and dependency-injection tests passed; dead-code search finds no compatibility factory or nullable persistence/event/audit dependency in the model command directory. Locked restore, zero-warning Release build, 287 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed. `develop` merge and Actions evidence remain pending.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.

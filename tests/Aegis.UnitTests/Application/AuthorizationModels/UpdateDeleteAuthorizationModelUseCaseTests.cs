@@ -24,7 +24,6 @@ public sealed class UpdateDeleteAuthorizationModelUseCaseTests
         var useCase = new UpdateAuthorizationModelUseCase(
             registry,
             registry,
-            registry,
             dispatcher,
             new AuthorizationModelValidator());
         var request = new CreateAuthorizationModelRequestDto(
@@ -50,7 +49,7 @@ public sealed class UpdateDeleteAuthorizationModelUseCaseTests
         var store = await registry.CreateAsync("enterprise-docs");
         var model = await registry.CreateAsync(store.Id, "1.1", "type document");
         var dispatcher = new RecordingDispatcher();
-        var useCase = new DeleteAuthorizationModelUseCase(registry, registry, registry, dispatcher);
+        var useCase = new DeleteAuthorizationModelUseCase(registry, registry, dispatcher);
 
         var deleted = await useCase.ExecuteAsync(store.Id, model.Id, model.Revision);
         var missing = await useCase.ExecuteAsync(store.Id, "missing-model", 1);
@@ -67,7 +66,7 @@ public sealed class UpdateDeleteAuthorizationModelUseCaseTests
         var store = await registry.CreateAsync("enterprise-docs");
         var model = await registry.CreateAsync(store.Id, "1.1", "type document");
         var dispatcher = new RecordingDispatcher();
-        var useCase = new DeleteAuthorizationModelUseCase(registry, registry, registry, dispatcher);
+        var useCase = new DeleteAuthorizationModelUseCase(registry, registry, dispatcher);
 
         await Assert.ThrowsAsync<ConcurrencyConflictException>(() =>
             useCase.ExecuteAsync(store.Id, model.Id, model.Revision + 1));

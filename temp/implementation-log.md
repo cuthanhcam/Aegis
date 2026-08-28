@@ -233,3 +233,15 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Follow-up: audit dormant compatibility factories inside the authorization-model command classes, then review user/assertion mutation transaction ownership.
 - Verification: 11 targeted store-use-case, remaining store-service, and dependency-injection tests pass. Locked restore and zero-warning Release build pass with 287 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Merge evidence: feature commit `bc3988f` was merged locally into `develop` as `7f9617d` and pushed. GitHub Actions `.NET CI` run `33189134472` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 17
+
+- Branch: `refactor/remove-model-command-compatibility-b1`
+- Status: In progress
+- Intended result: make authorization-model command dependencies and transaction ownership strict after broad-service delegate removal.
+- Dead-code evidence: no caller remained for the five `CreateCompatibility` factories. Their private boolean constructors, nullable collaborators, and registry-only mutation branches were reachable only through those factories.
+- Composition change: create/update/delete require repository and event dispatcher; publish requires repository; rollback requires repository and audit store. Validators and store registry remain explicit where command validation and store existence require them.
+- Lifecycle consistency: rollback now reads the current published model through `IAuthorizationModelRepository.GetPublishedByStoreAsync`, so its snapshot and transition use one persistence abstraction. Production and in-memory tests follow the same orchestration algorithm.
+- Contract impact: none; HTTP routes, payloads, ETags, status/error mapping, idempotency, tenant/store guards, and database invariants remain unchanged.
+- Follow-up: review user and assertion mutations, identify their repository transaction owners, and extract only commands whose atomicity can be stated explicitly.
+- Verification: 15 targeted authorization-model command, remaining query-service, and dependency-injection tests pass. Locked restore and zero-warning Release build pass with 287 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.

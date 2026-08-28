@@ -8,45 +8,17 @@ namespace Aegis.Application.Features.AuthorizationModels;
 public sealed class DeleteAuthorizationModelUseCase
 {
     private readonly IStoreRegistry _storeRegistry;
-    private readonly IAuthorizationModelRegistry _authorizationModelRegistry;
-    private readonly IAuthorizationModelRepository? _authorizationModelRepository;
-    private readonly IDomainEventDispatcher? _domainEventDispatcher;
+    private readonly IAuthorizationModelRepository _authorizationModelRepository;
+    private readonly IDomainEventDispatcher _domainEventDispatcher;
 
     public DeleteAuthorizationModelUseCase(
         IStoreRegistry storeRegistry,
-        IAuthorizationModelRegistry authorizationModelRegistry,
         IAuthorizationModelRepository authorizationModelRepository,
         IDomainEventDispatcher domainEventDispatcher)
-        : this(storeRegistry, authorizationModelRegistry, authorizationModelRepository, domainEventDispatcher, false)
     {
-    }
-
-    private DeleteAuthorizationModelUseCase(
-        IStoreRegistry storeRegistry,
-        IAuthorizationModelRegistry authorizationModelRegistry,
-        IAuthorizationModelRepository? authorizationModelRepository,
-        IDomainEventDispatcher? domainEventDispatcher,
-        bool compatibilityPath)
-    {
-        _ = compatibilityPath;
         _storeRegistry = storeRegistry;
-        _authorizationModelRegistry = authorizationModelRegistry;
         _authorizationModelRepository = authorizationModelRepository;
         _domainEventDispatcher = domainEventDispatcher;
-    }
-
-    internal static DeleteAuthorizationModelUseCase CreateCompatibility(
-        IStoreRegistry storeRegistry,
-        IAuthorizationModelRegistry authorizationModelRegistry,
-        IAuthorizationModelRepository? authorizationModelRepository,
-        IDomainEventDispatcher? domainEventDispatcher)
-    {
-        return new DeleteAuthorizationModelUseCase(
-            storeRegistry,
-            authorizationModelRegistry,
-            authorizationModelRepository,
-            domainEventDispatcher,
-            true);
     }
 
     public async Task<bool> ExecuteAsync(
@@ -61,17 +33,6 @@ public sealed class DeleteAuthorizationModelUseCase
         }
 
         await EnsureStoreExistsAsync(storeId, cancellationToken);
-
-        if (_authorizationModelRepository is null)
-        {
-            var current = await _authorizationModelRegistry.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-            if (current is not null && current.Revision != expectedRevision)
-            {
-                throw CreateConflict();
-            }
-
-            return await _authorizationModelRegistry.DeleteAsync(storeId, authorizationModelId, cancellationToken);
-        }
 
         var existing = await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
         if (existing is null)

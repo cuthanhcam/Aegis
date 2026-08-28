@@ -9,55 +9,20 @@ namespace Aegis.Application.Features.AuthorizationModels;
 public sealed class CreateAuthorizationModelUseCase
 {
     private readonly IStoreRegistry _storeRegistry;
-    private readonly IAuthorizationModelRegistry _authorizationModelRegistry;
-    private readonly IAuthorizationModelRepository? _authorizationModelRepository;
-    private readonly IDomainEventDispatcher? _domainEventDispatcher;
+    private readonly IAuthorizationModelRepository _authorizationModelRepository;
+    private readonly IDomainEventDispatcher _domainEventDispatcher;
     private readonly AuthorizationModelValidator _validator;
 
     public CreateAuthorizationModelUseCase(
         IStoreRegistry storeRegistry,
-        IAuthorizationModelRegistry authorizationModelRegistry,
         IAuthorizationModelRepository authorizationModelRepository,
         IDomainEventDispatcher domainEventDispatcher,
         AuthorizationModelValidator validator)
     {
         _storeRegistry = storeRegistry;
-        _authorizationModelRegistry = authorizationModelRegistry;
         _authorizationModelRepository = authorizationModelRepository;
         _domainEventDispatcher = domainEventDispatcher;
         _validator = validator;
-    }
-
-    private CreateAuthorizationModelUseCase(
-        IStoreRegistry storeRegistry,
-        IAuthorizationModelRegistry authorizationModelRegistry,
-        IAuthorizationModelRepository? authorizationModelRepository,
-        IDomainEventDispatcher? domainEventDispatcher,
-        AuthorizationModelValidator validator,
-        bool compatibilityPath)
-    {
-        _ = compatibilityPath;
-        _storeRegistry = storeRegistry;
-        _authorizationModelRegistry = authorizationModelRegistry;
-        _authorizationModelRepository = authorizationModelRepository;
-        _domainEventDispatcher = domainEventDispatcher;
-        _validator = validator;
-    }
-
-    internal static CreateAuthorizationModelUseCase CreateCompatibility(
-        IStoreRegistry storeRegistry,
-        IAuthorizationModelRegistry authorizationModelRegistry,
-        IAuthorizationModelRepository? authorizationModelRepository,
-        IDomainEventDispatcher? domainEventDispatcher,
-        AuthorizationModelValidator validator)
-    {
-        return new CreateAuthorizationModelUseCase(
-            storeRegistry,
-            authorizationModelRegistry,
-            authorizationModelRepository,
-            domainEventDispatcher,
-            validator,
-            true);
     }
 
     public async Task<AuthorizationModelDto> ExecuteAsync(
@@ -67,15 +32,6 @@ public sealed class CreateAuthorizationModelUseCase
     {
         ValidateDefinition(request, cancellationToken);
         await EnsureStoreExistsAsync(storeId, cancellationToken);
-
-        if (_authorizationModelRepository is null)
-        {
-            return await _authorizationModelRegistry.CreateAsync(
-                storeId,
-                request.SchemaVersion,
-                request.Model,
-                cancellationToken);
-        }
 
         var authorizationModel = CreateValidatedModel(storeId, request);
         await _authorizationModelRepository.AddAsync(authorizationModel, cancellationToken);
@@ -95,11 +51,6 @@ public sealed class CreateAuthorizationModelUseCase
         ValidateIdempotencyContext(tenantId, actorId, idempotencyKey, requestFingerprint);
         ValidateDefinition(request, cancellationToken);
         await EnsureStoreExistsAsync(storeId, cancellationToken);
-
-        if (_authorizationModelRepository is null)
-        {
-            throw new NotSupportedException("Durable idempotency requires an authorization-model repository.");
-        }
 
         var authorizationModel = CreateValidatedModel(storeId, request);
         var mutation = new IdempotentMutation(
