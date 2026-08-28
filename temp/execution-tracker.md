@@ -128,7 +128,8 @@ Application-boundary progress:
 - [x] Make `StoresController.Create` depend directly on the command boundary.
 - [x] Extract authorization-model DSL validation into an independent application component.
 - [x] Extract model creation and idempotent replay into `CreateAuthorizationModelUseCase`.
-- [ ] Extract model update/delete and publish/rollback commands.
+- [x] Extract model update and delete with repository-owned revision predicates.
+- [ ] Extract model publish and rollback lifecycle commands.
 - [ ] Split user and assertion mutations after repository transaction review.
 - [ ] Remove temporary create delegates from broad application-service interfaces after caller migration.
 
@@ -191,5 +192,9 @@ Iteration 12 application-boundary scope: extract authorization-model creation an
 Iteration 12 local evidence: 13 targeted command, compatibility-service, and dependency-injection unit tests plus the model-create replay endpoint integration test passed. Locked restore, zero-warning Release build, 283 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 Iteration 12 merge evidence: feature commit `fc53d80` was merged locally into `develop` as `b74a29d`; `.NET CI` run `33186355615` passed. The workflow remained unchanged.
+
+Iteration 13 application-boundary scope: extract authorization-model update and delete commands while preserving strong ETag preconditions, not-found versus stale-revision classification, and post-success event dispatch.
+
+Iteration 13 local evidence: 14 targeted command, compatibility-service, and dependency-injection unit tests plus the strong-ETag update endpoint integration test passed. Locked restore, zero-warning Release build, 286 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed. `develop` merge and Actions evidence remain pending.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.

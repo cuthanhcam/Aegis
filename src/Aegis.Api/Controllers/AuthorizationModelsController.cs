@@ -18,15 +18,21 @@ namespace Aegis.Api.Controllers
         private readonly IAuthorizationModelAppService _authorizationModelAppService;
         private readonly IStoreRegistry _storeRegistry;
         private readonly CreateAuthorizationModelUseCase _createAuthorizationModelUseCase;
+        private readonly UpdateAuthorizationModelUseCase _updateAuthorizationModelUseCase;
+        private readonly DeleteAuthorizationModelUseCase _deleteAuthorizationModelUseCase;
 
         public AuthorizationModelsController(
             IAuthorizationModelAppService authorizationModelAppService,
             IStoreRegistry storeRegistry,
-            CreateAuthorizationModelUseCase createAuthorizationModelUseCase)
+            CreateAuthorizationModelUseCase createAuthorizationModelUseCase,
+            UpdateAuthorizationModelUseCase updateAuthorizationModelUseCase,
+            DeleteAuthorizationModelUseCase deleteAuthorizationModelUseCase)
         {
             _authorizationModelAppService = authorizationModelAppService;
             _storeRegistry = storeRegistry;
             _createAuthorizationModelUseCase = createAuthorizationModelUseCase;
+            _updateAuthorizationModelUseCase = updateAuthorizationModelUseCase;
+            _deleteAuthorizationModelUseCase = deleteAuthorizationModelUseCase;
         }
 
         [HttpGet]
@@ -248,7 +254,7 @@ namespace Aegis.Api.Controllers
             }
 
             var expectedRevision = EntityTagPreconditions.RequireRevision(ifMatch);
-            var result = await _authorizationModelAppService.UpdateAsync(storeId, authorizationModelId, request, expectedRevision, cancellationToken);
+            var result = await _updateAuthorizationModelUseCase.ExecuteAsync(storeId, authorizationModelId, request, expectedRevision, cancellationToken);
             if (result is null)
             {
                 return this.NotFoundResponse<AuthorizationModelDto>(NativeErrorCodes.AuthorizationModelNotFound, $"Authorization model '{authorizationModelId}' was not found.");
@@ -275,7 +281,7 @@ namespace Aegis.Api.Controllers
             }
 
             var expectedRevision = EntityTagPreconditions.RequireRevision(ifMatch);
-            var deleted = await _authorizationModelAppService.DeleteAsync(storeId, authorizationModelId, expectedRevision, cancellationToken);
+            var deleted = await _deleteAuthorizationModelUseCase.ExecuteAsync(storeId, authorizationModelId, expectedRevision, cancellationToken);
             return this.DeletedResponse(deleted);
         }
     }

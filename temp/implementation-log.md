@@ -181,3 +181,15 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Follow-up: extract model update/delete commands, then store-serialized publish/rollback lifecycle commands.
 - Verification: 13 targeted command, compatibility-service, and dependency-injection unit tests and one replay endpoint integration test pass. Locked restore and zero-warning Release build pass with 283 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Merge evidence: feature commit `fc53d80` was merged locally into `develop` as `b74a29d` and pushed. GitHub Actions `.NET CI` run `33186355615` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 13
+
+- Branch: `refactor/authorization-model-update-delete-b1`
+- Status: In progress
+- Intended result: isolate authorization-model definition update and delete behind explicit optimistic-concurrency command boundaries.
+- Boundary: the API owns strong `If-Match` parsing and response ETags. `UpdateAuthorizationModelUseCase` owns DSL validation, aggregate mutation, compare-and-write coordination, conflict classification, event dispatch, and DTO mapping. `DeleteAuthorizationModelUseCase` owns compare-and-delete coordination, conflict classification, and deletion-event dispatch.
+- Concurrency safety: repository revision predicates remain atomic. When a mutation loses the race, the use case re-reads the model to distinguish concurrent modification from concurrent removal; only a still-existing model produces `ConcurrencyConflictException`.
+- Migration safety: controller update/delete actions consume the command use cases directly. Broad-service methods remain temporary delegates for internal callers.
+- Contract impact: none intended; required ETags, HTTP 428/412 behavior, not-found mapping, payloads, and tenant/store guards remain unchanged.
+- Follow-up: extract store-serialized publish and rollback lifecycle commands, then remove model mutation delegates after caller review.
+- Verification: 14 targeted command, compatibility-service, and dependency-injection unit tests and the strong-ETag update endpoint integration test pass. Locked restore and zero-warning Release build pass with 286 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.
