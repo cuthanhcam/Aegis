@@ -230,6 +230,8 @@ Iteration 18 application-boundary scope: extract tenant-scoped user create/updat
 
 Iteration 18 transaction review: PostgreSQL create is a single insert-returning statement. Update now uses update-returning instead of a write followed by an unrelated read. Delete now removes assignments and the user inside an explicit transaction and reports success from the user row. Assertion mutations remain deferred because definitions are process-local state and no durable repository owns replace/append concurrency.
 
-Iteration 18 local evidence: 7 targeted user-boundary and dependency-injection tests passed. Locked restore, zero-warning Release build, 290 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed. Local merge, push, and unchanged-pipeline Actions evidence remain pending.
+Iteration 18 local evidence: 7 targeted user-boundary and dependency-injection tests passed. Locked restore, zero-warning Release build, 290 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 18 merge evidence: feature commit `75ec6c0` was merged locally into `develop` as `6b18cb1`; `.NET CI` run `33191447242` passed. The workflow remained unchanged.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
