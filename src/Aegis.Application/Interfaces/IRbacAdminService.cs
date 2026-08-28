@@ -85,22 +85,6 @@ public interface IRbacAdminService
         string tenantId,
         CancellationToken cancellationToken = default);
 
-    Task<UserDto> CreateUserAsync(
-        string tenantId,
-        CreateUserRequestDto request,
-        CancellationToken cancellationToken = default);
-
-    Task<UserDto?> UpdateUserAsync(
-        string tenantId,
-        string userId,
-        UpdateUserRequestDto request,
-        CancellationToken cancellationToken = default);
-
-    Task<bool> DeleteUserAsync(
-        string tenantId,
-        string userId,
-        CancellationToken cancellationToken = default);
-
     Task<UserRolesDto> GetUserRolesAsync(
         string tenantId,
         string userId,

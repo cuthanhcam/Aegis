@@ -169,9 +169,9 @@ namespace Aegis.Application.Interfaces
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Updates mutable user fields.
+        /// Atomically updates mutable user fields and returns the persisted snapshot, or null when absent.
         /// </summary>
-        Task<bool> UpdateUserAsync(
+        Task<UserDto?> UpdateUserAsync(
             string tenantId,
             string userId,
             string? email,

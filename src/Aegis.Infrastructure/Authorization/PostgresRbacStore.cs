@@ -330,11 +330,12 @@ namespace Aegis.Infrastructure.Authorization
             return new UserDto(reader.GetString(0), reader.GetFieldValue<DateTimeOffset>(1), reader.IsDBNull(2) ? null : reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetString(3));
         }
 
-        public async Task<bool> UpdateUserAsync(string tenantId, string userId, string? email, string? displayName, CancellationToken cancellationToken = default)
+        public async Task<UserDto?> UpdateUserAsync(string tenantId, string userId, string? email, string? displayName, CancellationToken cancellationToken = default)
         {
             const string sql = @"UPDATE rbac_users
                                  SET email = COALESCE(@email, email), display_name = COALESCE(@display_name, display_name), updated_at = @updated_at
-                                 WHERE tenant_id = @tenant_id AND user_id = @user_id;";
+                                 WHERE tenant_id = @tenant_id AND user_id = @user_id
+                                 RETURNING user_id, created_at, email, display_name;";
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
             await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue("tenant_id", tenantId);
@@ -342,22 +343,41 @@ namespace Aegis.Infrastructure.Authorization
             command.Parameters.AddWithValue("email", (object?)email ?? DBNull.Value);
             command.Parameters.AddWithValue("display_name", (object?)displayName ?? DBNull.Value);
             command.Parameters.AddWithValue("updated_at", DateTimeOffset.UtcNow);
-            var updated = await command.ExecuteNonQueryAsync(cancellationToken) > 0;
-            if (updated)
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
             {
-                EvictTenantGrantCache(tenantId);
+                return null;
             }
 
+            var updated = new UserDto(
+                reader.GetString(0),
+                reader.GetFieldValue<DateTimeOffset>(1),
+                reader.IsDBNull(2) ? null : reader.GetString(2),
+                reader.IsDBNull(3) ? null : reader.GetString(3));
+            EvictTenantGrantCache(tenantId);
             return updated;
         }
 
         public async Task<bool> DeleteUserAsync(string tenantId, string userId, CancellationToken cancellationToken = default)
         {
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
-            await using var command = new NpgsqlCommand("DELETE FROM rbac_user_roles WHERE tenant_id = @tenant_id AND user_id = @user_id; DELETE FROM rbac_users WHERE tenant_id = @tenant_id AND user_id = @user_id;", connection);
-            command.Parameters.AddWithValue("tenant_id", tenantId);
-            command.Parameters.AddWithValue("user_id", userId);
-            var deleted = await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            await using var assignmentsCommand = new NpgsqlCommand(
+                "DELETE FROM rbac_user_roles WHERE tenant_id = @tenant_id AND user_id = @user_id;",
+                connection,
+                transaction);
+            assignmentsCommand.Parameters.AddWithValue("tenant_id", tenantId);
+            assignmentsCommand.Parameters.AddWithValue("user_id", userId);
+            await assignmentsCommand.ExecuteNonQueryAsync(cancellationToken);
+
+            await using var userCommand = new NpgsqlCommand(
+                "DELETE FROM rbac_users WHERE tenant_id = @tenant_id AND user_id = @user_id;",
+                connection,
+                transaction);
+            userCommand.Parameters.AddWithValue("tenant_id", tenantId);
+            userCommand.Parameters.AddWithValue("user_id", userId);
+            var deleted = await userCommand.ExecuteNonQueryAsync(cancellationToken) > 0;
+            await transaction.CommitAsync(cancellationToken);
             if (deleted)
             {
                 EvictTenantGrantCache(tenantId);

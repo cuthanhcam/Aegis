@@ -246,3 +246,15 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Follow-up: review user and assertion mutations, identify their repository transaction owners, and extract only commands whose atomicity can be stated explicitly.
 - Verification: 15 targeted authorization-model command, remaining query-service, and dependency-injection tests pass. Locked restore and zero-warning Release build pass with 287 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Merge evidence: feature commit `b70eaa1` was merged locally into `develop` as `c6519df` and pushed. GitHub Actions `.NET CI` run `33189763090` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 18
+
+- Branch: `refactor/user-mutation-use-cases-b1`
+- Status: In progress
+- Intended result: isolate tenant user create/update/delete behind explicit commands whose repository transaction ownership can be stated and tested.
+- Boundary: `UsersController` retains tenant access enforcement and HTTP mapping. The three user mutation use cases own command validation and repository coordination. `RbacAdminService` retains user queries and RBAC role/permission behavior but no longer exposes profile mutation delegates.
+- Transaction safety: PostgreSQL update returns the row from `UPDATE ... RETURNING`, removing the former update/read race. Delete wraps assignment cleanup and user deletion in an explicit transaction and derives its boolean from the user deletion. Tenant predicates remain mandatory in every operation.
+- Assertion review: definition state is still held in a static process-local dictionary and only run history has a durable store. Assertion command extraction is deferred until a scoped repository defines replace/append concurrency and purge semantics.
+- Contract impact: none intended; routes, payloads, status/error mapping, tenant guard, and OpenAPI shape remain unchanged.
+- Follow-up: add the persistent assertion-definition repository and migration before extracting assertion write/run/generate commands; review role/permission existence and conflict semantics separately.
+- Verification: 7 targeted user-boundary and dependency-injection tests pass. Locked restore and zero-warning Release build pass with 290 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
