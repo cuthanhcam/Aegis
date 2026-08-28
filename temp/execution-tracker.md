@@ -161,4 +161,6 @@ Iteration 9 store-idempotency scope: complete the mutation risk register and add
 
 Iteration 9 local evidence: store same-key replay and payload-conflict coverage, additive OpenAPI semantic diff, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 276 unit tests, and 30 integration tests passed. `develop` merge and Actions evidence remain pending.
 
+Iteration 9 merge evidence: feature commit `3b4966d` was merged locally into `develop` as `d6ed257`; `.NET CI` run `33183532413` passed. The workflow remained unchanged.
+
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
