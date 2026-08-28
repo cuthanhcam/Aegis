@@ -34,19 +34,23 @@ The existing validation endpoint and model mutation paths temporarily reach it t
 
 `AuthorizationModelsController` retains store-tenant authorization, actor resolution, idempotency-header parsing, request fingerprinting, HTTP status selection, and ETag emission. `CreateAuthorizationModelUseCase` validates command context and the DSL, verifies that the store exists, constructs and marks the aggregate as validated, selects the repository transaction, suppresses duplicate domain-event dispatch during replay, and maps the persisted aggregate to the public DTO.
 
-The repository remains the atomic owner of an idempotent create: reservation lookup, fingerprint conflict detection, model insertion, and response storage complete in one transaction. The broad application service exposes temporary create delegates for internal compatibility only; new transport callers depend on the command use case directly.
+The repository remains the atomic owner of an idempotent create: reservation lookup, fingerprint conflict detection, model insertion, and response storage complete in one transaction. All transport callers now depend on the command use case directly; the broad model application service no longer exposes create delegates.
 
 ## Authorization-model update and delete flows
 
 `AuthorizationModelsController` parses the required strong `If-Match` precondition and passes its expected revision to the command. `UpdateAuthorizationModelUseCase` validates the model definition, verifies store/model identity, mutates the aggregate, and invokes the repository compare-and-write predicate. `DeleteAuthorizationModelUseCase` marks the loaded aggregate for deletion and invokes the equivalent compare-and-delete predicate.
 
-A failed repository mutation is re-read to preserve the external distinction between a model that disappeared and one that still exists at another revision. Only the latter becomes `ConcurrencyConflictException` and HTTP 412. Domain events are dispatched only after a successful update or delete; failed and missing mutations do not emit misleading audit/event activity. The broad application service retains temporary delegates while controller callers migrate command by command.
+A failed repository mutation is re-read to preserve the external distinction between a model that disappeared and one that still exists at another revision. Only the latter becomes `ConcurrencyConflictException` and HTTP 412. Domain events are dispatched only after a successful update or delete; failed and missing mutations do not emit misleading audit/event activity. Update and delete delegates were removed after caller migration completed.
 
 ## Authorization-model lifecycle flows
 
 `PublishAuthorizationModelUseCase` and `RollbackAuthorizationModelUseCase` validate the target snapshot and its expected revision before asking the repository to transition lifecycle state. The production repository owns the store-scoped lock, rechecks the target revision inside the transaction, archives the previous active model, publishes the target, and returns the committed state. The partial unique database index remains defense in depth for the single-published-model invariant.
 
 When a repository transition returns no target, each use case re-reads the model to classify a concurrent lifecycle change as a precondition conflict rather than not found. Rollback audit is written only after the repository returns a committed active model. The registry-only multi-call path remains a compatibility path for legacy/test providers and is not the production atomicity guarantee.
+
+## Remaining model application service
+
+`IAuthorizationModelAppService` is now read/analysis-oriented. It lists and resolves model snapshots, computes diffs, and exposes the compatibility validation endpoint. It no longer accepts create, update, delete, publish, or rollback commands, and its implementation no longer depends on event dispatch or audit infrastructure. This narrower surface prevents new callers from bypassing the explicit transaction boundaries.
 
 ## Review checklist
 

@@ -1,7 +1,5 @@
-using Aegis.Application.DomainEvents;
 using Aegis.Application.Features.AuthorizationModels;
 using Aegis.Application.Interfaces;
-using Aegis.Authorization.Core.Interfaces;
 using Aegis.Contracts.Administration;
 using Aegis.Domain.Entities;
 using Aegis.Domain.Repositories;
@@ -13,130 +11,17 @@ namespace Aegis.Application.Services
         private readonly IStoreRegistry _storeRegistry;
         private readonly IAuthorizationModelRegistry _authorizationModelRegistry;
         private readonly IAuthorizationModelRepository? _authorizationModelRepository;
-        private readonly IDomainEventDispatcher? _domainEventDispatcher;
-        private readonly IAuditStore? _auditStore;
         private readonly AuthorizationModelValidator _validator;
-        private readonly CreateAuthorizationModelUseCase _createAuthorizationModelUseCase;
-        private readonly UpdateAuthorizationModelUseCase _updateAuthorizationModelUseCase;
-        private readonly DeleteAuthorizationModelUseCase _deleteAuthorizationModelUseCase;
-        private readonly PublishAuthorizationModelUseCase _publishAuthorizationModelUseCase;
-        private readonly RollbackAuthorizationModelUseCase _rollbackAuthorizationModelUseCase;
 
-        public AuthorizationModelAppService(IStoreRegistry storeRegistry, IAuthorizationModelRegistry authorizationModelRegistry)
+        public AuthorizationModelAppService(
+            IStoreRegistry storeRegistry,
+            IAuthorizationModelRegistry authorizationModelRegistry,
+            AuthorizationModelValidator validator)
         {
             _storeRegistry = storeRegistry;
             _authorizationModelRegistry = authorizationModelRegistry;
             _authorizationModelRepository = authorizationModelRegistry as IAuthorizationModelRepository;
-            _domainEventDispatcher = null;
-            _validator = new AuthorizationModelValidator();
-            _createAuthorizationModelUseCase = CreateAuthorizationModelUseCase.CreateCompatibility(
-                _storeRegistry,
-                _authorizationModelRegistry,
-                _authorizationModelRepository,
-                _domainEventDispatcher,
-                _validator);
-            _updateAuthorizationModelUseCase = UpdateAuthorizationModelUseCase.CreateCompatibility(
-                _storeRegistry,
-                _authorizationModelRegistry,
-                _authorizationModelRepository,
-                _domainEventDispatcher,
-                _validator);
-            _deleteAuthorizationModelUseCase = DeleteAuthorizationModelUseCase.CreateCompatibility(
-                _storeRegistry,
-                _authorizationModelRegistry,
-                _authorizationModelRepository,
-                _domainEventDispatcher);
-            _publishAuthorizationModelUseCase = PublishAuthorizationModelUseCase.CreateCompatibility(
-                _storeRegistry,
-                _authorizationModelRegistry,
-                _authorizationModelRepository,
-                _validator);
-            _rollbackAuthorizationModelUseCase = RollbackAuthorizationModelUseCase.CreateCompatibility(
-                _storeRegistry,
-                _authorizationModelRegistry,
-                _authorizationModelRepository,
-                _validator,
-                _auditStore);
-        }
-
-        public AuthorizationModelAppService(
-            IStoreRegistry storeRegistry,
-            IAuthorizationModelRegistry authorizationModelRegistry,
-            IAuthorizationModelRepository authorizationModelRepository,
-            IDomainEventDispatcher domainEventDispatcher,
-            IAuditStore? auditStore = null)
-            : this(storeRegistry, authorizationModelRegistry, authorizationModelRepository, domainEventDispatcher, new AuthorizationModelValidator(), auditStore)
-        {
-        }
-
-        public AuthorizationModelAppService(
-            IStoreRegistry storeRegistry,
-            IAuthorizationModelRegistry authorizationModelRegistry,
-            IAuthorizationModelRepository authorizationModelRepository,
-            IDomainEventDispatcher domainEventDispatcher,
-            AuthorizationModelValidator validator,
-            IAuditStore? auditStore = null)
-            : this(storeRegistry, authorizationModelRegistry)
-        {
-            _authorizationModelRepository = authorizationModelRepository;
-            _domainEventDispatcher = domainEventDispatcher;
             _validator = validator ?? throw new ArgumentNullException(nameof(validator));
-            _auditStore = auditStore;
-            _createAuthorizationModelUseCase = CreateAuthorizationModelUseCase.CreateCompatibility(
-                _storeRegistry,
-                _authorizationModelRegistry,
-                _authorizationModelRepository,
-                _domainEventDispatcher,
-                _validator);
-            _updateAuthorizationModelUseCase = UpdateAuthorizationModelUseCase.CreateCompatibility(
-                _storeRegistry,
-                _authorizationModelRegistry,
-                _authorizationModelRepository,
-                _domainEventDispatcher,
-                _validator);
-            _deleteAuthorizationModelUseCase = DeleteAuthorizationModelUseCase.CreateCompatibility(
-                _storeRegistry,
-                _authorizationModelRegistry,
-                _authorizationModelRepository,
-                _domainEventDispatcher);
-            _publishAuthorizationModelUseCase = PublishAuthorizationModelUseCase.CreateCompatibility(
-                _storeRegistry,
-                _authorizationModelRegistry,
-                _authorizationModelRepository,
-                _validator);
-            _rollbackAuthorizationModelUseCase = RollbackAuthorizationModelUseCase.CreateCompatibility(
-                _storeRegistry,
-                _authorizationModelRegistry,
-                _authorizationModelRepository,
-                _validator,
-                _auditStore);
-        }
-
-        public async Task<AuthorizationModelDto> CreateAsync(
-            string storeId,
-            CreateAuthorizationModelRequestDto request,
-            CancellationToken cancellationToken = default)
-        {
-            return await _createAuthorizationModelUseCase.ExecuteAsync(storeId, request, cancellationToken);
-        }
-
-        public async Task<AuthorizationModelDto> CreateIdempotentAsync(
-            string storeId,
-            CreateAuthorizationModelRequestDto request,
-            string tenantId,
-            string actorId,
-            string idempotencyKey,
-            string requestFingerprint,
-            CancellationToken cancellationToken = default)
-        {
-            return await _createAuthorizationModelUseCase.ExecuteIdempotentAsync(
-                storeId,
-                request,
-                tenantId,
-                actorId,
-                idempotencyKey,
-                requestFingerprint,
-                cancellationToken);
         }
 
         public async Task<IReadOnlyList<AuthorizationModelDto>> ListAsync(string storeId, CancellationToken cancellationToken = default)
@@ -184,32 +69,6 @@ namespace Aegis.Application.Services
             }
 
             return await _authorizationModelRegistry.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-        }
-
-        public async Task<PublishAuthorizationModelResponseDto?> PublishAsync(
-            string storeId,
-            string authorizationModelId,
-            long expectedRevision,
-            CancellationToken cancellationToken = default)
-        {
-            return await _publishAuthorizationModelUseCase.ExecuteAsync(
-                storeId,
-                authorizationModelId,
-                expectedRevision,
-                cancellationToken);
-        }
-
-        public async Task<RollbackAuthorizationModelResponseDto?> RollbackAsync(
-            string storeId,
-            string authorizationModelId,
-            long expectedRevision,
-            CancellationToken cancellationToken = default)
-        {
-            return await _rollbackAuthorizationModelUseCase.ExecuteAsync(
-                storeId,
-                authorizationModelId,
-                expectedRevision,
-                cancellationToken);
         }
 
         public async Task<AuthorizationModelDiffDto?> DiffAsync(
@@ -280,34 +139,6 @@ namespace Aegis.Application.Services
                 removedRelations.OrderBy(x => x.Type).ThenBy(x => x.Relation).ToList(),
                 changedRelations.OrderBy(x => x.Type).ThenBy(x => x.Relation).ToList(),
                 hints);
-        }
-
-        public async Task<AuthorizationModelDto?> UpdateAsync(
-            string storeId,
-            string authorizationModelId,
-            CreateAuthorizationModelRequestDto request,
-            long expectedRevision,
-            CancellationToken cancellationToken = default)
-        {
-            return await _updateAuthorizationModelUseCase.ExecuteAsync(
-                storeId,
-                authorizationModelId,
-                request,
-                expectedRevision,
-                cancellationToken);
-        }
-
-        public async Task<bool> DeleteAsync(
-            string storeId,
-            string authorizationModelId,
-            long expectedRevision,
-            CancellationToken cancellationToken = default)
-        {
-            return await _deleteAuthorizationModelUseCase.ExecuteAsync(
-                storeId,
-                authorizationModelId,
-                expectedRevision,
-                cancellationToken);
         }
 
         public Task<AuthorizationModelValidationResultDto> ValidateAsync(

@@ -207,3 +207,15 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Follow-up: review and remove model mutation delegates after internal caller migration, then assess user/assertion transaction ownership.
 - Verification: 14 targeted lifecycle, compatibility-service, and dependency-injection unit tests and two lifecycle endpoint integration tests pass. Locked restore and zero-warning Release build pass with 289 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Merge evidence: feature commit `ad0a7ff` was merged locally into `develop` as `16c4925` and pushed. GitHub Actions `.NET CI` run `33187746559` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 15
+
+- Branch: `refactor/remove-model-mutation-delegates-b1`
+- Status: In progress
+- Intended result: close the authorization-model compatibility debt after all mutation callers migrated to explicit command boundaries.
+- Caller evidence: production search finds `IAuthorizationModelAppService` only in DI and `AuthorizationModelsController`; the controller uses it for list/get/diff/validate only. Create, update, delete, publish, and rollback use cases are the exclusive HTTP mutation dependencies.
+- Interface change: remove all five mutation families from `IAuthorizationModelAppService` and their concrete delegates. The implementation now depends only on registries/repository projection and `AuthorizationModelValidator`, not event dispatch or audit infrastructure.
+- Test migration: obsolete service-level publish/rollback tests were removed because direct lifecycle-use-case tests cover the same behavior plus stale revisions, the single-published invariant, and rollback audit. Diff fixtures now seed through the registry and test the remaining service responsibility directly.
+- Contract impact: none; the change is internal to the Application composition boundary and does not alter HTTP routes, payloads, status codes, ETags, OpenAPI, or tenant/store guards.
+- Follow-up: audit and remove temporary store-create delegates, then assess user/assertion mutation transaction ownership.
+- Verification: 12 targeted query-service, lifecycle-use-case, and dependency-injection tests pass. Locked restore and zero-warning Release build pass with 287 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.
