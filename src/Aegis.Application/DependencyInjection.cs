@@ -29,6 +29,8 @@ namespace Aegis.Application
             services.AddScoped<CreateAuthorizationModelUseCase>();
             services.AddScoped<UpdateAuthorizationModelUseCase>();
             services.AddScoped<DeleteAuthorizationModelUseCase>();
+            services.AddScoped<PublishAuthorizationModelUseCase>();
+            services.AddScoped<RollbackAuthorizationModelUseCase>();
 
             // Application Services - Standard Dependency Inversion Pattern
             services.AddScoped<IAuthAppService, AuthAppService>();

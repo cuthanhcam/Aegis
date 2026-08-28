@@ -20,19 +20,25 @@ namespace Aegis.Api.Controllers
         private readonly CreateAuthorizationModelUseCase _createAuthorizationModelUseCase;
         private readonly UpdateAuthorizationModelUseCase _updateAuthorizationModelUseCase;
         private readonly DeleteAuthorizationModelUseCase _deleteAuthorizationModelUseCase;
+        private readonly PublishAuthorizationModelUseCase _publishAuthorizationModelUseCase;
+        private readonly RollbackAuthorizationModelUseCase _rollbackAuthorizationModelUseCase;
 
         public AuthorizationModelsController(
             IAuthorizationModelAppService authorizationModelAppService,
             IStoreRegistry storeRegistry,
             CreateAuthorizationModelUseCase createAuthorizationModelUseCase,
             UpdateAuthorizationModelUseCase updateAuthorizationModelUseCase,
-            DeleteAuthorizationModelUseCase deleteAuthorizationModelUseCase)
+            DeleteAuthorizationModelUseCase deleteAuthorizationModelUseCase,
+            PublishAuthorizationModelUseCase publishAuthorizationModelUseCase,
+            RollbackAuthorizationModelUseCase rollbackAuthorizationModelUseCase)
         {
             _authorizationModelAppService = authorizationModelAppService;
             _storeRegistry = storeRegistry;
             _createAuthorizationModelUseCase = createAuthorizationModelUseCase;
             _updateAuthorizationModelUseCase = updateAuthorizationModelUseCase;
             _deleteAuthorizationModelUseCase = deleteAuthorizationModelUseCase;
+            _publishAuthorizationModelUseCase = publishAuthorizationModelUseCase;
+            _rollbackAuthorizationModelUseCase = rollbackAuthorizationModelUseCase;
         }
 
         [HttpGet]
@@ -116,7 +122,7 @@ namespace Aegis.Api.Controllers
             }
 
             var expectedRevision = EntityTagPreconditions.RequireRevision(ifMatch);
-            var result = await _authorizationModelAppService.PublishAsync(storeId, authorizationModelId, expectedRevision, cancellationToken);
+            var result = await _publishAuthorizationModelUseCase.ExecuteAsync(storeId, authorizationModelId, expectedRevision, cancellationToken);
             if (result is null)
             {
                 return this.NotFoundResponse<PublishAuthorizationModelResponseDto>(NativeErrorCodes.AuthorizationModelNotFound, $"Authorization model '{authorizationModelId}' was not found.");
@@ -144,7 +150,7 @@ namespace Aegis.Api.Controllers
             }
 
             var expectedRevision = EntityTagPreconditions.RequireRevision(ifMatch);
-            var result = await _authorizationModelAppService.RollbackAsync(storeId, authorizationModelId, expectedRevision, cancellationToken);
+            var result = await _rollbackAuthorizationModelUseCase.ExecuteAsync(storeId, authorizationModelId, expectedRevision, cancellationToken);
             if (result is null)
             {
                 return this.NotFoundResponse<RollbackAuthorizationModelResponseDto>(NativeErrorCodes.AuthorizationModelNotFound, $"Authorization model '{authorizationModelId}' was not found.");
