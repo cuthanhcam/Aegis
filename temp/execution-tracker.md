@@ -237,6 +237,8 @@ Iteration 18 merge evidence: feature commit `75ec6c0` was merged locally into `d
 
 Iteration 19 persistence scope: replace process-local assertion definitions with a store/model-scoped repository and make replacement, audit append, capacity enforcement, and purge explicit persistence operations.
 
-Iteration 19 local evidence: 15 targeted assertion/store tests and the assertion lifecycle endpoint integration test passed. Locked restore, zero-warning Release build, 293 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed. Merge evidence remains pending.
+Iteration 19 local evidence: 15 targeted assertion/store tests and the assertion lifecycle endpoint integration test passed. Locked restore, zero-warning Release build, 293 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 19 merge evidence: feature commit `f759d8e` was merged locally into `develop` as `c5dd3d0`; `.NET CI` run `33192371166` passed. The workflow remained unchanged.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
