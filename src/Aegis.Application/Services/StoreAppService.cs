@@ -4,7 +4,6 @@ using Aegis.Authorization.Core.Interfaces;
 using Aegis.Contracts.Administration;
 using Aegis.Domain.Entities;
 using Aegis.Domain.Repositories;
-using Aegis.Application.Features.Stores;
 
 namespace Aegis.Application.Services
 {
@@ -16,7 +15,6 @@ namespace Aegis.Application.Services
         private readonly IStoreRepository? _storeRepository;
         private readonly AssertionAppService? _assertionAppService;
         private readonly IDomainEventDispatcher? _domainEventDispatcher;
-        private readonly CreateStoreUseCase _createStoreUseCase;
 
         public StoreAppService(IStoreRegistry storeRegistry, IRelationshipStore relationshipStore)
         {
@@ -25,7 +23,6 @@ namespace Aegis.Application.Services
             _rbacAdminStore = null;
             _storeRepository = storeRegistry as IStoreRepository;
             _domainEventDispatcher = null;
-            _createStoreUseCase = CreateStoreUseCase.CreateCompatibility(_storeRegistry, _storeRepository, null);
         }
 
         public StoreAppService(
@@ -41,34 +38,6 @@ namespace Aegis.Application.Services
             _storeRepository = storeRepository;
             _assertionAppService = assertionAppService;
             _domainEventDispatcher = domainEventDispatcher;
-            _createStoreUseCase = CreateStoreUseCase.CreateCompatibility(_storeRegistry, _storeRepository, _domainEventDispatcher);
-        }
-
-        public Task<StoreDto> CreateAsync(CreateStoreRequestDto request, CancellationToken cancellationToken = default)
-        {
-            return CreateAsync(string.Empty, request, cancellationToken);
-        }
-
-        public Task<StoreDto> CreateAsync(string tenantId, CreateStoreRequestDto request, CancellationToken cancellationToken = default)
-        {
-            return _createStoreUseCase.ExecuteAsync(tenantId, request, cancellationToken);
-        }
-
-        public Task<StoreDto> CreateIdempotentAsync(
-            string tenantId,
-            CreateStoreRequestDto request,
-            string actorId,
-            string idempotencyKey,
-            string requestFingerprint,
-            CancellationToken cancellationToken = default)
-        {
-            return _createStoreUseCase.ExecuteIdempotentAsync(
-                tenantId,
-                request,
-                actorId,
-                idempotencyKey,
-                requestFingerprint,
-                cancellationToken);
         }
 
         public Task<IReadOnlyList<StoreDto>> ListAsync(CancellationToken cancellationToken = default)
