@@ -17,8 +17,10 @@ The API adapter authenticates and authorizes the caller, resolves tenant/actor c
 | Model delete | `DeleteAuthorizationModelUseCase` | Authorization-model repository revision predicate | Extracted |
 | Model publish | `PublishAuthorizationModelUseCase` | Store-serialized authorization-model repository transaction | Extracted |
 | Model rollback | `RollbackAuthorizationModelUseCase` | Store-serialized authorization-model repository transaction | Extracted |
-| User mutations | Broad RBAC administration service | Provider-specific RBAC store | Pending transaction review |
-| Assertion write/run/generate | Broad assertion application service | Assertion stores and audit/outbox paths | Pending transaction review |
+| User create | `CreateUserUseCase` | RBAC administration repository insert | Extracted |
+| User update | `UpdateUserUseCase` | RBAC administration repository update-and-return | Extracted |
+| User delete | `DeleteUserUseCase` | RBAC administration repository transaction | Extracted |
+| Assertion write/run/generate | Broad assertion application service | No durable assertion repository yet | Blocked by persistence boundary |
 
 ## Store-create flow
 
@@ -55,6 +57,22 @@ When a repository transition returns no target, each use case re-reads the model
 `IStoreAppService` follows the same rule for creation: it retains store query and deletion behavior, while creation is available only through `CreateStoreUseCase`. The use case requires its repository and event dispatcher explicitly; nullable compatibility composition is no longer permitted.
 
 All authorization-model command classes now follow strict composition as well. Create, update, delete, publish, and rollback require their repository and any event/audit collaborator directly. There are no private compatibility constructors, nullable persistence dependencies, or alternate multi-call mutation algorithms hidden behind the same command API.
+
+## User mutation flows
+
+`UsersController` retains route-tenant authorization and HTTP response mapping. Create, update, and delete now enter the Application layer through `CreateUserUseCase`, `UpdateUserUseCase`, and `DeleteUserUseCase`; the broad RBAC administration service retains query, role, and permission responsibilities but can no longer become an alternate caller for user profile mutations.
+
+Each use case requires a non-empty tenant and user identifier before persistence. The tenant remains part of every repository key and predicate, so identical user identifiers in different tenants are independent. Create is a single insert that returns the created row. Update is a single update-and-return operation: PostgreSQL uses `UPDATE ... RETURNING`, eliminating the former mutation-then-read window in which a concurrent delete or update could change the response. The in-memory provider returns the snapshot written by the same operation.
+
+Delete owns two related persistence effects: removing store role assignments and removing the tenant user profile. The PostgreSQL provider executes both inside an explicit transaction and determines success from the user-row deletion, not from the combined affected-row count. This prevents a stale assignment cleanup from being reported as a successful user deletion. Cache eviction occurs only after a committed mutation result. The repository, rather than the use case or controller, remains responsible for these storage-specific atomicity details.
+
+Role and permission mutations are intentionally still on `IRbacAdminService`. They are single provider calls today, but their desired conflict, existence, and audit semantics need a separate product decision before their public orchestration surface is narrowed.
+
+## Assertion transaction review
+
+Assertion write, run, and audit-generation commands are not extraction-ready. Assertion definitions currently live in a process-local static dictionary inside `AssertionAppService`; run history alone has a persistence abstraction. The service also permits nullable runner, run-store, and audit dependencies through a compatibility constructor. Consequently, there is no repository contract that can truthfully own an atomic assertion replacement, generated-set append, or definition/run-history consistency boundary.
+
+The required precursor is a store- and authorization-model-scoped assertion repository with explicit replace and append semantics, optimistic concurrency or another documented lost-update policy, and a purge operation coordinated with store deletion. Run records should remain append-only and identify the assertion-definition revision they executed. Only after those contracts and migrations exist should write, run, and generate commands be extracted; wrapping the current dictionary in command classes would change names without improving durability or transaction safety.
 
 ## Review checklist
 

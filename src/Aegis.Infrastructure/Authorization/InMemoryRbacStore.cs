@@ -233,7 +233,7 @@ namespace Aegis.Infrastructure.Authorization
             return Task.FromResult<UserDto?>(new UserDto(user.UserId, user.CreatedAt, user.Email, user.DisplayName));
         }
 
-        public Task<bool> UpdateUserAsync(
+        public Task<UserDto?> UpdateUserAsync(
             string tenantId,
             string userId,
             string? email,
@@ -241,13 +241,17 @@ namespace Aegis.Infrastructure.Authorization
             CancellationToken cancellationToken = default)
         {
             var key = UserKey(tenantId, userId);
-            if (!_users.TryGetValue(key, out var existing))
+            while (_users.TryGetValue(key, out var existing))
             {
-                return Task.FromResult(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                var updated = existing with { Email = email ?? existing.Email, DisplayName = displayName ?? existing.DisplayName };
+                if (_users.TryUpdate(key, updated, existing))
+                {
+                    return Task.FromResult<UserDto?>(new UserDto(updated.UserId, updated.CreatedAt, updated.Email, updated.DisplayName));
+                }
             }
 
-            _users[key] = existing with { Email = email ?? existing.Email, DisplayName = displayName ?? existing.DisplayName };
-            return Task.FromResult(true);
+            return Task.FromResult<UserDto?>(null);
         }
 
         public Task<bool> DeleteUserAsync(

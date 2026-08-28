@@ -130,7 +130,8 @@ Application-boundary progress:
 - [x] Extract model creation and idempotent replay into `CreateAuthorizationModelUseCase`.
 - [x] Extract model update and delete with repository-owned revision predicates.
 - [x] Extract model publish and rollback while retaining repository-owned store serialization.
-- [ ] Split user and assertion mutations after repository transaction review.
+- [x] Split user create/update/delete mutations after repository transaction review and remove their broad-service delegates.
+- [ ] Introduce a durable assertion repository before splitting assertion write/run/generate commands.
 - [x] Remove authorization-model mutation delegates after production and test caller migration.
 - [x] Remove temporary store-create delegates and nullable compatibility composition after caller audit.
 - [x] Remove dormant model-command compatibility factories and registry-only mutation fallbacks.
@@ -224,5 +225,11 @@ Iteration 17 application-boundary scope: remove dormant compatibility constructo
 Iteration 17 local evidence: 15 targeted authorization-model command, query-service, and dependency-injection tests passed; dead-code search finds no compatibility factory or nullable persistence/event/audit dependency in the model command directory. Locked restore, zero-warning Release build, 287 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 Iteration 17 merge evidence: feature commit `b70eaa1` was merged locally into `develop` as `c6519df`; `.NET CI` run `33189763090` passed. The workflow remained unchanged.
+
+Iteration 18 application-boundary scope: extract tenant-scoped user create/update/delete commands and make repository mutation results reflect one atomic persistence operation.
+
+Iteration 18 transaction review: PostgreSQL create is a single insert-returning statement. Update now uses update-returning instead of a write followed by an unrelated read. Delete now removes assignments and the user inside an explicit transaction and reports success from the user row. Assertion mutations remain deferred because definitions are process-local state and no durable repository owns replace/append concurrency.
+
+Iteration 18 local evidence: 7 targeted user-boundary and dependency-injection tests passed. Locked restore, zero-warning Release build, 290 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed. Local merge, push, and unchanged-pipeline Actions evidence remain pending.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
