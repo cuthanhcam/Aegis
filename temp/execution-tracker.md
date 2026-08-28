@@ -174,6 +174,8 @@ Iteration 9 merge evidence: feature commit `3b4966d` was merged locally into `de
 
 Iteration 10 application-boundary scope: extract store creation into a command-focused use case while retaining behavior-compatible service delegates during incremental migration.
 
-Iteration 10 local evidence: two command-boundary unit tests, existing store endpoint coverage, unchanged OpenAPI semantics, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 278 unit tests, and 30 integration tests passed. `develop` merge and Actions evidence remain pending.
+Iteration 10 local evidence: two command-boundary unit tests, existing store endpoint coverage, unchanged OpenAPI semantics, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 278 unit tests, and 30 integration tests passed.
+
+Iteration 10 merge evidence: feature commit `844a5e5` was merged locally into `develop` as `d271558`; `.NET CI` run `33184947735` passed. The workflow remained unchanged.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
