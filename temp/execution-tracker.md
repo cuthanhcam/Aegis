@@ -121,6 +121,15 @@ Idempotency progress:
 - [ ] Extend transactional idempotency to other selected creates/writes after endpoint risk review.
 - [ ] Couple durable outbox messages to idempotent resource transactions before external event delivery is production-supported.
 
+Application-boundary progress:
+
+- [x] Define the command use-case ownership rule in ADR 0011.
+- [x] Extract store creation and idempotent replay orchestration into `CreateStoreUseCase`.
+- [x] Make `StoresController.Create` depend directly on the command boundary.
+- [ ] Extract authorization-model validation, then model create/update/lifecycle commands.
+- [ ] Split user and assertion mutations after repository transaction review.
+- [ ] Remove temporary create delegates from broad application-service interfaces after caller migration.
+
 Iteration 1 evidence: local locked restore, zero-warning Release build, 268 unit tests, 25 integration tests, a 53-path OpenAPI v1 export, and `develop` Actions run `31955813080` all passed for merge commit `c39e396`.
 
 Iteration 2 evidence: the committed 53-path baseline and runtime candidate have identical SHA-256 hashes; the JSON diff report contains zero removed paths, operations, or schemas. Kiota 1.34.1 generated the TypeScript client and TypeScript 7.0.2 compiled it in strict mode with zero npm audit findings. Full backend verification passed 268 unit and 25 integration tests with zero build warnings or errors. Kiota's TypeScript target remains preview, so its version and proof dependencies are pinned and generated sources remain disposable artifacts.
@@ -162,5 +171,9 @@ Iteration 9 store-idempotency scope: complete the mutation risk register and add
 Iteration 9 local evidence: store same-key replay and payload-conflict coverage, additive OpenAPI semantic diff, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 276 unit tests, and 30 integration tests passed. `develop` merge and Actions evidence remain pending.
 
 Iteration 9 merge evidence: feature commit `3b4966d` was merged locally into `develop` as `d6ed257`; `.NET CI` run `33183532413` passed. The workflow remained unchanged.
+
+Iteration 10 application-boundary scope: extract store creation into a command-focused use case while retaining behavior-compatible service delegates during incremental migration.
+
+Iteration 10 local evidence: two command-boundary unit tests, existing store endpoint coverage, unchanged OpenAPI semantics, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 278 unit tests, and 30 integration tests passed. `develop` merge and Actions evidence remain pending.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
