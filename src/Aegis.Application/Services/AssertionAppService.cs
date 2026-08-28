@@ -7,37 +7,31 @@ using Aegis.Contracts.Common;
 using Aegis.Contracts.Compatibility;
 using Aegis.Contracts.Permissions;
 using Aegis.Domain.ValueObjects;
-using Microsoft.Extensions.DependencyInjection;
-using System.Collections.Concurrent;
 
 namespace Aegis.Application.Services
 {
     public sealed class AssertionAppService : IAssertionAppService
     {
-        private static readonly ConcurrentDictionary<string, IReadOnlyList<AegisCompatAssertionDto>> AssertionsByModel = new(StringComparer.OrdinalIgnoreCase);
         private const int MaxAssertionsPerModel = 100;
         private readonly IStoreRegistry _storeRegistry;
         private readonly IAuthorizationModelRegistry _authorizationModelRegistry;
-        private readonly CheckPermissionUseCase? _checkPermissionUseCase;
-        private readonly IAssertionRunStore? _assertionRunStore;
-        private readonly IAuditStore? _auditStore;
+        private readonly CheckPermissionUseCase _checkPermissionUseCase;
+        private readonly IAssertionRepository _assertionRepository;
+        private readonly IAssertionRunStore _assertionRunStore;
+        private readonly IAuditStore _auditStore;
 
-        public AssertionAppService(IStoreRegistry storeRegistry, IAuthorizationModelRegistry authorizationModelRegistry)
-        {
-            _storeRegistry = storeRegistry;
-            _authorizationModelRegistry = authorizationModelRegistry;
-        }
-
-        [ActivatorUtilitiesConstructor]
         public AssertionAppService(
             IStoreRegistry storeRegistry,
             IAuthorizationModelRegistry authorizationModelRegistry,
             CheckPermissionUseCase checkPermissionUseCase,
+            IAssertionRepository assertionRepository,
             IAssertionRunStore assertionRunStore,
-            IAuditStore? auditStore = null)
-            : this(storeRegistry, authorizationModelRegistry)
+            IAuditStore auditStore)
         {
+            _storeRegistry = storeRegistry;
+            _authorizationModelRegistry = authorizationModelRegistry;
             _checkPermissionUseCase = checkPermissionUseCase;
+            _assertionRepository = assertionRepository;
             _assertionRunStore = assertionRunStore;
             _auditStore = auditStore;
         }
@@ -55,9 +49,8 @@ namespace Aegis.Application.Services
 
             await EnsureModelExists(storeId, authorizationModelId, cancellationToken);
 
-            var key = BuildKey(storeId, authorizationModelId);
-            AssertionsByModel.TryGetValue(key, out var assertions);
-            return new AegisCompatReadAssertionsResponseDto(authorizationModelId, assertions ?? []);
+            var snapshot = await _assertionRepository.ReadAsync(storeId, authorizationModelId, cancellationToken);
+            return new AegisCompatReadAssertionsResponseDto(authorizationModelId, snapshot.Assertions);
         }
 
         public async Task WriteAsync(
@@ -94,7 +87,7 @@ namespace Aegis.Application.Services
                 ValidateAssertion(assertion, relationIndex);
             }
 
-            AssertionsByModel[BuildKey(storeId, authorizationModelId)] = request.Assertions.ToList();
+            await _assertionRepository.ReplaceAsync(storeId, authorizationModelId, request.Assertions, cancellationToken);
         }
 
         public async Task<AegisAssertionRunRecordDto> RunAsync(
@@ -103,19 +96,13 @@ namespace Aegis.Application.Services
             CancellationToken cancellationToken = default)
         {
             var store = await EnsureStoreExists(storeId, cancellationToken);
-            if (_checkPermissionUseCase is null)
-            {
-                throw new InvalidOperationException("Assertion runner is unavailable because permission checks are not registered.");
-            }
-
             var model = await EnsureModelExists(storeId, authorizationModelId, cancellationToken);
             var tenantId = string.IsNullOrWhiteSpace(store.TenantId) ? storeId : store.TenantId;
-            AssertionsByModel.TryGetValue(BuildKey(storeId, authorizationModelId), out var assertions);
-            assertions ??= [];
+            var assertionSet = await _assertionRepository.ReadAsync(storeId, authorizationModelId, cancellationToken);
             var startedAt = DateTimeOffset.UtcNow;
             var results = new List<AegisAssertionRunResultItemDto>();
 
-            foreach (var assertion in assertions)
+            foreach (var assertion in assertionSet.Assertions)
             {
                 var response = await _checkPermissionUseCase.ExecuteAsync(
                     tenantId,
@@ -151,11 +138,6 @@ namespace Aegis.Application.Services
                 summary,
                 results);
 
-            if (_assertionRunStore is null)
-            {
-                throw new InvalidOperationException("Assertion run history is unavailable because an assertion run store is not registered.");
-            }
-
             await _assertionRunStore.SaveAsync(record, cancellationToken);
             return record;
         }
@@ -167,9 +149,7 @@ namespace Aegis.Application.Services
         {
             await EnsureStoreExists(storeId, cancellationToken);
             await EnsureModelExists(storeId, authorizationModelId, cancellationToken);
-            var runs = _assertionRunStore is null
-                ? []
-                : await _assertionRunStore.ListByModelAsync(storeId, authorizationModelId, 25, cancellationToken);
+            var runs = await _assertionRunStore.ListByModelAsync(storeId, authorizationModelId, 25, cancellationToken);
 
             return new AegisAssertionRunListResponseDto(runs);
         }
@@ -180,9 +160,7 @@ namespace Aegis.Application.Services
             CancellationToken cancellationToken = default)
         {
             await EnsureStoreExists(storeId, cancellationToken);
-            return _assertionRunStore is null
-                ? null
-                : await _assertionRunStore.GetAsync(storeId, runId, cancellationToken);
+            return await _assertionRunStore.GetAsync(storeId, runId, cancellationToken);
         }
 
         public async Task<AegisGenerateAssertionsFromAuditResponseDto> GenerateFromAuditAsync(
@@ -193,11 +171,6 @@ namespace Aegis.Application.Services
         {
             var store = await EnsureStoreExists(storeId, cancellationToken);
             var model = await EnsureModelExists(storeId, authorizationModelId, cancellationToken);
-
-            if (_auditStore is null)
-            {
-                throw new InvalidOperationException("Assertion generation is unavailable because an audit store is not registered.");
-            }
 
             var limit = request.Limit ?? 25;
             if (limit <= 0 || limit > MaxAssertionsPerModel)
@@ -224,14 +197,22 @@ namespace Aegis.Application.Services
 
             if (request.Append && assertions.Count > 0)
             {
-                var existing = await ReadAsync(storeId, authorizationModelId, cancellationToken);
-                var combined = existing.Assertions
-                    .Concat(assertions)
-                    .GroupBy(x => $"{x.TupleKey.User}:{x.TupleKey.Relation}:{x.TupleKey.Object}:{x.Expectation}", StringComparer.OrdinalIgnoreCase)
-                    .Select(x => x.First())
-                    .ToList();
-
-                await WriteAsync(storeId, authorizationModelId, new AegisCompatWriteAssertionsRequestDto(combined), cancellationToken);
+                try
+                {
+                    await _assertionRepository.AppendDistinctAsync(
+                        storeId,
+                        authorizationModelId,
+                        assertions,
+                        MaxAssertionsPerModel,
+                        cancellationToken);
+                }
+                catch (AssertionSetCapacityExceededException exception)
+                {
+                    throw new CompatibilityApiException(
+                        400,
+                        "assertions_too_many_items",
+                        exception.Message);
+                }
             }
 
             return new AegisGenerateAssertionsFromAuditResponseDto(
@@ -248,17 +229,8 @@ namespace Aegis.Application.Services
                 throw new ArgumentException("storeId is required.");
             }
 
-            foreach (var key in AssertionsByModel.Keys
-                         .Where(x => x.StartsWith($"{storeId}:", StringComparison.OrdinalIgnoreCase))
-                         .ToArray())
-            {
-                AssertionsByModel.TryRemove(key, out _);
-            }
-
-            if (_assertionRunStore is not null)
-            {
-                await _assertionRunStore.PurgeStoreAsync(storeId, cancellationToken);
-            }
+            await _assertionRepository.PurgeStoreAsync(storeId, cancellationToken);
+            await _assertionRunStore.PurgeStoreAsync(storeId, cancellationToken);
         }
 
         private async Task<StoreDto> EnsureStoreExists(string storeId, CancellationToken cancellationToken)
@@ -382,9 +354,6 @@ namespace Aegis.Application.Services
                     $"relation '{typeName}#{relation}' not found");
             }
         }
-
-        private static string BuildKey(string storeId, string authorizationModelId)
-            => $"{storeId}:{authorizationModelId}";
 
         private static bool IsCheckAuditEvent(AuditEvent auditEvent)
         {

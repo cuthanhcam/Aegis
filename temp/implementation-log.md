@@ -259,3 +259,15 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Follow-up: add the persistent assertion-definition repository and migration before extracting assertion write/run/generate commands; review role/permission existence and conflict semantics separately.
 - Verification: 7 targeted user-boundary and dependency-injection tests pass. Locked restore and zero-warning Release build pass with 290 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Merge evidence: feature commit `75ec6c0` was merged locally into `develop` as `6b18cb1` and pushed. GitHub Actions `.NET CI` run `33191447242` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 19
+
+- Branch: `feat/durable-assertion-repository-b1`
+- Status: In progress
+- Intended result: establish a durable transaction owner for assertion definitions before extracting assertion commands.
+- Persistence boundary: `IAssertionRepository` reads versioned snapshots, atomically replaces a set, atomically appends distinct assertions under a maximum, and purges all sets for one store. PostgreSQL migration 014 stores one JSONB set per store/model; the in-memory provider implements the same behavior.
+- Concurrency safety: PostgreSQL takes a transaction-scoped advisory lock before reading and upserting, including the first-write case. In-memory mutations use a per-key critical section. Failed capacity checks do not advance or overwrite the current snapshot.
+- Composition safety: `AssertionAppService` no longer owns static definition state or offers a partial constructor. Permission checking, definition persistence, run history, and audit querying are required dependencies.
+- Contract impact: none intended; the snapshot revision remains internal, and HTTP routes, payloads, status codes, tenant/store guards, and OpenAPI remain unchanged.
+- Follow-up: extract assertion write/run/generate use cases, then make an additive contract decision for recording the executed definition revision in run history.
+- Verification: 15 targeted assertion/store tests and the assertion lifecycle endpoint integration test pass. Locked restore and zero-warning Release build pass with 293 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
