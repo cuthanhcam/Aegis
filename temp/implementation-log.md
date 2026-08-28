@@ -156,3 +156,14 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Follow-up: extract the authorization-model validator before moving model commands, then review user/assertion transaction owners.
 - Verification: targeted use-case, compatibility-delegate, and existing endpoint tests pass. Locked restore and zero-warning Release build pass with 278 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Merge evidence: feature commit `844a5e5` was merged locally into `develop` as `d271558` and pushed. GitHub Actions `.NET CI` run `33184947735` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 11
+
+- Branch: `refactor/authorization-model-validator-b1`
+- Status: In progress
+- Intended result: make authorization-model DSL validation an independent application component before extracting model commands.
+- Boundary: `AuthorizationModelValidator` owns schema/type/relation validation, stable issue details, rewrite feature detection, summary generation, and cooperative cancellation. It has no repository, service, transport, or infrastructure dependency.
+- Migration safety: `AuthorizationModelAppService.ValidateAsync` delegates to the validator, and existing constructors retain compatibility while the DI composition root injects the shared stateless validator.
+- Contract impact: none intended; validation DTOs, stable issue codes, line numbers, warnings, and endpoint behavior remain unchanged.
+- Follow-up: extract authorization-model creation and idempotent replay orchestration into a command use case, followed by update and lifecycle commands.
+- Verification: 14 targeted validator, compatibility-service, and dependency-injection tests pass. Locked restore and zero-warning Release build pass with 281 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.

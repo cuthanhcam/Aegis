@@ -126,7 +126,8 @@ Application-boundary progress:
 - [x] Define the command use-case ownership rule in ADR 0011.
 - [x] Extract store creation and idempotent replay orchestration into `CreateStoreUseCase`.
 - [x] Make `StoresController.Create` depend directly on the command boundary.
-- [ ] Extract authorization-model validation, then model create/update/lifecycle commands.
+- [x] Extract authorization-model DSL validation into an independent application component.
+- [ ] Extract model create/update/lifecycle commands.
 - [ ] Split user and assertion mutations after repository transaction review.
 - [ ] Remove temporary create delegates from broad application-service interfaces after caller migration.
 
@@ -177,5 +178,9 @@ Iteration 10 application-boundary scope: extract store creation into a command-f
 Iteration 10 local evidence: two command-boundary unit tests, existing store endpoint coverage, unchanged OpenAPI semantics, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 278 unit tests, and 30 integration tests passed.
 
 Iteration 10 merge evidence: feature commit `844a5e5` was merged locally into `develop` as `d271558`; `.NET CI` run `33184947735` passed. The workflow remained unchanged.
+
+Iteration 11 application-boundary scope: extract deterministic authorization-model DSL validation from the broad application service without changing model persistence, lifecycle behavior, or the public validation contract.
+
+Iteration 11 local evidence: 14 targeted validator, compatibility-service, and dependency-injection tests passed. Locked restore, zero-warning Release build, 281 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed. `develop` merge and Actions evidence remain pending.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
