@@ -208,6 +208,8 @@ Iteration 14 merge evidence: feature commit `ad0a7ff` was merged locally into `d
 
 Iteration 15 application-boundary scope: audit callers and remove authorization-model create/update/delete/publish/rollback delegates from the broad application-service interface and implementation.
 
-Iteration 15 local evidence: 12 targeted query-service, lifecycle-use-case, and dependency-injection tests passed; caller search confirms production model mutations depend only on explicit command use cases. Locked restore, zero-warning Release build, 287 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed. `develop` merge and Actions evidence remain pending.
+Iteration 15 local evidence: 12 targeted query-service, lifecycle-use-case, and dependency-injection tests passed; caller search confirms production model mutations depend only on explicit command use cases. Locked restore, zero-warning Release build, 287 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 15 merge evidence: feature commit `086a73f` was merged locally into `develop` as `d04d35b`; `.NET CI` run `33188518304` passed. The workflow remained unchanged.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
