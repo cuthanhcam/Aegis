@@ -12,6 +12,11 @@ namespace Aegis.Domain.Repositories
         /// </summary>
         Task AddAsync(Store store, CancellationToken cancellationToken = default);
 
+        Task<IdempotentStoreAddResult> AddIdempotentAsync(
+            Store store,
+            IdempotentMutation mutation,
+            CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Gets a store by identifier.
         /// </summary>

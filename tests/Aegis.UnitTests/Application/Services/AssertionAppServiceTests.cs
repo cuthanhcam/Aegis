@@ -73,7 +73,9 @@ namespace Aegis.UnitTests.Application.Services
                 new AuthorizationEngine(relationships, new InMemoryRbacStore(), authorizationModelProvider: new AuthorizationModelProvider(registry)),
                 new InMemoryAuditStore());
             var runStore = new InMemoryAssertionRunStore();
-            var service = new AssertionAppService(registry, registry, checker, runStore);
+            var assertionRepository = new InMemoryAssertionRepository();
+            var auditStore = new InMemoryAuditStore();
+            var service = new AssertionAppService(registry, registry, checker, assertionRepository, runStore, auditStore);
             await service.WriteAsync(
                 store.Id,
                 model.Id,
@@ -84,7 +86,7 @@ namespace Aegis.UnitTests.Application.Services
                 ]));
 
             var run = await service.RunAsync(store.Id, model.Id);
-            var reloadedService = new AssertionAppService(registry, registry, checker, runStore);
+            var reloadedService = new AssertionAppService(registry, registry, checker, assertionRepository, runStore, auditStore);
             var runs = await reloadedService.ListRunsAsync(store.Id, model.Id);
             var detail = await reloadedService.GetRunAsync(store.Id, run.RunId);
 
@@ -156,7 +158,13 @@ namespace Aegis.UnitTests.Application.Services
                 new AuthorizationEngine(relationships, new InMemoryRbacStore(), authorizationModelProvider: new AuthorizationModelProvider(registry)),
                 auditStore);
 
-            return new AssertionAppService(registry, registry, checker, new InMemoryAssertionRunStore(), auditStore);
+            return new AssertionAppService(
+                registry,
+                registry,
+                checker,
+                new InMemoryAssertionRepository(),
+                new InMemoryAssertionRunStore(),
+                auditStore);
         }
     }
 }

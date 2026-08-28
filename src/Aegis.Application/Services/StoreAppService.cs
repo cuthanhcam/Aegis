@@ -40,37 +40,6 @@ namespace Aegis.Application.Services
             _domainEventDispatcher = domainEventDispatcher;
         }
 
-        public Task<StoreDto> CreateAsync(CreateStoreRequestDto request, CancellationToken cancellationToken = default)
-        {
-            return CreateAsync(string.Empty, request, cancellationToken);
-        }
-
-        public Task<StoreDto> CreateAsync(string tenantId, CreateStoreRequestDto request, CancellationToken cancellationToken = default)
-        {
-            if (!string.IsNullOrWhiteSpace(tenantId))
-            {
-                if (string.IsNullOrWhiteSpace(request.Name))
-                {
-                    throw new ArgumentException("Store name is required.");
-                }
-
-                return _storeRegistry.CreateForTenantAsync(tenantId, request.Name, cancellationToken);
-            }
-
-            if (_storeRepository is null)
-            {
-                if (string.IsNullOrWhiteSpace(request.Name))
-                {
-                    throw new ArgumentException("Store name is required.");
-                }
-
-                return _storeRegistry.CreateAsync(request.Name, cancellationToken);
-            }
-
-            var store = Store.Create(request.Name);
-            return CreateWithDomainAsync(store, cancellationToken);
-        }
-
         public Task<IReadOnlyList<StoreDto>> ListAsync(CancellationToken cancellationToken = default)
         {
             return _storeRegistry.ListAsync(cancellationToken);
@@ -170,18 +139,6 @@ namespace Aegis.Application.Services
             }
 
             return await _storeRegistry.DeleteAsync(storeId, cancellationToken);
-        }
-
-        private async Task<StoreDto> CreateWithDomainAsync(Store store, CancellationToken cancellationToken)
-        {
-            if (_storeRepository is null)
-            {
-                throw new InvalidOperationException("Domain store repository is not configured.");
-            }
-
-            await _storeRepository.AddAsync(store, cancellationToken);
-            await _domainEventDispatcher.DispatchAndClearAsync(store, cancellationToken);
-            return ToDto(store);
         }
 
         private static StoreDto ToDto(Store store)

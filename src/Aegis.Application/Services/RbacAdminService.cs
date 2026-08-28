@@ -134,45 +134,6 @@ namespace Aegis.Application.Services
             return await _rbacAdminStore.GetUsersAsync(tenantId, cancellationToken);
         }
 
-        public async Task<UserDto> CreateUserAsync(string tenantId, CreateUserRequestDto request, CancellationToken cancellationToken = default)
-        {
-            if (string.IsNullOrWhiteSpace(request.UserId))
-            {
-                throw new ArgumentException("User ID is required.");
-            }
-
-            return await _rbacAdminStore.CreateUserAsync(
-                tenantId,
-                request.UserId,
-                request.Email,
-                request.DisplayName,
-                cancellationToken);
-        }
-
-        public async Task<UserDto?> UpdateUserAsync(string tenantId, string userId, UpdateUserRequestDto request, CancellationToken cancellationToken = default)
-        {
-            if (string.IsNullOrWhiteSpace(userId))
-            {
-                throw new ArgumentException("User ID is required.");
-            }
-
-            var updated = await _rbacAdminStore.UpdateUserAsync(tenantId, userId, request.Email, request.DisplayName, cancellationToken);
-            if (!updated)
-                return null;
-
-            return await _rbacAdminStore.GetUserAsync(tenantId, userId, cancellationToken);
-        }
-
-        public Task<bool> DeleteUserAsync(string tenantId, string userId, CancellationToken cancellationToken = default)
-        {
-            if (string.IsNullOrWhiteSpace(userId))
-            {
-                throw new ArgumentException("User ID is required.");
-            }
-
-            return _rbacAdminStore.DeleteUserAsync(tenantId, userId, cancellationToken);
-        }
-
         public async Task<UserRolesDto> GetUserRolesAsync(string tenantId, string userId, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(userId))

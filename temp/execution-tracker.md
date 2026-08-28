@@ -111,6 +111,32 @@ Mutation-safety progress:
 - [x] Extend transaction-scoped preconditions to authorization-model publish and rollback.
 - [ ] Add durable, tenant-scoped idempotency reservation and response replay for retryable creates/writes.
 
+Idempotency progress:
+
+- [x] Make authorization-model creation transactionally replayable across replicas.
+- [x] Scope keys by tenant, actor, store, operation, and request fingerprint.
+- [x] Prevent duplicate domain-event dispatch during response replay.
+- [x] Complete the mutation risk register and select transaction-coupled candidates.
+- [x] Make store creation transactionally replayable without a pre-existing resource scope.
+- [ ] Extend transactional idempotency to other selected creates/writes after endpoint risk review.
+- [ ] Couple durable outbox messages to idempotent resource transactions before external event delivery is production-supported.
+
+Application-boundary progress:
+
+- [x] Define the command use-case ownership rule in ADR 0011.
+- [x] Extract store creation and idempotent replay orchestration into `CreateStoreUseCase`.
+- [x] Make `StoresController.Create` depend directly on the command boundary.
+- [x] Extract authorization-model DSL validation into an independent application component.
+- [x] Extract model creation and idempotent replay into `CreateAuthorizationModelUseCase`.
+- [x] Extract model update and delete with repository-owned revision predicates.
+- [x] Extract model publish and rollback while retaining repository-owned store serialization.
+- [x] Split user create/update/delete mutations after repository transaction review and remove their broad-service delegates.
+- [x] Introduce a durable, versioned assertion repository with atomic replace/append and store purge semantics.
+- [ ] Split assertion write/run/generate commands and decide how definition revision appears in run history.
+- [x] Remove authorization-model mutation delegates after production and test caller migration.
+- [x] Remove temporary store-create delegates and nullable compatibility composition after caller audit.
+- [x] Remove dormant model-command compatibility factories and registry-only mutation fallbacks.
+
 Iteration 1 evidence: local locked restore, zero-warning Release build, 268 unit tests, 25 integration tests, a 53-path OpenAPI v1 export, and `develop` Actions run `31955813080` all passed for merge commit `c39e396`.
 
 Iteration 2 evidence: the committed 53-path baseline and runtime candidate have identical SHA-256 hashes; the JSON diff report contains zero removed paths, operations, or schemas. Kiota 1.34.1 generated the TypeScript client and TypeScript 7.0.2 compiled it in strict mode with zero npm audit findings. Full backend verification passed 268 unit and 25 integration tests with zero build warnings or errors. Kiota's TypeScript target remains preview, so its version and proof dependencies are pinned and generated sources remain disposable artifacts.
@@ -140,5 +166,79 @@ The database invariant is defense in depth: migration 011 deterministically arch
 Iteration 7 local evidence: lifecycle precondition coverage, additive OpenAPI semantic diff, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 276 unit tests, and 28 integration tests passed. `develop` merge and Actions evidence remain pending.
 
 Iteration 7 merge evidence: feature commit `c7a5a8f` was merged locally into `develop` as `6a0474a`; `.NET CI` run `32143817767` passed. The workflow remained unchanged.
+
+Iteration 8 idempotency scope: provide the first durable, transaction-coupled replay contract for authorization-model creation without claiming generic middleware-level exactly-once behavior.
+
+Iteration 8 local evidence: same-key replay and conflicting-payload coverage, additive OpenAPI semantic diff, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 276 unit tests, and 29 integration tests passed. `develop` merge and Actions evidence remain pending.
+
+Iteration 8 merge evidence: feature commit `ef647c5` was merged locally into `develop` as `24f42d8`; `.NET CI` run `33182265773` passed. The workflow remained unchanged.
+
+Iteration 9 store-idempotency scope: complete the mutation risk register and add transaction-coupled replay to store creation; defer user/assertion candidates until their use-case transaction ownership is explicit.
+
+Iteration 9 local evidence: store same-key replay and payload-conflict coverage, additive OpenAPI semantic diff, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 276 unit tests, and 30 integration tests passed. `develop` merge and Actions evidence remain pending.
+
+Iteration 9 merge evidence: feature commit `3b4966d` was merged locally into `develop` as `d6ed257`; `.NET CI` run `33183532413` passed. The workflow remained unchanged.
+
+Iteration 10 application-boundary scope: extract store creation into a command-focused use case while retaining behavior-compatible service delegates during incremental migration.
+
+Iteration 10 local evidence: two command-boundary unit tests, existing store endpoint coverage, unchanged OpenAPI semantics, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 278 unit tests, and 30 integration tests passed.
+
+Iteration 10 merge evidence: feature commit `844a5e5` was merged locally into `develop` as `d271558`; `.NET CI` run `33184947735` passed. The workflow remained unchanged.
+
+Iteration 11 application-boundary scope: extract deterministic authorization-model DSL validation from the broad application service without changing model persistence, lifecycle behavior, or the public validation contract.
+
+Iteration 11 local evidence: 14 targeted validator, compatibility-service, and dependency-injection tests passed. Locked restore, zero-warning Release build, 281 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 11 merge evidence: feature commit `2d62cff` was merged locally into `develop` as `31dd355`; `.NET CI` run `33185735354` passed. The workflow remained unchanged.
+
+Iteration 12 application-boundary scope: extract authorization-model creation and transaction-coupled idempotent replay while retaining the broad service delegates for compatibility.
+
+Iteration 12 local evidence: 13 targeted command, compatibility-service, and dependency-injection unit tests plus the model-create replay endpoint integration test passed. Locked restore, zero-warning Release build, 283 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 12 merge evidence: feature commit `fc53d80` was merged locally into `develop` as `b74a29d`; `.NET CI` run `33186355615` passed. The workflow remained unchanged.
+
+Iteration 13 application-boundary scope: extract authorization-model update and delete commands while preserving strong ETag preconditions, not-found versus stale-revision classification, and post-success event dispatch.
+
+Iteration 13 local evidence: 14 targeted command, compatibility-service, and dependency-injection unit tests plus the strong-ETag update endpoint integration test passed. Locked restore, zero-warning Release build, 286 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 13 merge evidence: feature commit `05c5976` was merged locally into `develop` as `1a7b5dc`; `.NET CI` run `33187045638` passed. The workflow remained unchanged.
+
+Iteration 14 application-boundary scope: extract authorization-model publish and rollback commands while preserving store-scoped transaction serialization, target revision rechecks, the single-published invariant, and post-commit rollback audit.
+
+Iteration 14 local evidence: 14 targeted lifecycle, compatibility-service, and dependency-injection unit tests plus two lifecycle endpoint integration tests passed. Locked restore, zero-warning Release build, 289 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 14 merge evidence: feature commit `ad0a7ff` was merged locally into `develop` as `16c4925`; `.NET CI` run `33187746559` passed. The workflow remained unchanged.
+
+Iteration 15 application-boundary scope: audit callers and remove authorization-model create/update/delete/publish/rollback delegates from the broad application-service interface and implementation.
+
+Iteration 15 local evidence: 12 targeted query-service, lifecycle-use-case, and dependency-injection tests passed; caller search confirms production model mutations depend only on explicit command use cases. Locked restore, zero-warning Release build, 287 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 15 merge evidence: feature commit `086a73f` was merged locally into `develop` as `d04d35b`; `.NET CI` run `33188518304` passed. The workflow remained unchanged.
+
+Iteration 16 application-boundary scope: audit store-create callers, remove create overloads from the broad store service, and make `CreateStoreUseCase` repository/event dependencies strict.
+
+Iteration 16 local evidence: 11 targeted store-use-case, remaining store-service, and dependency-injection tests passed; caller search confirms `StoresController` creates stores only through `CreateStoreUseCase`. Locked restore, zero-warning Release build, 287 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 16 merge evidence: feature commit `bc3988f` was merged locally into `develop` as `7f9617d`; `.NET CI` run `33189134472` passed. The workflow remained unchanged.
+
+Iteration 17 application-boundary scope: remove dormant compatibility constructors and alternate registry mutation paths from authorization-model commands so repository transaction ownership is mandatory and visible.
+
+Iteration 17 local evidence: 15 targeted authorization-model command, query-service, and dependency-injection tests passed; dead-code search finds no compatibility factory or nullable persistence/event/audit dependency in the model command directory. Locked restore, zero-warning Release build, 287 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 17 merge evidence: feature commit `b70eaa1` was merged locally into `develop` as `c6519df`; `.NET CI` run `33189763090` passed. The workflow remained unchanged.
+
+Iteration 18 application-boundary scope: extract tenant-scoped user create/update/delete commands and make repository mutation results reflect one atomic persistence operation.
+
+Iteration 18 transaction review: PostgreSQL create is a single insert-returning statement. Update now uses update-returning instead of a write followed by an unrelated read. Delete now removes assignments and the user inside an explicit transaction and reports success from the user row. Assertion mutations remain deferred because definitions are process-local state and no durable repository owns replace/append concurrency.
+
+Iteration 18 local evidence: 7 targeted user-boundary and dependency-injection tests passed. Locked restore, zero-warning Release build, 290 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 18 merge evidence: feature commit `75ec6c0` was merged locally into `develop` as `6b18cb1`; `.NET CI` run `33191447242` passed. The workflow remained unchanged.
+
+Iteration 19 persistence scope: replace process-local assertion definitions with a store/model-scoped repository and make replacement, audit append, capacity enforcement, and purge explicit persistence operations.
+
+Iteration 19 local evidence: 15 targeted assertion/store tests and the assertion lifecycle endpoint integration test passed. Locked restore, zero-warning Release build, 293 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 19 merge evidence: feature commit `f759d8e` was merged locally into `develop` as `c5dd3d0`; `.NET CI` run `33192371166` passed. The workflow remained unchanged.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.

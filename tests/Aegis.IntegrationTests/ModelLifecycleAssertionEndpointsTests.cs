@@ -20,6 +20,70 @@ public sealed class ModelLifecycleAssertionEndpointsTests
     };
 
     [Fact]
+    public async Task Store_create_replays_same_key_and_rejects_payload_reuse()
+    {
+        await using var factory = new TestApiFactory();
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, "tenant-a");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
+        const string resource = "/api/v1/stores";
+        var body = new CreateStoreRequestDto("enterprise-docs");
+
+        var first = await SendCreateWithIdempotencyKeyAsync(client, resource, "store-create-0001", body);
+        var replay = await SendCreateWithIdempotencyKeyAsync(client, resource, "store-create-0001", body);
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, replay.StatusCode);
+        var firstPayload = await first.Content.ReadFromJsonAsync<ApiResponse<StoreDto>>(JsonOptions);
+        var replayPayload = await replay.Content.ReadFromJsonAsync<ApiResponse<StoreDto>>(JsonOptions);
+        Assert.Equal(firstPayload!.Data, replayPayload!.Data);
+
+        var conflict = await SendCreateWithIdempotencyKeyAsync(
+            client,
+            resource,
+            "store-create-0001",
+            new CreateStoreRequestDto("different-store"));
+        Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+        var conflictPayload = await conflict.Content.ReadFromJsonAsync<ApiResponse<string>>(JsonOptions);
+        Assert.Equal(NativeErrorCodes.IdempotencyConflict, conflictPayload!.Error!.Code);
+
+        var list = await client.GetFromJsonAsync<ApiResponse<IReadOnlyList<StoreDto>>>(resource, JsonOptions);
+        Assert.Single(list!.Data!);
+    }
+
+    [Fact]
+    public async Task Model_create_replays_same_key_and_rejects_payload_reuse()
+    {
+        await using var factory = new TestApiFactory();
+        var seed = await SeedPhaseOneAsync(factory.AppServices);
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.AuthenticatedHeader, "true");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, seed.TenantId);
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "authorization_admin");
+        var resource = $"/api/v1/stores/{seed.StoreId}/authorization-models";
+        var body = new CreateAuthorizationModelRequestDto(
+            "1.1",
+            "type user\ntype document\n  define owner: [user]");
+
+        var first = await SendCreateWithIdempotencyKeyAsync(client, resource, "model-create-0001", body);
+        var replay = await SendCreateWithIdempotencyKeyAsync(client, resource, "model-create-0001", body);
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, replay.StatusCode);
+        var firstPayload = await first.Content.ReadFromJsonAsync<ApiResponse<AuthorizationModelDto>>(JsonOptions);
+        var replayPayload = await replay.Content.ReadFromJsonAsync<ApiResponse<AuthorizationModelDto>>(JsonOptions);
+        Assert.Equal(firstPayload!.Data, replayPayload!.Data);
+
+        var conflictingBody = body with { Model = "type user\ntype document\n  define editor: [user]" };
+        var conflict = await SendCreateWithIdempotencyKeyAsync(client, resource, "model-create-0001", conflictingBody);
+        Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+        var conflictPayload = await conflict.Content.ReadFromJsonAsync<ApiResponse<string>>(JsonOptions);
+        Assert.Equal(NativeErrorCodes.IdempotencyConflict, conflictPayload!.Error!.Code);
+
+        var list = await client.GetFromJsonAsync<ApiResponse<IReadOnlyList<AuthorizationModelDto>>>(resource, JsonOptions);
+        Assert.Equal(3, list!.Data!.Count);
+    }
+
+    [Fact]
     public async Task Model_publish_rejects_missing_and_stale_entity_tags()
     {
         await using var factory = new TestApiFactory();
@@ -197,6 +261,34 @@ public sealed class ModelLifecycleAssertionEndpointsTests
     {
         var request = new HttpRequestMessage(method, requestUri);
         request.Headers.IfMatch.Add(new EntityTagHeaderValue($"\"{revision}\""));
+        return client.SendAsync(request);
+    }
+
+    private static Task<HttpResponseMessage> SendCreateWithIdempotencyKeyAsync(
+        HttpClient client,
+        string requestUri,
+        string key,
+        CreateAuthorizationModelRequestDto body)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, requestUri)
+        {
+            Content = JsonContent.Create(body),
+        };
+        request.Headers.Add("Idempotency-Key", key);
+        return client.SendAsync(request);
+    }
+
+    private static Task<HttpResponseMessage> SendCreateWithIdempotencyKeyAsync(
+        HttpClient client,
+        string requestUri,
+        string key,
+        CreateStoreRequestDto body)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, requestUri)
+        {
+            Content = JsonContent.Create(body),
+        };
+        request.Headers.Add("Idempotency-Key", key);
         return client.SendAsync(request);
     }
 }

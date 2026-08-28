@@ -1,5 +1,6 @@
 using Aegis.Api.Controllers.Helpers;
 using Aegis.Api.Security;
+using Aegis.Application.Features.Users;
 using Aegis.Application.Interfaces;
 using Aegis.Contracts.Administration;
 using Aegis.Contracts.Common;
@@ -14,10 +15,20 @@ namespace Aegis.Api.Controllers
     public sealed class UsersController : ControllerBase
     {
         private readonly IRbacAdminService _rbacAdminService;
+        private readonly CreateUserUseCase _createUserUseCase;
+        private readonly UpdateUserUseCase _updateUserUseCase;
+        private readonly DeleteUserUseCase _deleteUserUseCase;
 
-        public UsersController(IRbacAdminService rbacAdminService)
+        public UsersController(
+            IRbacAdminService rbacAdminService,
+            CreateUserUseCase createUserUseCase,
+            UpdateUserUseCase updateUserUseCase,
+            DeleteUserUseCase deleteUserUseCase)
         {
             _rbacAdminService = rbacAdminService;
+            _createUserUseCase = createUserUseCase;
+            _updateUserUseCase = updateUserUseCase;
+            _deleteUserUseCase = deleteUserUseCase;
         }
 
         [HttpGet]
@@ -49,7 +60,7 @@ namespace Aegis.Api.Controllers
                 return accessResult;
             }
 
-            var result = await _rbacAdminService.CreateUserAsync(tenantId, request, cancellationToken);
+            var result = await _createUserUseCase.ExecuteAsync(tenantId, request, cancellationToken);
             return this.CreatedResponse(result);
         }
 
@@ -68,7 +79,7 @@ namespace Aegis.Api.Controllers
                 return accessResult;
             }
 
-            var result = await _rbacAdminService.UpdateUserAsync(tenantId, userId, request, cancellationToken);
+            var result = await _updateUserUseCase.ExecuteAsync(tenantId, userId, request, cancellationToken);
             if (result is null)
             {
                 return this.NotFoundResponse<UserDto>(NativeErrorCodes.UserNotFound, $"User '{userId}' was not found.");
@@ -90,7 +101,7 @@ namespace Aegis.Api.Controllers
                 return accessResult;
             }
 
-            var deleted = await _rbacAdminService.DeleteUserAsync(tenantId, userId, cancellationToken);
+            var deleted = await _deleteUserUseCase.ExecuteAsync(tenantId, userId, cancellationToken);
             return this.DeletedResponse(deleted);
         }
 

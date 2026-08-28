@@ -39,6 +39,7 @@ Aegis native endpoints return a stable envelope so products can handle failures 
 | `REQUEST_TIMEOUT` | The request exceeded its configured execution deadline |
 | `PRECONDITION_REQUIRED` | A required mutation precondition was omitted |
 | `CONCURRENCY_CONFLICT` | The supplied resource revision is stale |
+| `IDEMPOTENCY_CONFLICT` | An idempotency key was reused with a different request payload |
 | `UNAUTHORIZED` | Required authentication/session identity is absent or invalid |
 | `INVALID_CREDENTIALS` | Login credentials were rejected |
 | `INVALID_REFRESH_TOKEN` | Refresh credentials are invalid or expired |

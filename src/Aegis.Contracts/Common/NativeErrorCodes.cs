@@ -15,6 +15,7 @@ public static class NativeErrorCodes
     public const string RequestTimeout = "REQUEST_TIMEOUT";
     public const string PreconditionRequired = "PRECONDITION_REQUIRED";
     public const string ConcurrencyConflict = "CONCURRENCY_CONFLICT";
+    public const string IdempotencyConflict = "IDEMPOTENCY_CONFLICT";
     public const string TenantForbidden = "TENANT_FORBIDDEN";
     public const string TenantMismatch = "TENANT_MISMATCH";
     public const string TenantRequired = "TENANT_REQUIRED";

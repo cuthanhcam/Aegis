@@ -48,7 +48,7 @@ This append-only log records completed iterations and their evidence. Plans desc
 ## 2026-08-16 — Governed contracts B1, iteration 1
 
 - Branch: `chore/api-contract-governance-b1`
-- Status: In progress
+- Status: Complete
 - Intended result: make the existing `/api/v1` convention executable, define compatibility policy, and provide a deterministic OpenAPI export without changing authorization behavior or the frontend.
 - Implementation: ADR 0006 defines major-version, breaking-change, deprecation, compatibility-surface, and stable-error-code rules. Integration guards inspect the actual MVC action graph and Swagger document. `eng/export-openapi.ps1` exports the runtime-generated contract for future diffing and client generation.
 - Pipeline constraint: no workflow file is changed. Publishing the generated artifact from CI remains an explicit B1 gate pending repository-owner approval.
@@ -123,3 +123,152 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Persistence: PostgreSQL locks the owning store row and validates the target revision within the same transaction that publishes the target and archives the previous active model. Migration 011 repairs historical duplicate-published rows deterministically and adds a partial unique index enforcing one published model per store. The in-memory provider applies the transition within one critical section.
 - Verification: targeted lifecycle service and endpoint tests pass. Locked restore and zero-warning Release build pass with 276 unit tests and 28 integration tests. The additive OpenAPI baseline, semantic diff, all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.
 - Merge evidence: feature commit `c7a5a8f` was merged locally into `develop` as `6a0474a` and pushed. GitHub Actions `.NET CI` run `32143817767` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 8
+
+- Branch: `feat/model-create-idempotency-b1`
+- Status: In progress
+- Intended result: make authorization-model creation safely replayable after ambiguous client timeouts without introducing a business-commit/response-cache gap.
+- Contract: optional `Idempotency-Key`, 8–128 safe ASCII characters, 24-hour retention, same-payload HTTP 201 replay, and HTTP 409 `IDEMPOTENCY_CONFLICT` for payload reuse.
+- Persistence: migration 012 adds tenant/actor/store/operation-scoped records. PostgreSQL commits reservation, model, and serialized response together; the in-memory provider mirrors semantics under one critical section.
+- Scope boundary: no other mutation claims idempotency yet, and Redis is not treated as the durable replay authority.
+- Verification: targeted create/replay/conflict coverage passes. Locked restore and zero-warning Release build pass with 276 unit tests and 29 integration tests. The additive OpenAPI baseline, semantic diff, all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.
+- Merge evidence: feature commit `ef647c5` was merged locally into `develop` as `24f42d8` and pushed. GitHub Actions `.NET CI` run `33182265773` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 9
+
+- Branch: `feat/store-create-idempotency-b1`
+- Status: In progress
+- Intended result: review every mutation class and protect store creation, the next high-risk resource-allocation endpoint, from duplicate commits.
+- Risk review: store/model creates require replay; model edits/lifecycle use concurrency; relationship/RBAC natural-key writes need parity tests; user and assertion mutations wait for explicit use-case transaction ownership; authentication retains protocol-specific defenses.
+- Persistence: migration 013 adds a dedicated store-creation reservation because no resource ID exists before commit. Reservation, store insert, and response commit atomically; replays do not dispatch another domain event.
+- Known boundary: resource/response replay is atomic, but the current domain-event/outbox path is not enlisted in the resource transaction. Transactional outbox persistence remains tracked rather than being implied by idempotency success.
+- Verification: targeted store create/replay/conflict coverage passes. Locked restore and zero-warning Release build pass with 276 unit tests and 30 integration tests. The additive OpenAPI baseline, semantic diff, all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.
+- Merge evidence: feature commit `3b4966d` was merged locally into `develop` as `d6ed257` and pushed. GitHub Actions `.NET CI` run `33183532413` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 10
+
+- Branch: `refactor/store-create-use-case-b1`
+- Status: In progress
+- Intended result: establish an explicit application command boundary without changing the public store-create contract.
+- Boundary: `CreateStoreUseCase` owns validation, aggregate creation, repository transaction selection, replay-aware event dispatch, and DTO mapping. The API retains authentication/tenant/header concerns; repositories retain atomic persistence.
+- Migration safety: `StoresController.Create` consumes the use case directly. Existing `IStoreAppService` create methods delegate to it temporarily so internal callers are not broken by a flag-day refactor.
+- Follow-up: extract the authorization-model validator before moving model commands, then review user/assertion transaction owners.
+- Verification: targeted use-case, compatibility-delegate, and existing endpoint tests pass. Locked restore and zero-warning Release build pass with 278 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Merge evidence: feature commit `844a5e5` was merged locally into `develop` as `d271558` and pushed. GitHub Actions `.NET CI` run `33184947735` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 11
+
+- Branch: `refactor/authorization-model-validator-b1`
+- Status: In progress
+- Intended result: make authorization-model DSL validation an independent application component before extracting model commands.
+- Boundary: `AuthorizationModelValidator` owns schema/type/relation validation, stable issue details, rewrite feature detection, summary generation, and cooperative cancellation. It has no repository, service, transport, or infrastructure dependency.
+- Migration safety: `AuthorizationModelAppService.ValidateAsync` delegates to the validator, and existing constructors retain compatibility while the DI composition root injects the shared stateless validator.
+- Contract impact: none intended; validation DTOs, stable issue codes, line numbers, warnings, and endpoint behavior remain unchanged.
+- Follow-up: extract authorization-model creation and idempotent replay orchestration into a command use case, followed by update and lifecycle commands.
+- Verification: 14 targeted validator, compatibility-service, and dependency-injection tests pass. Locked restore and zero-warning Release build pass with 281 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Merge evidence: feature commit `2d62cff` was merged locally into `develop` as `31dd355` and pushed. GitHub Actions `.NET CI` run `33185735354` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 12
+
+- Branch: `refactor/authorization-model-create-use-case-b1`
+- Status: In progress
+- Intended result: move authorization-model creation and durable replay orchestration behind one explicit command boundary.
+- Boundary: `CreateAuthorizationModelUseCase` owns command validation, store existence, aggregate construction and validated state, repository transaction selection, replay-aware event dispatch, and DTO mapping. The API owns trusted tenant/actor derivation, header parsing, fingerprinting, status codes, and ETags.
+- Transaction safety: `IAuthorizationModelRepository.AddIdempotentAsync` remains the atomic owner of reservation lookup, fingerprint conflict detection, model insert, and response replay. The use case dispatches creation events only when the repository reports a newly created aggregate.
+- Migration safety: `AuthorizationModelsController.Create` consumes the use case directly. Existing `IAuthorizationModelAppService` create methods delegate temporarily so internal callers remain compatible.
+- Contract impact: none intended; route, payload, status, ETag, idempotency scope, and error mapping remain unchanged.
+- Follow-up: extract model update/delete commands, then store-serialized publish/rollback lifecycle commands.
+- Verification: 13 targeted command, compatibility-service, and dependency-injection unit tests and one replay endpoint integration test pass. Locked restore and zero-warning Release build pass with 283 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Merge evidence: feature commit `fc53d80` was merged locally into `develop` as `b74a29d` and pushed. GitHub Actions `.NET CI` run `33186355615` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 13
+
+- Branch: `refactor/authorization-model-update-delete-b1`
+- Status: In progress
+- Intended result: isolate authorization-model definition update and delete behind explicit optimistic-concurrency command boundaries.
+- Boundary: the API owns strong `If-Match` parsing and response ETags. `UpdateAuthorizationModelUseCase` owns DSL validation, aggregate mutation, compare-and-write coordination, conflict classification, event dispatch, and DTO mapping. `DeleteAuthorizationModelUseCase` owns compare-and-delete coordination, conflict classification, and deletion-event dispatch.
+- Concurrency safety: repository revision predicates remain atomic. When a mutation loses the race, the use case re-reads the model to distinguish concurrent modification from concurrent removal; only a still-existing model produces `ConcurrencyConflictException`.
+- Migration safety: controller update/delete actions consume the command use cases directly. Broad-service methods remain temporary delegates for internal callers.
+- Contract impact: none intended; required ETags, HTTP 428/412 behavior, not-found mapping, payloads, and tenant/store guards remain unchanged.
+- Follow-up: extract store-serialized publish and rollback lifecycle commands, then remove model mutation delegates after caller review.
+- Verification: 14 targeted command, compatibility-service, and dependency-injection unit tests and the strong-ETag update endpoint integration test pass. Locked restore and zero-warning Release build pass with 286 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Merge evidence: feature commit `05c5976` was merged locally into `develop` as `1a7b5dc` and pushed. GitHub Actions `.NET CI` run `33187045638` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 14
+
+- Branch: `refactor/authorization-model-lifecycle-b1`
+- Status: In progress
+- Intended result: isolate authorization-model publish and rollback orchestration without weakening the atomic lifecycle invariant.
+- Boundary: the API owns strong `If-Match` parsing and response ETags. Publish/rollback use cases own target validation, preflight revision checks, repository transition coordination, conflict classification, response mapping, and post-success rollback audit.
+- Transaction safety: the production repository retains the store-scoped lock and rechecks the target revision inside the lifecycle transaction. Archiving the previous active model and publishing the target remain atomic; the partial unique index still enforces at most one published row.
+- Compatibility safety: the registry-only multi-call transition remains available for legacy/test providers but is explicitly not the production atomicity boundary. Broad-service lifecycle methods remain temporary delegates.
+- Contract impact: none intended; routes, required ETags, HTTP 428/412/not-found behavior, response payloads, and tenant/store guards remain unchanged.
+- Follow-up: review and remove model mutation delegates after internal caller migration, then assess user/assertion transaction ownership.
+- Verification: 14 targeted lifecycle, compatibility-service, and dependency-injection unit tests and two lifecycle endpoint integration tests pass. Locked restore and zero-warning Release build pass with 289 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Merge evidence: feature commit `ad0a7ff` was merged locally into `develop` as `16c4925` and pushed. GitHub Actions `.NET CI` run `33187746559` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 15
+
+- Branch: `refactor/remove-model-mutation-delegates-b1`
+- Status: In progress
+- Intended result: close the authorization-model compatibility debt after all mutation callers migrated to explicit command boundaries.
+- Caller evidence: production search finds `IAuthorizationModelAppService` only in DI and `AuthorizationModelsController`; the controller uses it for list/get/diff/validate only. Create, update, delete, publish, and rollback use cases are the exclusive HTTP mutation dependencies.
+- Interface change: remove all five mutation families from `IAuthorizationModelAppService` and their concrete delegates. The implementation now depends only on registries/repository projection and `AuthorizationModelValidator`, not event dispatch or audit infrastructure.
+- Test migration: obsolete service-level publish/rollback tests were removed because direct lifecycle-use-case tests cover the same behavior plus stale revisions, the single-published invariant, and rollback audit. Diff fixtures now seed through the registry and test the remaining service responsibility directly.
+- Contract impact: none; the change is internal to the Application composition boundary and does not alter HTTP routes, payloads, status codes, ETags, OpenAPI, or tenant/store guards.
+- Follow-up: audit and remove temporary store-create delegates, then assess user/assertion mutation transaction ownership.
+- Verification: 12 targeted query-service, lifecycle-use-case, and dependency-injection tests pass. Locked restore and zero-warning Release build pass with 287 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Merge evidence: feature commit `086a73f` was merged locally into `develop` as `d04d35b` and pushed. GitHub Actions `.NET CI` run `33188518304` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 16
+
+- Branch: `refactor/remove-store-create-delegates-b1`
+- Status: In progress
+- Intended result: close the remaining store-create compatibility debt after all production callers migrated to the command boundary.
+- Caller evidence: `StoresController.Create` depends directly on `CreateStoreUseCase`; no production or test caller invokes create through `IStoreAppService` or `StoreAppService`.
+- Interface change: remove unscoped create, tenant-scoped create, and idempotent create from `IStoreAppService` and its implementation. The remaining service surface owns list/get/delete behavior.
+- Composition safety: remove `CreateStoreUseCase.CreateCompatibility` and nullable repository/dispatcher fields. The public constructor is now the only composition path and requires both dependencies.
+- Contract impact: none; HTTP route, payload, idempotency behavior, tenant/actor derivation, status codes, and store isolation remain unchanged.
+- Follow-up: audit dormant compatibility factories inside the authorization-model command classes, then review user/assertion mutation transaction ownership.
+- Verification: 11 targeted store-use-case, remaining store-service, and dependency-injection tests pass. Locked restore and zero-warning Release build pass with 287 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Merge evidence: feature commit `bc3988f` was merged locally into `develop` as `7f9617d` and pushed. GitHub Actions `.NET CI` run `33189134472` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 17
+
+- Branch: `refactor/remove-model-command-compatibility-b1`
+- Status: In progress
+- Intended result: make authorization-model command dependencies and transaction ownership strict after broad-service delegate removal.
+- Dead-code evidence: no caller remained for the five `CreateCompatibility` factories. Their private boolean constructors, nullable collaborators, and registry-only mutation branches were reachable only through those factories.
+- Composition change: create/update/delete require repository and event dispatcher; publish requires repository; rollback requires repository and audit store. Validators and store registry remain explicit where command validation and store existence require them.
+- Lifecycle consistency: rollback now reads the current published model through `IAuthorizationModelRepository.GetPublishedByStoreAsync`, so its snapshot and transition use one persistence abstraction. Production and in-memory tests follow the same orchestration algorithm.
+- Contract impact: none; HTTP routes, payloads, ETags, status/error mapping, idempotency, tenant/store guards, and database invariants remain unchanged.
+- Follow-up: review user and assertion mutations, identify their repository transaction owners, and extract only commands whose atomicity can be stated explicitly.
+- Verification: 15 targeted authorization-model command, remaining query-service, and dependency-injection tests pass. Locked restore and zero-warning Release build pass with 287 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Merge evidence: feature commit `b70eaa1` was merged locally into `develop` as `c6519df` and pushed. GitHub Actions `.NET CI` run `33189763090` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 18
+
+- Branch: `refactor/user-mutation-use-cases-b1`
+- Status: Complete
+- Intended result: isolate tenant user create/update/delete behind explicit commands whose repository transaction ownership can be stated and tested.
+- Boundary: `UsersController` retains tenant access enforcement and HTTP mapping. The three user mutation use cases own command validation and repository coordination. `RbacAdminService` retains user queries and RBAC role/permission behavior but no longer exposes profile mutation delegates.
+- Transaction safety: PostgreSQL update returns the row from `UPDATE ... RETURNING`, removing the former update/read race. Delete wraps assignment cleanup and user deletion in an explicit transaction and derives its boolean from the user deletion. Tenant predicates remain mandatory in every operation.
+- Assertion review: definition state is still held in a static process-local dictionary and only run history has a durable store. Assertion command extraction is deferred until a scoped repository defines replace/append concurrency and purge semantics.
+- Contract impact: none intended; routes, payloads, status/error mapping, tenant guard, and OpenAPI shape remain unchanged.
+- Follow-up: add the persistent assertion-definition repository and migration before extracting assertion write/run/generate commands; review role/permission existence and conflict semantics separately.
+- Verification: 7 targeted user-boundary and dependency-injection tests pass. Locked restore and zero-warning Release build pass with 290 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Merge evidence: feature commit `75ec6c0` was merged locally into `develop` as `6b18cb1` and pushed. GitHub Actions `.NET CI` run `33191447242` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 19
+
+- Branch: `feat/durable-assertion-repository-b1`
+- Status: Complete
+- Intended result: establish a durable transaction owner for assertion definitions before extracting assertion commands.
+- Persistence boundary: `IAssertionRepository` reads versioned snapshots, atomically replaces a set, atomically appends distinct assertions under a maximum, and purges all sets for one store. PostgreSQL migration 014 stores one JSONB set per store/model; the in-memory provider implements the same behavior.
+- Concurrency safety: PostgreSQL takes a transaction-scoped advisory lock before reading and upserting, including the first-write case. In-memory mutations use a per-key critical section. Failed capacity checks do not advance or overwrite the current snapshot.
+- Composition safety: `AssertionAppService` no longer owns static definition state or offers a partial constructor. Permission checking, definition persistence, run history, and audit querying are required dependencies.
+- Contract impact: none intended; the snapshot revision remains internal, and HTTP routes, payloads, status codes, tenant/store guards, and OpenAPI remain unchanged.
+- Follow-up: extract assertion write/run/generate use cases, then make an additive contract decision for recording the executed definition revision in run history.
+- Verification: 15 targeted assertion/store tests and the assertion lifecycle endpoint integration test pass. Locked restore and zero-warning Release build pass with 293 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Merge evidence: feature commit `f759d8e` was merged locally into `develop` as `c5dd3d0` and pushed. GitHub Actions `.NET CI` run `33192371166` passed without modifying the workflow.

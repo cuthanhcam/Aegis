@@ -1,67 +1,27 @@
-using Aegis.Application.DomainEvents;
-using Aegis.Application.Contracts;
+using Aegis.Application.Features.AuthorizationModels;
 using Aegis.Application.Interfaces;
-using Aegis.Authorization.Core.Interfaces;
-using Aegis.Authorization.Core.Models;
-using Aegis.Authorization.Core.Parsing;
 using Aegis.Contracts.Administration;
 using Aegis.Domain.Entities;
 using Aegis.Domain.Repositories;
-using System.Text.RegularExpressions;
 
 namespace Aegis.Application.Services
 {
     public sealed class AuthorizationModelAppService : IAuthorizationModelAppService
     {
-        private static readonly Regex TypeRegex = new(@"^\s*type\s+([A-Za-z][A-Za-z0-9_]*)\s*$", RegexOptions.Compiled);
-        private static readonly Regex DefineRegex = new(@"^\s*define\s+([A-Za-z][A-Za-z0-9_]*)\s*:\s*(.+)$", RegexOptions.Compiled);
         private readonly IStoreRegistry _storeRegistry;
         private readonly IAuthorizationModelRegistry _authorizationModelRegistry;
         private readonly IAuthorizationModelRepository? _authorizationModelRepository;
-        private readonly IDomainEventDispatcher? _domainEventDispatcher;
-        private readonly IAuditStore? _auditStore;
-
-        public AuthorizationModelAppService(IStoreRegistry storeRegistry, IAuthorizationModelRegistry authorizationModelRegistry)
-        {
-            _storeRegistry = storeRegistry;
-            _authorizationModelRegistry = authorizationModelRegistry;
-            _authorizationModelRepository = authorizationModelRegistry as IAuthorizationModelRepository;
-            _domainEventDispatcher = null;
-        }
+        private readonly AuthorizationModelValidator _validator;
 
         public AuthorizationModelAppService(
             IStoreRegistry storeRegistry,
             IAuthorizationModelRegistry authorizationModelRegistry,
-            IAuthorizationModelRepository authorizationModelRepository,
-            IDomainEventDispatcher domainEventDispatcher,
-            IAuditStore? auditStore = null)
-            : this(storeRegistry, authorizationModelRegistry)
+            AuthorizationModelValidator validator)
         {
-            _authorizationModelRepository = authorizationModelRepository;
-            _domainEventDispatcher = domainEventDispatcher;
-            _auditStore = auditStore;
-        }
-
-        public async Task<AuthorizationModelDto> CreateAsync(
-            string storeId,
-            CreateAuthorizationModelRequestDto request,
-            CancellationToken cancellationToken = default)
-        {
-            var validation = await ValidateAsync(new ValidateAuthorizationModelRequestDto(request.SchemaVersion, request.Model), cancellationToken);
-            ThrowIfInvalid(validation);
-
-            if (_authorizationModelRepository is null)
-            {
-                await EnsureStoreExists(storeId, cancellationToken);
-                return await _authorizationModelRegistry.CreateAsync(storeId, request.SchemaVersion, request.Model, cancellationToken);
-            }
-
-            await EnsureStoreExists(storeId, cancellationToken);
-            var authorizationModel = AuthorizationModel.Create(storeId, request.SchemaVersion, request.Model);
-            authorizationModel.MarkValidated();
-            await _authorizationModelRepository.AddAsync(authorizationModel, cancellationToken);
-            await _domainEventDispatcher.DispatchAndClearAsync(authorizationModel, cancellationToken);
-            return ToDto(authorizationModel);
+            _storeRegistry = storeRegistry;
+            _authorizationModelRegistry = authorizationModelRegistry;
+            _authorizationModelRepository = authorizationModelRegistry as IAuthorizationModelRepository;
+            _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         }
 
         public async Task<IReadOnlyList<AuthorizationModelDto>> ListAsync(string storeId, CancellationToken cancellationToken = default)
@@ -109,152 +69,6 @@ namespace Aegis.Application.Services
             }
 
             return await _authorizationModelRegistry.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-        }
-
-        public async Task<PublishAuthorizationModelResponseDto?> PublishAsync(
-            string storeId,
-            string authorizationModelId,
-            long expectedRevision,
-            CancellationToken cancellationToken = default)
-        {
-            if (string.IsNullOrWhiteSpace(authorizationModelId))
-            {
-                throw new ArgumentException("authorizationModelId is required.");
-            }
-
-            await EnsureStoreExists(storeId, cancellationToken);
-            var model = await GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-            if (model is null)
-            {
-                return null;
-            }
-
-            if (model.Revision != expectedRevision)
-            {
-                throw new ConcurrencyConflictException("The authorization model lifecycle changed before publish started.");
-            }
-
-            var validation = await ValidateAsync(new ValidateAuthorizationModelRequestDto(model.SchemaVersion, model.Model), cancellationToken);
-            ThrowIfInvalid(validation);
-
-            if (_authorizationModelRepository is not null)
-            {
-                var updated = await _authorizationModelRepository.PublishAsync(storeId, authorizationModelId, expectedRevision, cancellationToken);
-                var published = updated.FirstOrDefault(x => x.Id.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase));
-                if (published is null)
-                {
-                    var stillExists = await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-                    if (stillExists is not null)
-                    {
-                        throw new ConcurrencyConflictException("The authorization model lifecycle changed before publish completed.");
-                    }
-                }
-                return published is null ? null : new PublishAuthorizationModelResponseDto(ToDto(published), published.Id, published.SchemaVersion);
-            }
-
-            var currentPublished = await _authorizationModelRegistry.GetPublishedAsync(storeId, cancellationToken);
-            if (currentPublished is not null && !currentPublished.Id.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase))
-            {
-                await _authorizationModelRegistry.UpdateStateAsync(
-                    storeId,
-                    currentPublished.Id,
-                    AuthorizationModelLifecycleStates.Archived,
-                    currentPublished.PublishedAt,
-                    DateTimeOffset.UtcNow,
-                    authorizationModelId,
-                    cancellationToken);
-            }
-
-            var publishedDto = await _authorizationModelRegistry.UpdateStateAsync(
-                storeId,
-                authorizationModelId,
-                AuthorizationModelLifecycleStates.Published,
-                DateTimeOffset.UtcNow,
-                null,
-                null,
-                cancellationToken);
-
-            return publishedDto is null ? null : new PublishAuthorizationModelResponseDto(publishedDto, publishedDto.Id, publishedDto.SchemaVersion);
-        }
-
-        public async Task<RollbackAuthorizationModelResponseDto?> RollbackAsync(
-            string storeId,
-            string authorizationModelId,
-            long expectedRevision,
-            CancellationToken cancellationToken = default)
-        {
-            if (string.IsNullOrWhiteSpace(authorizationModelId))
-            {
-                throw new ArgumentException("authorizationModelId is required.");
-            }
-
-            await EnsureStoreExists(storeId, cancellationToken);
-            var currentPublished = await _authorizationModelRegistry.GetPublishedAsync(storeId, cancellationToken);
-            var target = await GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-            if (target is null)
-            {
-                return null;
-            }
-
-            if (target.Revision != expectedRevision)
-            {
-                throw new ConcurrencyConflictException("The authorization model lifecycle changed before rollback started.");
-            }
-
-            var validation = await ValidateAsync(new ValidateAuthorizationModelRequestDto(target.SchemaVersion, target.Model), cancellationToken);
-            ThrowIfInvalid(validation);
-
-            AuthorizationModelDto? active;
-            if (_authorizationModelRepository is not null)
-            {
-                var rolledBack = await _authorizationModelRepository.RollbackAsync(storeId, authorizationModelId, expectedRevision, cancellationToken);
-                if (rolledBack is null)
-                {
-                    var stillExists = await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-                    if (stillExists is not null)
-                    {
-                        throw new ConcurrencyConflictException("The authorization model lifecycle changed before rollback completed.");
-                    }
-                }
-                active = rolledBack is null ? null : ToDto(rolledBack);
-            }
-            else
-            {
-                if (currentPublished is not null && !currentPublished.Id.Equals(authorizationModelId, StringComparison.OrdinalIgnoreCase))
-                {
-                    await _authorizationModelRegistry.UpdateStateAsync(
-                        storeId,
-                        currentPublished.Id,
-                        AuthorizationModelLifecycleStates.Archived,
-                        currentPublished.PublishedAt,
-                        DateTimeOffset.UtcNow,
-                        authorizationModelId,
-                        cancellationToken);
-                }
-
-                active = await _authorizationModelRegistry.UpdateStateAsync(
-                    storeId,
-                    authorizationModelId,
-                    AuthorizationModelLifecycleStates.Published,
-                    DateTimeOffset.UtcNow,
-                    null,
-                    null,
-                    cancellationToken);
-            }
-
-            if (active is null)
-            {
-                return null;
-            }
-
-            if (_auditStore is not null)
-            {
-                await _auditStore.WriteAsync(
-                    new AuditEvent(storeId, "model.rollback", "system", "rollback", authorizationModelId, "Allow", "MODEL_ROLLED_BACK", DateTimeOffset.UtcNow, storeId),
-                    cancellationToken);
-            }
-
-            return new RollbackAuthorizationModelResponseDto(active, active.Id, currentPublished?.Id ?? string.Empty);
         }
 
         public async Task<AuthorizationModelDiffDto?> DiffAsync(
@@ -327,241 +141,11 @@ namespace Aegis.Application.Services
                 hints);
         }
 
-        public async Task<AuthorizationModelDto?> UpdateAsync(
-            string storeId,
-            string authorizationModelId,
-            CreateAuthorizationModelRequestDto request,
-            long expectedRevision,
-            CancellationToken cancellationToken = default)
-        {
-            var validation = await ValidateAsync(new ValidateAuthorizationModelRequestDto(request.SchemaVersion, request.Model), cancellationToken);
-            ThrowIfInvalid(validation);
-
-            if (string.IsNullOrWhiteSpace(authorizationModelId))
-            {
-                throw new ArgumentException("authorizationModelId is required.");
-            }
-
-            if (_authorizationModelRepository is null)
-            {
-                await EnsureStoreExists(storeId, cancellationToken);
-                var current = await _authorizationModelRegistry.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-                if (current is not null && current.Revision != expectedRevision)
-                {
-                    throw new ConcurrencyConflictException("The authorization model was modified by another request.");
-                }
-
-                return await _authorizationModelRegistry.UpdateAsync(storeId, authorizationModelId, request.SchemaVersion, request.Model, cancellationToken);
-            }
-
-            await EnsureStoreExists(storeId, cancellationToken);
-            var existing = await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-            if (existing is null)
-            {
-                return null;
-            }
-
-            existing.UpdateDefinition(request.SchemaVersion, request.Model);
-            existing.MarkValidated();
-            var updated = await _authorizationModelRepository.UpdateAsync(existing, expectedRevision, cancellationToken);
-            if (updated is null)
-            {
-                var stillExists = await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-                if (stillExists is not null)
-                {
-                    throw new ConcurrencyConflictException("The authorization model was modified by another request.");
-                }
-
-                return null;
-            }
-
-            await _domainEventDispatcher.DispatchAndClearAsync(existing, cancellationToken);
-            return ToDto(updated);
-        }
-
-        public async Task<bool> DeleteAsync(
-            string storeId,
-            string authorizationModelId,
-            long expectedRevision,
-            CancellationToken cancellationToken = default)
-        {
-            if (string.IsNullOrWhiteSpace(authorizationModelId))
-            {
-                throw new ArgumentException("authorizationModelId is required.");
-            }
-
-            await EnsureStoreExists(storeId, cancellationToken);
-
-            if (_authorizationModelRepository is not null)
-            {
-                var existing = await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-                if (existing is null)
-                {
-                    return false;
-                }
-
-                existing.MarkDeleted();
-                var deleted = await _authorizationModelRepository.DeleteAsync(existing, expectedRevision, cancellationToken);
-                if (!deleted)
-                {
-                    var stillExists = await _authorizationModelRepository.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-                    if (stillExists is not null)
-                    {
-                        throw new ConcurrencyConflictException("The authorization model was modified by another request.");
-                    }
-                }
-                if (deleted)
-                {
-                    await _domainEventDispatcher.DispatchAndClearAsync(existing, cancellationToken);
-                }
-
-                return deleted;
-            }
-
-            var current = await _authorizationModelRegistry.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
-            if (current is not null && current.Revision != expectedRevision)
-            {
-                throw new ConcurrencyConflictException("The authorization model was modified by another request.");
-            }
-
-            return await _authorizationModelRegistry.DeleteAsync(storeId, authorizationModelId, cancellationToken);
-        }
-
         public Task<AuthorizationModelValidationResultDto> ValidateAsync(
             ValidateAuthorizationModelRequestDto request,
             CancellationToken cancellationToken = default)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            ArgumentNullException.ThrowIfNull(request);
-
-            var errors = new List<AuthorizationModelValidationIssueDto>();
-            var warnings = new List<AuthorizationModelValidationIssueDto>();
-            var types = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var relationsByType = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
-            var currentType = string.Empty;
-            var relationCount = 0;
-            var directRelationCount = 0;
-            var hasUnion = false;
-            var hasIntersection = false;
-            var hasExclusion = false;
-            var hasTupleToUserset = false;
-
-            if (string.IsNullOrWhiteSpace(request.SchemaVersion))
-            {
-                errors.Add(new AuthorizationModelValidationIssueDto("SCHEMA_VERSION_REQUIRED", "schemaVersion is required."));
-            }
-            else if (!request.SchemaVersion.Trim().Equals("1.1", StringComparison.OrdinalIgnoreCase))
-            {
-                warnings.Add(new AuthorizationModelValidationIssueDto("SCHEMA_VERSION_UNRECOGNIZED", "Aegis currently validates against schema version 1.1 semantics."));
-            }
-
-            if (string.IsNullOrWhiteSpace(request.Model))
-            {
-                errors.Add(new AuthorizationModelValidationIssueDto("MODEL_REQUIRED", "model is required."));
-            }
-            else
-            {
-                var lines = request.Model.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
-                for (var index = 0; index < lines.Length; index++)
-                {
-                    var lineNumber = index + 1;
-                    var line = lines[index];
-                    var trimmed = line.Trim();
-                    if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith("#", StringComparison.Ordinal))
-                    {
-                        continue;
-                    }
-
-                    if (trimmed.Equals("model", StringComparison.OrdinalIgnoreCase)
-                        || trimmed.Equals("relations", StringComparison.OrdinalIgnoreCase)
-                        || trimmed.StartsWith("schema ", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    var typeMatch = TypeRegex.Match(line);
-                    if (typeMatch.Success)
-                    {
-                        currentType = typeMatch.Groups[1].Value;
-                        if (!types.Add(currentType))
-                        {
-                            errors.Add(new AuthorizationModelValidationIssueDto("DUPLICATE_TYPE", $"Type '{currentType}' is defined more than once.", lineNumber));
-                        }
-
-                        relationsByType.TryAdd(currentType, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
-                        continue;
-                    }
-
-                    var defineMatch = DefineRegex.Match(line);
-                    if (defineMatch.Success)
-                    {
-                        if (string.IsNullOrWhiteSpace(currentType))
-                        {
-                            errors.Add(new AuthorizationModelValidationIssueDto("RELATION_OUTSIDE_TYPE", "Relation definitions must appear inside a type block.", lineNumber));
-                            continue;
-                        }
-
-                        var relation = defineMatch.Groups[1].Value;
-                        var expression = defineMatch.Groups[2].Value.Trim();
-                        if (!relationsByType[currentType].Add(relation))
-                        {
-                            errors.Add(new AuthorizationModelValidationIssueDto("DUPLICATE_RELATION", $"Relation '{currentType}#{relation}' is defined more than once.", lineNumber));
-                        }
-
-                        if (string.IsNullOrWhiteSpace(expression))
-                        {
-                            errors.Add(new AuthorizationModelValidationIssueDto("EMPTY_RELATION_EXPRESSION", $"Relation '{currentType}#{relation}' has an empty rewrite expression.", lineNumber));
-                            continue;
-                        }
-
-                        relationCount++;
-                        directRelationCount += expression.StartsWith("[", StringComparison.Ordinal) ? 1 : 0;
-                        hasUnion |= Regex.IsMatch(expression, @"\bor\b", RegexOptions.IgnoreCase);
-                        hasIntersection |= Regex.IsMatch(expression, @"\band\b", RegexOptions.IgnoreCase);
-                        hasExclusion |= Regex.IsMatch(expression, @"\bbut\s+not\b", RegexOptions.IgnoreCase);
-                        hasTupleToUserset |= Regex.IsMatch(expression, @"\bfrom\b", RegexOptions.IgnoreCase);
-
-                        try
-                        {
-                            _ = RewriteExpressionParser.Parse(expression);
-                        }
-                        catch (Exception ex)
-                        {
-                            errors.Add(new AuthorizationModelValidationIssueDto("INVALID_REWRITE_EXPRESSION", ex.Message, lineNumber));
-                        }
-
-                        continue;
-                    }
-
-                    warnings.Add(new AuthorizationModelValidationIssueDto("UNRECOGNIZED_MODEL_LINE", $"Line was ignored by the validator: '{trimmed}'.", lineNumber));
-                }
-            }
-
-            if (types.Count == 0)
-            {
-                errors.Add(new AuthorizationModelValidationIssueDto("TYPE_REQUIRED", "At least one type definition is required."));
-            }
-
-            if (relationCount == 0)
-            {
-                warnings.Add(new AuthorizationModelValidationIssueDto("RELATION_RECOMMENDED", "Add at least one relation before using this model for authorization checks."));
-            }
-
-            if (directRelationCount == 0)
-            {
-                warnings.Add(new AuthorizationModelValidationIssueDto("DIRECT_RELATION_RECOMMENDED", "At least one direct assignable relation is recommended for tuple writes."));
-            }
-
-            var summary = new AuthorizationModelValidationSummaryDto(
-                types.Count,
-                relationCount,
-                directRelationCount,
-                hasUnion,
-                hasIntersection,
-                hasExclusion,
-                hasTupleToUserset);
-
-            return Task.FromResult(new AuthorizationModelValidationResultDto(errors.Count == 0, summary, errors, warnings));
+            return Task.FromResult(_validator.Validate(request, cancellationToken));
         }
 
         private async Task EnsureStoreExists(string storeId, CancellationToken cancellationToken)
@@ -591,16 +175,6 @@ namespace Aegis.Application.Services
                 authorizationModel.ArchivedAt,
                 authorizationModel.SupersededBy,
                 authorizationModel.Revision);
-        }
-
-        private static void ThrowIfInvalid(AuthorizationModelValidationResultDto validation)
-        {
-            if (validation.Valid)
-            {
-                return;
-            }
-
-            throw new ArgumentException(string.Join(" ", validation.Errors.Select(error => error.Message)));
         }
 
         private static IReadOnlyDictionary<string, Dictionary<string, string>> ParseModelIndex(string model)

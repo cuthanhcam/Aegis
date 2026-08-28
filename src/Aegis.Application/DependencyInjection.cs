@@ -1,5 +1,8 @@
 using Aegis.Application.Features.Permissions;
 using Aegis.Application.Features.Query;
+using Aegis.Application.Features.Stores;
+using Aegis.Application.Features.Users;
+using Aegis.Application.Features.AuthorizationModels;
 using Aegis.Application.Interfaces;
 using Aegis.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,6 +25,16 @@ namespace Aegis.Application
             services.AddScoped<ListObjectsQueryUseCase>();
             services.AddScoped<ExpandQueryUseCase>();
             services.AddScoped<ResolveUsersetEntriesFromRelationFiltersUseCase>();
+            services.AddScoped<CreateStoreUseCase>();
+            services.AddScoped<CreateUserUseCase>();
+            services.AddScoped<UpdateUserUseCase>();
+            services.AddScoped<DeleteUserUseCase>();
+            services.AddSingleton<AuthorizationModelValidator>();
+            services.AddScoped<CreateAuthorizationModelUseCase>();
+            services.AddScoped<UpdateAuthorizationModelUseCase>();
+            services.AddScoped<DeleteAuthorizationModelUseCase>();
+            services.AddScoped<PublishAuthorizationModelUseCase>();
+            services.AddScoped<RollbackAuthorizationModelUseCase>();
 
             // Application Services - Standard Dependency Inversion Pattern
             services.AddScoped<IAuthAppService, AuthAppService>();
