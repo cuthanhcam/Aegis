@@ -13,3 +13,7 @@ public sealed record IdempotentMutation(
 public sealed record IdempotentAuthorizationModelAddResult(
     AuthorizationModel AuthorizationModel,
     bool Created);
+
+public sealed record IdempotentStoreAddResult(
+    Store Store,
+    bool Created);

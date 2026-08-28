@@ -13,6 +13,14 @@ public interface IStoreAppService
         CreateStoreRequestDto request,
         CancellationToken cancellationToken = default);
 
+    Task<StoreDto> CreateIdempotentAsync(
+        string tenantId,
+        CreateStoreRequestDto request,
+        string actorId,
+        string idempotencyKey,
+        string requestFingerprint,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<StoreDto>> ListAsync(CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<StoreDto>> ListAsync(

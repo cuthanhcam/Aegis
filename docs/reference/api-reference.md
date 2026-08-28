@@ -145,6 +145,8 @@ Lists stores owned by the authenticated tenant.
 
 ### POST `/stores`
 
+Optionally send `Idempotency-Key` to make store creation safely replayable for 24 hours. The same key and normalized name return the original HTTP 201 store; reuse with another name returns HTTP 409 `IDEMPOTENCY_CONFLICT`.
+
 ```json
 {
   "name": "document-service"

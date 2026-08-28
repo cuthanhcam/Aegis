@@ -116,7 +116,10 @@ Idempotency progress:
 - [x] Make authorization-model creation transactionally replayable across replicas.
 - [x] Scope keys by tenant, actor, store, operation, and request fingerprint.
 - [x] Prevent duplicate domain-event dispatch during response replay.
+- [x] Complete the mutation risk register and select transaction-coupled candidates.
+- [x] Make store creation transactionally replayable without a pre-existing resource scope.
 - [ ] Extend transactional idempotency to other selected creates/writes after endpoint risk review.
+- [ ] Couple durable outbox messages to idempotent resource transactions before external event delivery is production-supported.
 
 Iteration 1 evidence: local locked restore, zero-warning Release build, 268 unit tests, 25 integration tests, a 53-path OpenAPI v1 export, and `develop` Actions run `31955813080` all passed for merge commit `c39e396`.
 
@@ -153,5 +156,9 @@ Iteration 8 idempotency scope: provide the first durable, transaction-coupled re
 Iteration 8 local evidence: same-key replay and conflicting-payload coverage, additive OpenAPI semantic diff, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 276 unit tests, and 29 integration tests passed. `develop` merge and Actions evidence remain pending.
 
 Iteration 8 merge evidence: feature commit `ef647c5` was merged locally into `develop` as `24f42d8`; `.NET CI` run `33182265773` passed. The workflow remained unchanged.
+
+Iteration 9 store-idempotency scope: complete the mutation risk register and add transaction-coupled replay to store creation; defer user/assertion candidates until their use-case transaction ownership is explicit.
+
+Iteration 9 local evidence: store same-key replay and payload-conflict coverage, additive OpenAPI semantic diff, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 276 unit tests, and 30 integration tests passed. `develop` merge and Actions evidence remain pending.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.

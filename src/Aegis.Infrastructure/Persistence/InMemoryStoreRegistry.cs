@@ -13,6 +13,8 @@ namespace Aegis.Infrastructure.Persistence
         private readonly ConcurrentDictionary<string, StoreDto> _stores = new(StringComparer.OrdinalIgnoreCase);
         private readonly ConcurrentDictionary<string, AuthorizationModelDto> _models = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, InMemoryIdempotencyRecord> _idempotencyRecords = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, InMemoryStoreIdempotencyRecord> _storeIdempotencyRecords = new(StringComparer.Ordinal);
+        private readonly object _storeIdempotencyGate = new();
         private readonly object _authorizationModelsGate = new();
 
         public Task<StoreDto> CreateAsync(string name, CancellationToken cancellationToken = default)
@@ -86,6 +88,44 @@ namespace Aegis.Infrastructure.Persistence
         {
             _stores[store.Id] = new StoreDto(store.Id, store.Name, store.CreatedAt, store.UpdatedAt, null, null, store.Id);
             return Task.CompletedTask;
+        }
+
+        Task<IdempotentStoreAddResult> IStoreRepository.AddIdempotentAsync(
+            Store store,
+            IdempotentMutation mutation,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var scopeKey = $"{mutation.TenantId}\n{mutation.ActorId}\n{mutation.Operation}\n{mutation.Key}";
+            lock (_storeIdempotencyGate)
+            {
+                if (_storeIdempotencyRecords.TryGetValue(scopeKey, out var existing))
+                {
+                    if (existing.ExpiresAt <= DateTimeOffset.UtcNow)
+                    {
+                        _storeIdempotencyRecords.Remove(scopeKey);
+                    }
+                    else
+                    {
+                        if (!string.Equals(existing.RequestFingerprint, mutation.RequestFingerprint, StringComparison.Ordinal))
+                        {
+                            throw new IdempotencyConflictException("Idempotency-Key was already used with a different request payload.");
+                        }
+
+                        return Task.FromResult(new IdempotentStoreAddResult(
+                            Store.Rehydrate(existing.Response.Id, existing.Response.Name, existing.Response.CreatedAt, existing.Response.UpdatedAt),
+                            false));
+                    }
+                }
+
+                var dto = new StoreDto(store.Id, store.Name, store.CreatedAt, store.UpdatedAt, null, null, mutation.TenantId);
+                _stores[store.Id] = dto;
+                _storeIdempotencyRecords[scopeKey] = new InMemoryStoreIdempotencyRecord(
+                    mutation.RequestFingerprint,
+                    dto,
+                    mutation.ExpiresAt);
+                return Task.FromResult(new IdempotentStoreAddResult(store, true));
+            }
         }
 
         Task<Store?> IStoreRepository.GetByIdAsync(string storeId, CancellationToken cancellationToken)
@@ -446,6 +486,11 @@ namespace Aegis.Infrastructure.Persistence
         private sealed record InMemoryIdempotencyRecord(
             string RequestFingerprint,
             AuthorizationModelDto Response,
+            DateTimeOffset ExpiresAt);
+
+        private sealed record InMemoryStoreIdempotencyRecord(
+            string RequestFingerprint,
+            StoreDto Response,
             DateTimeOffset ExpiresAt);
     }
 }

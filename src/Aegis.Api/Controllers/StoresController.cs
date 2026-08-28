@@ -5,6 +5,7 @@ using Aegis.Contracts.Administration;
 using Aegis.Contracts.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Aegis.Api.Controllers
 {
@@ -36,8 +37,10 @@ namespace Aegis.Api.Controllers
 
         [HttpPost]
         [ProducesResponseType(typeof(ApiResponse<StoreDto>), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status409Conflict)]
         public async Task<ActionResult<ApiResponse<StoreDto>>> Create(
             [FromBody] CreateStoreRequestDto request,
+            [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
             CancellationToken cancellationToken)
         {
             var tenantId = TenantAccessGuard.ResolveTenantId(User);
@@ -46,7 +49,25 @@ namespace Aegis.Api.Controllers
                 return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<StoreDto>.Fail(NativeErrorCodes.TenantForbidden, "Tenant claim is required."));
             }
 
-            var result = await _storeAppService.CreateAsync(tenantId, request, cancellationToken);
+            var validatedKey = IdempotencyHeaders.Validate(idempotencyKey);
+            StoreDto result;
+            if (validatedKey is null)
+            {
+                result = await _storeAppService.CreateAsync(tenantId, request, cancellationToken);
+            }
+            else
+            {
+                var actorId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? User.FindFirstValue("sub")
+                    ?? throw new UnauthorizedAccessException("Authenticated subject identifier is required for idempotent mutations.");
+                result = await _storeAppService.CreateIdempotentAsync(
+                    tenantId,
+                    request,
+                    actorId,
+                    validatedKey,
+                    IdempotencyHeaders.Fingerprint(request),
+                    cancellationToken);
+            }
             return this.CreatedResponse(result);
         }
 
