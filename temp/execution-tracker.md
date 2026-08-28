@@ -152,4 +152,6 @@ Iteration 8 idempotency scope: provide the first durable, transaction-coupled re
 
 Iteration 8 local evidence: same-key replay and conflicting-payload coverage, additive OpenAPI semantic diff, five lifecycle fixtures, generated TypeScript strict compilation, npm audit, locked restore, zero-warning Release build, 276 unit tests, and 29 integration tests passed. `develop` merge and Actions evidence remain pending.
 
+Iteration 8 merge evidence: feature commit `ef647c5` was merged locally into `develop` as `24f42d8`; `.NET CI` run `33182265773` passed. The workflow remained unchanged.
+
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
