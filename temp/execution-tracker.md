@@ -188,6 +188,8 @@ Iteration 11 merge evidence: feature commit `2d62cff` was merged locally into `d
 
 Iteration 12 application-boundary scope: extract authorization-model creation and transaction-coupled idempotent replay while retaining the broad service delegates for compatibility.
 
-Iteration 12 local evidence: 13 targeted command, compatibility-service, and dependency-injection unit tests plus the model-create replay endpoint integration test passed. Locked restore, zero-warning Release build, 283 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed. `develop` merge and Actions evidence remain pending.
+Iteration 12 local evidence: 13 targeted command, compatibility-service, and dependency-injection unit tests plus the model-create replay endpoint integration test passed. Locked restore, zero-warning Release build, 283 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 12 merge evidence: feature commit `fc53d80` was merged locally into `develop` as `b74a29d`; `.NET CI` run `33186355615` passed. The workflow remained unchanged.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
