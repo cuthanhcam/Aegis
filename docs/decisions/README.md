@@ -14,6 +14,7 @@ Architecture decision records explain why Aegis has a particular boundary. They 
 | [0008](0008-govern-request-semantics.md) | Accepted | Govern request limits, cursors, deadlines, and cancellation |
 | [0009](0009-authorization-model-optimistic-concurrency.md) | Accepted | Protect authorization-model edits with strong entity tags |
 | [0010](0010-transactional-idempotency.md) | Accepted | Couple idempotency records to business commits |
+| [0011](0011-explicit-application-use-cases.md) | Accepted | Move mutation transaction ownership into explicit use cases |
 
 ## ADR template
 

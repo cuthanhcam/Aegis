@@ -1,6 +1,7 @@
 using Aegis.Api.Controllers.Helpers;
 using Aegis.Api.Security;
 using Aegis.Application.Interfaces;
+using Aegis.Application.Features.Stores;
 using Aegis.Contracts.Administration;
 using Aegis.Contracts.Common;
 using Microsoft.AspNetCore.Authorization;
@@ -15,10 +16,12 @@ namespace Aegis.Api.Controllers
     public sealed class StoresController : ControllerBase
     {
         private readonly IStoreAppService _storeAppService;
+        private readonly CreateStoreUseCase _createStoreUseCase;
 
-        public StoresController(IStoreAppService storeAppService)
+        public StoresController(IStoreAppService storeAppService, CreateStoreUseCase createStoreUseCase)
         {
             _storeAppService = storeAppService;
+            _createStoreUseCase = createStoreUseCase;
         }
 
         [HttpGet]
@@ -53,14 +56,14 @@ namespace Aegis.Api.Controllers
             StoreDto result;
             if (validatedKey is null)
             {
-                result = await _storeAppService.CreateAsync(tenantId, request, cancellationToken);
+                result = await _createStoreUseCase.ExecuteAsync(tenantId, request, cancellationToken);
             }
             else
             {
                 var actorId = User.FindFirstValue(ClaimTypes.NameIdentifier)
                     ?? User.FindFirstValue("sub")
                     ?? throw new UnauthorizedAccessException("Authenticated subject identifier is required for idempotent mutations.");
-                result = await _storeAppService.CreateIdempotentAsync(
+                result = await _createStoreUseCase.ExecuteIdempotentAsync(
                     tenantId,
                     request,
                     actorId,

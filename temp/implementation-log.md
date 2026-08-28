@@ -145,3 +145,13 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Known boundary: resource/response replay is atomic, but the current domain-event/outbox path is not enlisted in the resource transaction. Transactional outbox persistence remains tracked rather than being implied by idempotency success.
 - Verification: targeted store create/replay/conflict coverage passes. Locked restore and zero-warning Release build pass with 276 unit tests and 30 integration tests. The additive OpenAPI baseline, semantic diff, all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.
 - Merge evidence: feature commit `3b4966d` was merged locally into `develop` as `d6ed257` and pushed. GitHub Actions `.NET CI` run `33183532413` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 10
+
+- Branch: `refactor/store-create-use-case-b1`
+- Status: In progress
+- Intended result: establish an explicit application command boundary without changing the public store-create contract.
+- Boundary: `CreateStoreUseCase` owns validation, aggregate creation, repository transaction selection, replay-aware event dispatch, and DTO mapping. The API retains authentication/tenant/header concerns; repositories retain atomic persistence.
+- Migration safety: `StoresController.Create` consumes the use case directly. Existing `IStoreAppService` create methods delegate to it temporarily so internal callers are not broken by a flag-day refactor.
+- Follow-up: extract the authorization-model validator before moving model commands, then review user/assertion transaction owners.
+- Verification: targeted use-case, compatibility-delegate, and existing endpoint tests pass. Locked restore and zero-warning Release build pass with 278 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.

@@ -4,6 +4,7 @@ using Aegis.Authorization.Core.Interfaces;
 using Aegis.Contracts.Administration;
 using Aegis.Domain.Entities;
 using Aegis.Domain.Repositories;
+using Aegis.Application.Features.Stores;
 
 namespace Aegis.Application.Services
 {
@@ -15,6 +16,7 @@ namespace Aegis.Application.Services
         private readonly IStoreRepository? _storeRepository;
         private readonly AssertionAppService? _assertionAppService;
         private readonly IDomainEventDispatcher? _domainEventDispatcher;
+        private readonly CreateStoreUseCase _createStoreUseCase;
 
         public StoreAppService(IStoreRegistry storeRegistry, IRelationshipStore relationshipStore)
         {
@@ -23,6 +25,7 @@ namespace Aegis.Application.Services
             _rbacAdminStore = null;
             _storeRepository = storeRegistry as IStoreRepository;
             _domainEventDispatcher = null;
+            _createStoreUseCase = CreateStoreUseCase.CreateCompatibility(_storeRegistry, _storeRepository, null);
         }
 
         public StoreAppService(
@@ -38,6 +41,7 @@ namespace Aegis.Application.Services
             _storeRepository = storeRepository;
             _assertionAppService = assertionAppService;
             _domainEventDispatcher = domainEventDispatcher;
+            _createStoreUseCase = CreateStoreUseCase.CreateCompatibility(_storeRegistry, _storeRepository, _domainEventDispatcher);
         }
 
         public Task<StoreDto> CreateAsync(CreateStoreRequestDto request, CancellationToken cancellationToken = default)
@@ -47,31 +51,10 @@ namespace Aegis.Application.Services
 
         public Task<StoreDto> CreateAsync(string tenantId, CreateStoreRequestDto request, CancellationToken cancellationToken = default)
         {
-            if (!string.IsNullOrWhiteSpace(tenantId))
-            {
-                if (string.IsNullOrWhiteSpace(request.Name))
-                {
-                    throw new ArgumentException("Store name is required.");
-                }
-
-                return _storeRegistry.CreateForTenantAsync(tenantId, request.Name, cancellationToken);
-            }
-
-            if (_storeRepository is null)
-            {
-                if (string.IsNullOrWhiteSpace(request.Name))
-                {
-                    throw new ArgumentException("Store name is required.");
-                }
-
-                return _storeRegistry.CreateAsync(request.Name, cancellationToken);
-            }
-
-            var store = Store.Create(request.Name);
-            return CreateWithDomainAsync(store, cancellationToken);
+            return _createStoreUseCase.ExecuteAsync(tenantId, request, cancellationToken);
         }
 
-        public async Task<StoreDto> CreateIdempotentAsync(
+        public Task<StoreDto> CreateIdempotentAsync(
             string tenantId,
             CreateStoreRequestDto request,
             string actorId,
@@ -79,48 +62,13 @@ namespace Aegis.Application.Services
             string requestFingerprint,
             CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(tenantId)
-                || string.IsNullOrWhiteSpace(actorId)
-                || string.IsNullOrWhiteSpace(idempotencyKey)
-                || string.IsNullOrWhiteSpace(requestFingerprint)
-                || requestFingerprint.Length != 64
-                || requestFingerprint.Any(character => !char.IsAsciiHexDigit(character)))
-            {
-                throw new ArgumentException("A valid tenant, actor, idempotency key, and SHA-256 request fingerprint are required.");
-            }
-
-            if (string.IsNullOrWhiteSpace(request.Name))
-            {
-                throw new ArgumentException("Store name is required.");
-            }
-
-            if (_storeRepository is null)
-            {
-                throw new NotSupportedException("Durable idempotency requires a store repository.");
-            }
-
-            var store = Store.Create(request.Name);
-            var mutation = new IdempotentMutation(
+            return _createStoreUseCase.ExecuteIdempotentAsync(
                 tenantId,
+                request,
                 actorId,
-                "store.create",
                 idempotencyKey,
                 requestFingerprint,
-                DateTimeOffset.UtcNow.AddHours(24));
-            var result = await _storeRepository.AddIdempotentAsync(store, mutation, cancellationToken);
-            if (result.Created)
-            {
-                await _domainEventDispatcher.DispatchAndClearAsync(store, cancellationToken);
-            }
-
-            return new StoreDto(
-                result.Store.Id,
-                result.Store.Name,
-                result.Store.CreatedAt,
-                result.Store.UpdatedAt,
-                null,
-                null,
-                tenantId);
+                cancellationToken);
         }
 
         public Task<IReadOnlyList<StoreDto>> ListAsync(CancellationToken cancellationToken = default)
@@ -222,18 +170,6 @@ namespace Aegis.Application.Services
             }
 
             return await _storeRegistry.DeleteAsync(storeId, cancellationToken);
-        }
-
-        private async Task<StoreDto> CreateWithDomainAsync(Store store, CancellationToken cancellationToken)
-        {
-            if (_storeRepository is null)
-            {
-                throw new InvalidOperationException("Domain store repository is not configured.");
-            }
-
-            await _storeRepository.AddAsync(store, cancellationToken);
-            await _domainEventDispatcher.DispatchAndClearAsync(store, cancellationToken);
-            return ToDto(store);
         }
 
         private static StoreDto ToDto(Store store)
