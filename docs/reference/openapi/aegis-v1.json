@@ -375,6 +375,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -413,6 +420,26 @@
               "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthorizationModelDtoApiResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/StringApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StringApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StringApiResponse"
                 }
               }
             }

@@ -123,3 +123,13 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Persistence: PostgreSQL locks the owning store row and validates the target revision within the same transaction that publishes the target and archives the previous active model. Migration 011 repairs historical duplicate-published rows deterministically and adds a partial unique index enforcing one published model per store. The in-memory provider applies the transition within one critical section.
 - Verification: targeted lifecycle service and endpoint tests pass. Locked restore and zero-warning Release build pass with 276 unit tests and 28 integration tests. The additive OpenAPI baseline, semantic diff, all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.
 - Merge evidence: feature commit `c7a5a8f` was merged locally into `develop` as `6a0474a` and pushed. GitHub Actions `.NET CI` run `32143817767` passed without modifying the workflow.
+
+## 2026-08-28 — Governed contracts B1, iteration 8
+
+- Branch: `feat/model-create-idempotency-b1`
+- Status: In progress
+- Intended result: make authorization-model creation safely replayable after ambiguous client timeouts without introducing a business-commit/response-cache gap.
+- Contract: optional `Idempotency-Key`, 8–128 safe ASCII characters, 24-hour retention, same-payload HTTP 201 replay, and HTTP 409 `IDEMPOTENCY_CONFLICT` for payload reuse.
+- Persistence: migration 012 adds tenant/actor/store/operation-scoped records. PostgreSQL commits reservation, model, and serialized response together; the in-memory provider mirrors semantics under one critical section.
+- Scope boundary: no other mutation claims idempotency yet, and Redis is not treated as the durable replay authority.
+- Verification: targeted create/replay/conflict coverage passes. Locked restore and zero-warning Release build pass with 276 unit tests and 29 integration tests. The additive OpenAPI baseline, semantic diff, all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass. Actions evidence remains pending until the feature branch is merged locally into `develop` and pushed.
