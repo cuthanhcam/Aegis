@@ -90,6 +90,7 @@ public sealed class RunAssertionsUseCase
             NewUlidLikeId(),
             storeId,
             authorizationModelId,
+            assertionSet.Revision,
             startedAt,
             DateTimeOffset.UtcNow,
             new AegisAssertionRunSummaryDto(

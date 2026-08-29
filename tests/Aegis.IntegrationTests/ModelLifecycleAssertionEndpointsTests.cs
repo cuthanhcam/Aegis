@@ -213,7 +213,8 @@ public sealed class ModelLifecycleAssertionEndpointsTests
         Assert.Equal(HttpStatusCode.OK, runAssertions.StatusCode);
         var runPayload = await runAssertions.Content.ReadFromJsonAsync<ApiResponse<AegisAssertionRunRecordDto>>(JsonOptions);
         Assert.True(runPayload!.Success);
-        Assert.Equal(2, runPayload.Data!.Summary.Total);
+        Assert.Equal(1, runPayload.Data!.DefinitionRevision);
+        Assert.Equal(2, runPayload.Data.Summary.Total);
         Assert.Equal(1, runPayload.Data.Summary.Passed);
         Assert.Equal(1, runPayload.Data.Summary.Failed);
         Assert.Contains(runPayload.Data.Results, x => x.TupleKey.User == "user:anne" && x.Passed);
