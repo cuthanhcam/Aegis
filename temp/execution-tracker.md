@@ -140,7 +140,9 @@ Application-boundary progress:
 - [x] Make PostgreSQL store deletion tenant-scoped and atomic across operational authorization state.
 - [x] Add a read-only legacy violation inventory, guarded validation tool, JSON evidence, and reconciliation runbook for migration 016.
 - [ ] Execute the reconciliation/validation runbook against each managed environment and retain approved reports.
-- [ ] Run backup/restore and injected-failure drills before the B3 exit review.
+- [x] Add and execute an isolated PostgreSQL logical backup/restore rehearsal with JSON evidence.
+- [x] Inject a child-cascade failure and prove atomic store-delete rollback.
+- [ ] Execute a staging-sized managed restore, full golden decisions, and measured RPO/RTO evidence.
 - [x] Remove authorization-model mutation delegates after production and test caller migration.
 - [x] Remove temporary store-create delegates and nullable compatibility composition after caller audit.
 - [x] Remove dormant model-command compatibility factories and registry-only mutation fallbacks.
@@ -290,5 +292,9 @@ Iteration 26 durable-correctness scope: add an operator-safe inventory and valid
 Iteration 26 local evidence: Release build includes the new database-admin tool with zero warnings/errors. PostgreSQL 16 container coverage injects a legacy orphan, proves audit sampling and validation refusal, reconciles it, then validates all six constraints transactionally. Missing secret configuration returns the documented usage exit code without exposing credentials. Locked restore, 303 unit tests, and 31 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 Iteration 26 merge evidence: feature commit `253cb2f` was merged locally into `develop` as `93e8582`; `.NET CI` run `33260956484` passed. The workflow remained unchanged.
+
+Iteration 27 durable-correctness scope: make PostgreSQL logical backup/restore compatibility repeatable and prove store-delete rollback under an injected cascade failure.
+
+Iteration 27 local evidence: three isolated PostgreSQL 16 restore rehearsals passed. The final run restored the deterministic operational/audit fixture, validated exact counts and authorization tuple, produced a clean/validated reconciliation report, recorded a dump hash, and completed in 13.827 seconds before removing the dump and containers. Focused container failure injection proves a raised child delete rolls store, relationship, and assertion state back. Locked restore, zero-warning Release build, 303 unit tests, and 31 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
