@@ -303,7 +303,7 @@ This append-only log records completed iterations and their evidence. Plans desc
 ## 2026-08-29 — Governed contracts B1, iteration 22
 
 - Branch: `refactor/assertion-generate-use-case-b1`
-- Status: In progress
+- Status: Complete
 - Intended result: isolate audit-derived assertion generation and its optional atomic append behind one explicit command boundary.
 - Boundary: `StoreAssertionsController` retains tenant/store authorization and HTTP mapping. `GenerateAssertionsFromAuditUseCase` owns store/model validation, decision and limit validation, scoped audit querying, candidate filtering/deduplication, and optional repository append.
 - Mutation safety: draft-only generation never writes. Append delegates combined-set deduplication, capacity enforcement, serialization, and revision advance to `IAssertionRepository`; a capacity rejection preserves the prior snapshot.
@@ -311,3 +311,4 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Contract impact: none intended; routes, payloads, stable error codes, tenant/store guards, and OpenAPI remain unchanged.
 - Follow-up: decide and implement the additive definition-revision contract for run history, then review whether read/history/purge deserve narrower query/lifecycle boundaries.
 - Verification: 13 targeted generation, remaining assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test pass. Locked restore and zero-warning Release build pass with 300 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Merge evidence: feature commit `c873c66` was merged locally into `develop` as `6bcf734` and pushed. GitHub Actions `.NET CI` run `33258613352` passed without modifying the workflow.
