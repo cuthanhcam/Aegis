@@ -403,3 +403,4 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Scope boundary: local PostgreSQL 16 evidence only. Managed-environment rehearsal and a separately authorized migration job remain pending deployment decisions.
 - Verification: the focused PostgreSQL 16 interruption test passes. Locked restore and zero-warning Release build pass with 303 unit tests and 32 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Follow-up: design and approve the separately authorized migration job, then rehearse interruption and recovery through the managed deployment identity.
+- Merge evidence: feature commit `9aa0ed0` was merged locally into `develop` as `01afe97` and pushed. GitHub Actions `.NET CI` run `33263431325` passed without modifying the workflow.

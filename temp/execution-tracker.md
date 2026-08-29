@@ -312,4 +312,6 @@ Iteration 29 durable-correctness scope: prove migration recovery under physical 
 
 Iteration 29 local evidence: the focused PostgreSQL 16 interruption test passed. Locked restore, zero-warning Release build, 303 unit tests, and 32 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
+Iteration 29 merge evidence: feature commit `9aa0ed0` was merged locally into `develop` as `01afe97`; `.NET CI` run `33263431325` passed. The workflow remained unchanged.
+
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
