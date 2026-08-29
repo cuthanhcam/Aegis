@@ -33,6 +33,7 @@ Backend contributors should also maintain the [Backend Runtime Inventory](archit
 Store lifecycle and durable cleanup guarantees are documented in [Store Deletion Consistency](architecture/store-deletion-consistency.md).
 Operators can audit and validate its staged foreign keys with the [Store Constraint Reconciliation Runbook](operations/store-constraint-reconciliation.md).
 Backup compatibility and recovery evidence are covered by the [PostgreSQL Backup and Restore Drill](operations/postgres-backup-restore.md).
+Migration locking, checksum enforcement, deadlines, and recovery are documented in [Database Migration Execution](operations/database-migrations.md).
 
 ## Documentation Structure
 

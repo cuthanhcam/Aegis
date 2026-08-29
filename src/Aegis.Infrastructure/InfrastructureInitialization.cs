@@ -28,7 +28,12 @@ namespace Aegis.Infrastructure
             IConfiguration configuration,
             CancellationToken cancellationToken)
         {
-            await PostgresMigrationRunner.MigrateAsync(dataSource, cancellationToken);
+            var lockTimeoutSeconds = configuration.GetValue<int?>("Database:Migrations:LockTimeoutSeconds") ?? 30;
+            var statementTimeoutSeconds = configuration.GetValue<int?>("Database:Migrations:StatementTimeoutSeconds") ?? 120;
+            var migrationOptions = new PostgresMigrationOptions(
+                TimeSpan.FromSeconds(lockTimeoutSeconds),
+                TimeSpan.FromSeconds(statementTimeoutSeconds));
+            await PostgresMigrationRunner.MigrateAsync(dataSource, migrationOptions, cancellationToken);
 
             var seedEnabled = configuration.GetSection("Seed:Development").GetValue<bool>("Enabled");
             if (!seedEnabled)

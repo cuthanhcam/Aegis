@@ -378,3 +378,16 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Verification: three isolated restore rehearsals and the focused PostgreSQL failure-injection test pass. Locked restore and zero-warning Release build pass with 303 unit tests and 31 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Follow-up: execute the managed restore runbook, retain approved evidence, and expand failure testing to migration/connection interruption scenarios.
 - Merge evidence: feature commit `1bdd4a4` was merged locally into `develop` as `951da3d` and pushed. GitHub Actions `.NET CI` run `33261885697` passed without modifying the workflow.
+
+## 2026-08-29 — Durable data correctness B3, iteration 28
+
+- Branch: `feat/migration-execution-safety-b3`
+- Status: Complete
+- Intended result: make database startup fail safely and diagnostically under concurrent migration, drift, timeout, and interrupted SQL conditions.
+- Serialization: one fixed PostgreSQL session advisory lock protects history inspection and migration execution. Competing instances poll until the configured deadline, reread committed history after acquisition, and explicitly unlock in `finally`.
+- Provenance: `schema_migrations` now records normalized SHA-256 values. Applied files are immutable; mismatches and applied names absent from the build fail startup. Legacy null checksums bootstrap once from same-named embedded resources while locked.
+- Atomicity: each SQL resource and its history insert remain in one transaction. A statement failure, cancellation, or connection loss cannot commit a success marker independently of schema work.
+- Deadlines: `Database:Migrations:LockTimeoutSeconds` defaults to 30 and `StatementTimeoutSeconds` to 120; non-positive values are rejected.
+- Operational guidance: the migration article covers pre-checksum rollout, pooled-session lock behavior, drift/SQL failure response, and the remaining need to separate managed DDL authority from application replicas.
+- Verification: PostgreSQL 16 coverage runs four concurrent migrators and observes 16 unique checksummed rows, forces lock timeout, releases the manually held pooled-session lock, bootstraps a legacy null checksum, corrupts one checksum, and verifies fail-closed drift detection. Locked restore and zero-warning Release build pass with 303 unit tests and 32 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: test connection interruption against an intentionally long transaction and design the separate managed migration job.
