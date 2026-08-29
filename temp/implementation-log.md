@@ -285,3 +285,16 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Follow-up: extract run orchestration against one captured assertion snapshot, then extract audit generation and decide how snapshot revision is recorded.
 - Verification: 14 targeted write, assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test pass. Locked restore and zero-warning Release build pass with 296 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Merge evidence: feature commit `d3b7805` was merged locally into `develop` as `9e86376` and pushed. GitHub Actions `.NET CI` run `33257467077` passed without modifying the workflow.
+
+## 2026-08-29 — Governed contracts B1, iteration 21
+
+- Branch: `refactor/assertion-run-use-case-b1`
+- Status: In progress
+- Intended result: isolate assertion execution behind one explicit use case that evaluates a stable definition snapshot and appends only completed run history.
+- Boundary: `StoreAssertionsController` retains tenant/store authorization and HTTP mapping. `RunAssertionsUseCase` owns store/model validation, snapshot capture, permission-check iteration, result aggregation, cancellation, and completed-history persistence.
+- Consistency: one `AssertionSetSnapshot` is read before evaluation and its collection is used for the entire run. Concurrent definition replacement cannot alter the captured work set. The current internal revision is deliberately not added to the public run DTO in this non-contract-changing slice.
+- Failure semantics: invalid scope, cancellation, or a failed permission check cannot persist a completed run record. An empty definition is valid and persists a zero-result run for operational traceability.
+- Interface cleanup: remove `RunAsync` and the permission-check dependency from the broad assertion service after controller and test migration.
+- Contract impact: none intended; routes, payloads, error/status mapping, tenant/store guards, and OpenAPI remain unchanged.
+- Follow-up: extract audit generation and then make the additive contract decision for definition revision in run records.
+- Verification: 13 targeted run, remaining assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test pass. Locked restore and zero-warning Release build pass with 298 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.

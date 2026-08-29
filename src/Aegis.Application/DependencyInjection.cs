@@ -32,6 +32,7 @@ namespace Aegis.Application
             services.AddScoped<DeleteUserUseCase>();
             services.AddSingleton<AssertionValidator>();
             services.AddScoped<WriteAssertionsUseCase>();
+            services.AddScoped<RunAssertionsUseCase>();
             services.AddSingleton<AuthorizationModelValidator>();
             services.AddScoped<CreateAuthorizationModelUseCase>();
             services.AddScoped<UpdateAuthorizationModelUseCase>();
