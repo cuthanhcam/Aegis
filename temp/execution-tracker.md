@@ -267,4 +267,6 @@ Iteration 23 contract scope: persist the captured assertion-definition revision 
 
 Iteration 23 local evidence: 9 targeted unit tests and 5 assertion lifecycle integration tests passed. The candidate retained all 53 paths and reported zero removed paths, operations, or schemas with `breaking: false`; the reviewed additive candidate was promoted to the committed OpenAPI baseline. Locked restore, zero-warning Release build, 300 unit tests, and 30 integration tests passed. The promoted runtime OpenAPI is semantically identical to its baseline; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
+Iteration 23 merge evidence: feature commit `2339325` was merged locally into `develop` as `22ded7e`; `.NET CI` run `33259188992` passed. The workflow remained unchanged.
+
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
