@@ -305,4 +305,6 @@ Iteration 28 durable-correctness scope: harden embedded PostgreSQL migration exe
 
 Iteration 28 local evidence: PostgreSQL 16 container coverage runs four migration callers concurrently and produces exactly 16 unique checksummed history rows, proves a held advisory lock yields the configured timeout, explicitly releases the pooled-session lock, bootstraps a legacy null checksum, and proves checksum drift fails closed. Locked restore, zero-warning Release build, 303 unit tests, and 32 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
+Iteration 28 merge evidence: feature commit `e3cf1e7` was merged locally into `develop` as `d80ff0b`; `.NET CI` run `33262928783` passed. The workflow remained unchanged.
+
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
