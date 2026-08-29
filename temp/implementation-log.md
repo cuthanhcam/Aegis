@@ -404,3 +404,15 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Verification: the focused PostgreSQL 16 interruption test passes. Locked restore and zero-warning Release build pass with 303 unit tests and 32 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Follow-up: design and approve the separately authorized migration job, then rehearse interruption and recovery through the managed deployment identity.
 - Merge evidence: feature commit `9aa0ed0` was merged locally into `develop` as `01afe97` and pushed. GitHub Actions `.NET CI` run `33263431325` passed without modifying the workflow.
+
+## 2026-08-29 — Durable data correctness B3, iteration 30
+
+- Branch: `feat/separate-migration-authority-b3`
+- Status: Complete
+- Intended result: separate schema mutation capability from the normal API replica startup path while retaining simple monolith/local operation.
+- Runtime modes: `Database:Migrations:Mode=Apply` remains the default; `Validate` performs read-only schema-history/completeness/checksum verification and rejects development seeding.
+- Operator boundary: `Aegis.Migrator` plus `eng/migrate-database.ps1` provides a one-shot process that reads credentials from `ConnectionStrings__Aegis`, applies migrations, validates the final schema, and exits without hosting HTTP or seed behavior.
+- Safety evidence: missing migrator credentials return usage exit code 64. PostgreSQL 16 coverage proves validate success on a complete schema and failure on pending history, missing checksum, and checksum drift while existing interruption/retry evidence remains intact.
+- Scope boundary: repository code and runbook only. No pipeline, deployment resource, database grant, or managed environment has been changed.
+- Verification: missing-secret exit behavior and the focused PostgreSQL 16 validation/interruption test pass. Locked restore and zero-warning Release build pass with 303 unit tests and 32 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: provision distinct managed migration/runtime identities, apply least-privilege grants, order migrator before `Validate` replicas, and retain a rollback rehearsal before claiming the environment cutover.
