@@ -1,3 +1,4 @@
+using Aegis.Application.Features.Assertions;
 using Aegis.Application.Features.Permissions;
 using Aegis.Application.Features.Query;
 using Aegis.Application.Features.Stores;
@@ -29,6 +30,8 @@ namespace Aegis.Application
             services.AddScoped<CreateUserUseCase>();
             services.AddScoped<UpdateUserUseCase>();
             services.AddScoped<DeleteUserUseCase>();
+            services.AddSingleton<AssertionValidator>();
+            services.AddScoped<WriteAssertionsUseCase>();
             services.AddSingleton<AuthorizationModelValidator>();
             services.AddScoped<CreateAuthorizationModelUseCase>();
             services.AddScoped<UpdateAuthorizationModelUseCase>();

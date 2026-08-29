@@ -1,3 +1,4 @@
+using Aegis.Application.Features.Assertions;
 using Aegis.Application.Features.Permissions;
 using Aegis.Application.Interfaces;
 using Aegis.Authorization.Core.Interfaces;
@@ -6,19 +7,19 @@ using Aegis.Contracts.Administration;
 using Aegis.Contracts.Common;
 using Aegis.Contracts.Compatibility;
 using Aegis.Contracts.Permissions;
-using Aegis.Domain.ValueObjects;
 
 namespace Aegis.Application.Services
 {
     public sealed class AssertionAppService : IAssertionAppService
     {
-        private const int MaxAssertionsPerModel = 100;
+        private const int MaxAssertionsPerModel = WriteAssertionsUseCase.MaximumAssertionsPerModel;
         private readonly IStoreRegistry _storeRegistry;
         private readonly IAuthorizationModelRegistry _authorizationModelRegistry;
         private readonly CheckPermissionUseCase _checkPermissionUseCase;
         private readonly IAssertionRepository _assertionRepository;
         private readonly IAssertionRunStore _assertionRunStore;
         private readonly IAuditStore _auditStore;
+        private readonly AssertionValidator _assertionValidator;
 
         public AssertionAppService(
             IStoreRegistry storeRegistry,
@@ -26,7 +27,8 @@ namespace Aegis.Application.Services
             CheckPermissionUseCase checkPermissionUseCase,
             IAssertionRepository assertionRepository,
             IAssertionRunStore assertionRunStore,
-            IAuditStore auditStore)
+            IAuditStore auditStore,
+            AssertionValidator assertionValidator)
         {
             _storeRegistry = storeRegistry;
             _authorizationModelRegistry = authorizationModelRegistry;
@@ -34,6 +36,7 @@ namespace Aegis.Application.Services
             _assertionRepository = assertionRepository;
             _assertionRunStore = assertionRunStore;
             _auditStore = auditStore;
+            _assertionValidator = assertionValidator;
         }
 
         public async Task<AegisCompatReadAssertionsResponseDto> ReadAsync(
@@ -51,43 +54,6 @@ namespace Aegis.Application.Services
 
             var snapshot = await _assertionRepository.ReadAsync(storeId, authorizationModelId, cancellationToken);
             return new AegisCompatReadAssertionsResponseDto(authorizationModelId, snapshot.Assertions);
-        }
-
-        public async Task WriteAsync(
-            string storeId,
-            string authorizationModelId,
-            AegisCompatWriteAssertionsRequestDto request,
-            CancellationToken cancellationToken = default)
-        {
-            await EnsureStoreExists(storeId, cancellationToken);
-            if (string.IsNullOrWhiteSpace(authorizationModelId))
-            {
-                throw new CompatibilityApiException(400, "validation_error", "authorization_model_id is required.");
-            }
-
-            var model = await EnsureModelExists(storeId, authorizationModelId, cancellationToken);
-
-            if (request.Assertions is null)
-            {
-                throw new CompatibilityApiException(400, "validation_error", "assertions are required.");
-            }
-
-            if (request.Assertions.Count > MaxAssertionsPerModel)
-            {
-                throw new CompatibilityApiException(
-                    400,
-                    "assertions_too_many_items",
-                    $"assertions exceeds max allowed items of {MaxAssertionsPerModel}.");
-            }
-
-            var relationIndex = BuildRelationIndex(model.Model);
-
-            foreach (var assertion in request.Assertions)
-            {
-                ValidateAssertion(assertion, relationIndex);
-            }
-
-            await _assertionRepository.ReplaceAsync(storeId, authorizationModelId, request.Assertions, cancellationToken);
         }
 
         public async Task<AegisAssertionRunRecordDto> RunAsync(
@@ -184,12 +150,12 @@ namespace Aegis.Application.Services
             var decision = NormalizeAuditDecision(request.Decision);
             var tenantId = string.IsNullOrWhiteSpace(store.TenantId) ? storeId : store.TenantId;
             var events = await _auditStore.QueryAsync(tenantId, action: null, decision, storeId, cancellationToken);
-            var relationIndex = BuildRelationIndex(model.Model);
+            var relationIndex = _assertionValidator.BuildRelationIndex(model.Model);
             var assertions = events
                 .Where(IsCheckAuditEvent)
                 .OrderByDescending(x => x.CreatedAt)
                 .Select(ToAssertion)
-                .Where(x => IsValidGeneratedAssertion(x, relationIndex))
+                .Where(x => _assertionValidator.IsValid(x, relationIndex))
                 .GroupBy(x => $"{x.TupleKey.User}:{x.TupleKey.Relation}:{x.TupleKey.Object}:{x.Expectation}", StringComparer.OrdinalIgnoreCase)
                 .Select(x => x.First())
                 .Take(limit)
@@ -249,38 +215,6 @@ namespace Aegis.Application.Services
             return store;
         }
 
-        private static void ValidateAssertion(
-            AegisCompatAssertionDto assertion,
-            IReadOnlyDictionary<string, HashSet<string>> relationIndex)
-        {
-            if (!SubjectId.TryCreate(assertion.TupleKey.User, out _)
-                || !RelationName.TryCreate(assertion.TupleKey.Relation, out _)
-                || !ObjectId.TryCreate(assertion.TupleKey.Object, out _))
-            {
-                throw new CompatibilityApiException(400, "validation_error", "Invalid assertion tuple_key format.");
-            }
-
-            ValidateTypeAndRelation(assertion.TupleKey.Object, assertion.TupleKey.Relation, relationIndex);
-
-            var contextual = assertion.ContextualTuples?.TupleKeys;
-            if (contextual is null)
-            {
-                return;
-            }
-
-            foreach (var tuple in contextual)
-            {
-                if (!SubjectId.TryCreate(tuple.User, out _)
-                    || !RelationName.TryCreate(tuple.Relation, out _)
-                    || !ObjectId.TryCreate(tuple.Object, out _))
-                {
-                    throw new CompatibilityApiException(400, "validation_error", "Invalid assertion contextual tuple format.");
-                }
-
-                ValidateTypeAndRelation(tuple.Object, tuple.Relation, relationIndex);
-            }
-        }
-
         private async Task<AuthorizationModelDto> EnsureModelExists(string storeId, string authorizationModelId, CancellationToken cancellationToken)
         {
             var model = await _authorizationModelRegistry.GetByIdAsync(storeId, authorizationModelId, cancellationToken);
@@ -295,66 +229,6 @@ namespace Aegis.Application.Services
             return model;
         }
 
-        private static IReadOnlyDictionary<string, HashSet<string>> BuildRelationIndex(string model)
-        {
-            var result = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
-            var lines = model.Replace("\r", string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            string? currentType = null;
-
-            foreach (var raw in lines)
-            {
-                var line = raw.Trim();
-                if (line.StartsWith("type ", StringComparison.OrdinalIgnoreCase))
-                {
-                    currentType = line[5..].Trim();
-                    if (!result.ContainsKey(currentType))
-                    {
-                        result[currentType] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    }
-
-                    continue;
-                }
-
-                if (currentType is null || !line.StartsWith("define ", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                var def = line[7..];
-                var separatorIndex = def.IndexOf(':');
-                if (separatorIndex <= 0)
-                {
-                    continue;
-                }
-
-                result[currentType].Add(def[..separatorIndex].Trim());
-            }
-
-            return result;
-        }
-
-        private static void ValidateTypeAndRelation(
-            string objectRef,
-            string relation,
-            IReadOnlyDictionary<string, HashSet<string>> relationIndex)
-        {
-            var typeSeparator = objectRef.IndexOf(':');
-            var typeName = typeSeparator > 0 ? objectRef[..typeSeparator] : objectRef;
-
-            if (!relationIndex.TryGetValue(typeName, out var relations))
-            {
-                throw new CompatibilityApiException(400, "type_not_found", $"type '{typeName}' not found");
-            }
-
-            if (!relations.Contains(relation))
-            {
-                throw new CompatibilityApiException(
-                    400,
-                    "relation_not_found",
-                    $"relation '{typeName}#{relation}' not found");
-            }
-        }
-
         private static bool IsCheckAuditEvent(AuditEvent auditEvent)
         {
             return auditEvent.Action.Equals("check", StringComparison.OrdinalIgnoreCase)
@@ -367,21 +241,6 @@ namespace Aegis.Application.Services
                 new AegisCompatTupleKeyDto(auditEvent.Subject, auditEvent.Relation, auditEvent.Object),
                 auditEvent.Decision.Equals("Allow", StringComparison.OrdinalIgnoreCase),
                 ContextualTuples: null);
-        }
-
-        private static bool IsValidGeneratedAssertion(
-            AegisCompatAssertionDto assertion,
-            IReadOnlyDictionary<string, HashSet<string>> relationIndex)
-        {
-            try
-            {
-                ValidateAssertion(assertion, relationIndex);
-                return true;
-            }
-            catch (CompatibilityApiException)
-            {
-                return false;
-            }
         }
 
         private static string? NormalizeAuditDecision(string? decision)

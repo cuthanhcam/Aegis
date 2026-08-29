@@ -1,5 +1,6 @@
 using Aegis.Api.Controllers.Helpers;
 using Aegis.Api.Security;
+using Aegis.Application.Features.Assertions;
 using Aegis.Application.Interfaces;
 using Aegis.Contracts.Common;
 using Aegis.Contracts.Compatibility;
@@ -15,13 +16,16 @@ namespace Aegis.Api.Controllers
     {
         private readonly IAssertionAppService _assertionAppService;
         private readonly IStoreRegistry _storeRegistry;
+        private readonly WriteAssertionsUseCase _writeAssertionsUseCase;
 
         public StoreAssertionsController(
             IAssertionAppService assertionAppService,
-            IStoreRegistry storeRegistry)
+            IStoreRegistry storeRegistry,
+            WriteAssertionsUseCase writeAssertionsUseCase)
         {
             _assertionAppService = assertionAppService;
             _storeRegistry = storeRegistry;
+            _writeAssertionsUseCase = writeAssertionsUseCase;
         }
 
         [HttpGet("{authorizationModelId}")]
@@ -55,7 +59,7 @@ namespace Aegis.Api.Controllers
                 return storeAccess;
             }
 
-            await _assertionAppService.WriteAsync(storeId, authorizationModelId, request, cancellationToken);
+            await _writeAssertionsUseCase.ExecuteAsync(storeId, authorizationModelId, request, cancellationToken);
             return this.OkResponse("written");
         }
 
