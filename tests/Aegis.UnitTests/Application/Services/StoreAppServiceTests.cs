@@ -30,9 +30,7 @@ namespace Aegis.UnitTests.Application.Services
             var storeRegistry = new InMemoryStoreRegistry();
             var relationshipStore = new InMemoryRelationshipStore();
             var rbacStore = new InMemoryRbacStore();
-            var assertionService = new AssertionAppService(
-                storeRegistry,
-                storeRegistry,
+            var assertionPurgeCoordinator = new AssertionStorePurgeCoordinator(
                 new InMemoryAssertionRepository(),
                 new InMemoryAssertionRunStore());
             var service = new StoreAppService(
@@ -40,7 +38,7 @@ namespace Aegis.UnitTests.Application.Services
                 relationshipStore,
                 rbacStore,
                 storeRegistry,
-                assertionService,
+                assertionPurgeCoordinator,
                 new NoopDomainEventDispatcher());
 
             const string tenantId = "tenant-a";
