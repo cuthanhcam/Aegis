@@ -42,6 +42,8 @@ The lock timeout bounds how long an instance waits behind another migrator. The 
 
 Timeout, cancellation, SQL failure, or connection interruption propagates as startup failure. A migration transaction that did not commit has no history row and PostgreSQL rolls back its changes. On retry, the runner starts from the last committed migration.
 
+This rollback guarantee has executable PostgreSQL 16 coverage. The test makes migration 016 pending, holds an exclusive table lock until its transaction is visibly blocked, terminates that exact migration backend through `pg_stat_activity`, and verifies that no migration-016 history row was committed. Releasing the blocker and rerunning then applies the migration exactly once. This is database-level failure evidence; it does not replace a managed-environment rehearsal with the production connection path and deployment identity.
+
 ## Operational response
 
 For a lock timeout, first identify the session holding the advisory lock and determine whether it is actively migrating. Do not terminate it solely because another instance is waiting. Session locks must be released explicitly because pooled connection disposal may retain the physical session; the runner does this in `finally`, and PostgreSQL releases it if the physical session ends.

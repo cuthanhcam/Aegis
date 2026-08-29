@@ -392,3 +392,14 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Verification: PostgreSQL 16 coverage runs four concurrent migrators and observes 16 unique checksummed rows, forces lock timeout, releases the manually held pooled-session lock, bootstraps a legacy null checksum, corrupts one checksum, and verifies fail-closed drift detection. Locked restore and zero-warning Release build pass with 303 unit tests and 32 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Follow-up: test connection interruption against an intentionally long transaction and design the separate managed migration job.
 - Merge evidence: feature commit `e3cf1e7` was merged locally into `develop` as `d80ff0b` and pushed. GitHub Actions `.NET CI` run `33262928783` passed without modifying the workflow.
+
+## 2026-08-29 — Durable data correctness B3, iteration 29
+
+- Branch: `test/migration-connection-interruption-b3`
+- Status: Complete
+- Intended result: turn the migration runner's connection-loss rollback claim into deterministic PostgreSQL evidence.
+- Failure injection: make migration 016 pending, hold an exclusive lock on `stores`, observe the blocked migration PID through its unique DDL text in `pg_stat_activity`, and terminate only that backend.
+- Required assertions: the interrupted runner fails, migration 016 has no committed history marker, and a clean retry records it exactly once before checksum drift enforcement is tested.
+- Scope boundary: local PostgreSQL 16 evidence only. Managed-environment rehearsal and a separately authorized migration job remain pending deployment decisions.
+- Verification: the focused PostgreSQL 16 interruption test passes. Locked restore and zero-warning Release build pass with 303 unit tests and 32 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: design and approve the separately authorized migration job, then rehearse interruption and recovery through the managed deployment identity.
