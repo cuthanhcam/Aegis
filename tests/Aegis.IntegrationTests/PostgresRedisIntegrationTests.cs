@@ -287,6 +287,94 @@ public sealed class PostgresRedisIntegrationTests
         Assert.All(validated.Tables, table => Assert.True(table.Validated));
     }
 
+    [Fact]
+    public async Task Migration_runner_serializes_startup_rejects_drift_and_honors_lock_timeout()
+    {
+        if (!ShouldRunContainerTests())
+        {
+            return;
+        }
+
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("aegis")
+            .WithUsername("postgres")
+            .WithPassword("postgres")
+            .Build();
+        await postgres.StartAsync();
+        await using var dataSource = NpgsqlDataSource.Create(postgres.GetConnectionString());
+
+        await Task.WhenAll(Enumerable.Range(0, 4).Select(_ =>
+            Aegis.Infrastructure.Persistence.PostgresMigrationRunner.MigrateAsync(dataSource)));
+
+        await using (var connection = await dataSource.OpenConnectionAsync())
+        {
+            await using var history = connection.CreateCommand();
+            history.CommandText = """
+                SELECT COUNT(*),
+                       COUNT(*) FILTER (WHERE checksum_sha256 IS NOT NULL AND char_length(checksum_sha256) = 64),
+                       COUNT(DISTINCT migration_name)
+                FROM schema_migrations;
+                """;
+            await using var reader = await history.ExecuteReaderAsync();
+            Assert.True(await reader.ReadAsync());
+            Assert.Equal(16, reader.GetInt64(0));
+            Assert.Equal(16, reader.GetInt64(1));
+            Assert.Equal(16, reader.GetInt64(2));
+        }
+
+        await using (var lockConnection = await dataSource.OpenConnectionAsync())
+        {
+            await using var acquire = lockConnection.CreateCommand();
+            acquire.CommandText = "SELECT pg_advisory_lock(6344347956172591941);";
+            await acquire.ExecuteScalarAsync();
+
+            await Assert.ThrowsAsync<TimeoutException>(() =>
+                Aegis.Infrastructure.Persistence.PostgresMigrationRunner.MigrateAsync(
+                    dataSource,
+                    new Aegis.Infrastructure.Persistence.PostgresMigrationOptions(
+                        TimeSpan.FromMilliseconds(350),
+                        TimeSpan.FromSeconds(10))));
+
+            await using var release = lockConnection.CreateCommand();
+            release.CommandText = "SELECT pg_advisory_unlock(6344347956172591941);";
+            Assert.True((bool)(await release.ExecuteScalarAsync())!);
+        }
+
+        await using (var bootstrapConnection = await dataSource.OpenConnectionAsync())
+        {
+            await using var clearChecksum = bootstrapConnection.CreateCommand();
+            clearChecksum.CommandText = """
+                UPDATE schema_migrations
+                SET checksum_sha256 = NULL
+                WHERE migration_name = (SELECT MIN(migration_name) FROM schema_migrations);
+                """;
+            Assert.Equal(1, await clearChecksum.ExecuteNonQueryAsync());
+        }
+
+        await Aegis.Infrastructure.Persistence.PostgresMigrationRunner.MigrateAsync(dataSource);
+        await using (var bootstrapVerification = await dataSource.OpenConnectionAsync())
+        {
+            await using var checksum = bootstrapVerification.CreateCommand();
+            checksum.CommandText = "SELECT COUNT(*) FROM schema_migrations WHERE checksum_sha256 IS NULL;";
+            Assert.Equal(0L, (long)(await checksum.ExecuteScalarAsync())!);
+        }
+
+        await using (var driftConnection = await dataSource.OpenConnectionAsync())
+        await using (var drift = driftConnection.CreateCommand())
+        {
+            drift.CommandText = """
+                UPDATE schema_migrations
+                SET checksum_sha256 = repeat('0', 64)
+                WHERE migration_name = (SELECT MIN(migration_name) FROM schema_migrations);
+                """;
+            await drift.ExecuteNonQueryAsync();
+        }
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Aegis.Infrastructure.Persistence.PostgresMigrationRunner.MigrateAsync(dataSource));
+        Assert.Contains("Checksum mismatch", exception.Message, StringComparison.Ordinal);
+    }
+
     private static bool ShouldRunContainerTests()
     {
         return string.Equals(

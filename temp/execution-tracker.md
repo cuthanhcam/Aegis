@@ -143,6 +143,8 @@ Application-boundary progress:
 - [x] Add and execute an isolated PostgreSQL logical backup/restore rehearsal with JSON evidence.
 - [x] Inject a child-cascade failure and prove atomic store-delete rollback.
 - [ ] Execute a staging-sized managed restore, full golden decisions, and measured RPO/RTO evidence.
+- [x] Serialize migration execution, enforce immutable checksums, and bound lock/statement waits.
+- [ ] Move managed migration authority out of ordinary application replicas after deployment design approval.
 - [x] Remove authorization-model mutation delegates after production and test caller migration.
 - [x] Remove temporary store-create delegates and nullable compatibility composition after caller audit.
 - [x] Remove dormant model-command compatibility factories and registry-only mutation fallbacks.
@@ -298,5 +300,9 @@ Iteration 27 durable-correctness scope: make PostgreSQL logical backup/restore c
 Iteration 27 local evidence: three isolated PostgreSQL 16 restore rehearsals passed. The final run restored the deterministic operational/audit fixture, validated exact counts and authorization tuple, produced a clean/validated reconciliation report, recorded a dump hash, and completed in 13.827 seconds before removing the dump and containers. Focused container failure injection proves a raised child delete rolls store, relationship, and assertion state back. Locked restore, zero-warning Release build, 303 unit tests, and 31 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 Iteration 27 merge evidence: feature commit `1bdd4a4` was merged locally into `develop` as `951da3d`; `.NET CI` run `33261885697` passed. The workflow remained unchanged.
+
+Iteration 28 durable-correctness scope: harden embedded PostgreSQL migration execution against concurrent startup, immutable-history drift, unbounded waits, and interrupted statements.
+
+Iteration 28 local evidence: PostgreSQL 16 container coverage runs four migration callers concurrently and produces exactly 16 unique checksummed history rows, proves a held advisory lock yields the configured timeout, explicitly releases the pooled-session lock, bootstraps a legacy null checksum, and proves checksum drift fails closed. Locked restore, zero-warning Release build, 303 unit tests, and 32 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
