@@ -319,4 +319,6 @@ Iteration 30 durable-correctness scope: establish a deployable code boundary bet
 
 Iteration 30 local evidence: missing migrator credentials return exit code 64 without exposing a connection string. Focused PostgreSQL 16 coverage passes for complete-schema validation and fail-closed pending, null-checksum, drift, lock-timeout, and connection-interruption paths. Locked restore, zero-warning Release build, 303 unit tests, and 32 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
+Iteration 30 merge evidence: feature commit `9dd669f` was merged locally into `develop` as `c973e58`; `.NET CI` run `33264009438` passed. The workflow remained unchanged.
+
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.

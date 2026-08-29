@@ -416,3 +416,4 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Scope boundary: repository code and runbook only. No pipeline, deployment resource, database grant, or managed environment has been changed.
 - Verification: missing-secret exit behavior and the focused PostgreSQL 16 validation/interruption test pass. Locked restore and zero-warning Release build pass with 303 unit tests and 32 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Follow-up: provision distinct managed migration/runtime identities, apply least-privilege grants, order migrator before `Validate` replicas, and retain a rollback rehearsal before claiming the environment cutover.
+- Merge evidence: feature commit `9dd669f` was merged locally into `develop` as `c973e58` and pushed. GitHub Actions `.NET CI` run `33264009438` passed without modifying the workflow.
