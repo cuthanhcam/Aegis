@@ -299,3 +299,15 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Follow-up: extract audit generation and then make the additive contract decision for definition revision in run records.
 - Verification: 13 targeted run, remaining assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test pass. Locked restore and zero-warning Release build pass with 298 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Merge evidence: feature commit `7f2dc2f` was merged locally into `develop` as `28da9a0` and pushed. GitHub Actions `.NET CI` run `33257783985` passed without modifying the workflow.
+
+## 2026-08-29 — Governed contracts B1, iteration 22
+
+- Branch: `refactor/assertion-generate-use-case-b1`
+- Status: In progress
+- Intended result: isolate audit-derived assertion generation and its optional atomic append behind one explicit command boundary.
+- Boundary: `StoreAssertionsController` retains tenant/store authorization and HTTP mapping. `GenerateAssertionsFromAuditUseCase` owns store/model validation, decision and limit validation, scoped audit querying, candidate filtering/deduplication, and optional repository append.
+- Mutation safety: draft-only generation never writes. Append delegates combined-set deduplication, capacity enforcement, serialization, and revision advance to `IAssertionRepository`; a capacity rejection preserves the prior snapshot.
+- Interface cleanup: remove generation from `IAssertionAppService` and remove audit/validator dependencies from `AssertionAppService`. Its remaining surface is definition read, run-history read, and purge coordination.
+- Contract impact: none intended; routes, payloads, stable error codes, tenant/store guards, and OpenAPI remain unchanged.
+- Follow-up: decide and implement the additive definition-revision contract for run history, then review whether read/history/purge deserve narrower query/lifecycle boundaries.
+- Verification: 13 targeted generation, remaining assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test pass. Locked restore and zero-warning Release build pass with 300 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.

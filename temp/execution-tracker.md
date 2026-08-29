@@ -134,7 +134,8 @@ Application-boundary progress:
 - [x] Introduce a durable, versioned assertion repository with atomic replace/append and store purge semantics.
 - [x] Extract assertion validation and write/replace into an explicit command boundary.
 - [x] Extract assertion run against one captured definition snapshot and append completed history only after evaluation.
-- [ ] Split assertion generation and decide how definition revision appears in run history.
+- [x] Extract audit-derived assertion generation with draft-only and atomic-append semantics.
+- [ ] Decide how definition revision appears in run history and complete the assertion boundary exit review.
 - [x] Remove authorization-model mutation delegates after production and test caller migration.
 - [x] Remove temporary store-create delegates and nullable compatibility composition after caller audit.
 - [x] Remove dormant model-command compatibility factories and registry-only mutation fallbacks.
@@ -254,5 +255,9 @@ Iteration 21 application-boundary scope: extract assertion execution, capture on
 Iteration 21 local evidence: 13 targeted run, remaining assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test passed. Locked restore, zero-warning Release build, 298 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 Iteration 21 merge evidence: feature commit `7f2dc2f` was merged locally into `develop` as `28da9a0`; `.NET CI` run `33257783985` passed. The workflow remained unchanged.
+
+Iteration 22 application-boundary scope: extract audit-derived assertion generation, route the controller directly to the use case, and reduce the assertion service to read/history/purge responsibilities.
+
+Iteration 22 local evidence: 13 targeted generation, remaining assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test passed. Locked restore, zero-warning Release build, 300 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed. Merge evidence remains pending.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.

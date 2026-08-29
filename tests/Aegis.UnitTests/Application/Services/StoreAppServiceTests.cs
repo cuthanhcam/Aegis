@@ -30,14 +30,11 @@ namespace Aegis.UnitTests.Application.Services
             var storeRegistry = new InMemoryStoreRegistry();
             var relationshipStore = new InMemoryRelationshipStore();
             var rbacStore = new InMemoryRbacStore();
-            var auditStore = new InMemoryAuditStore();
             var assertionService = new AssertionAppService(
                 storeRegistry,
                 storeRegistry,
                 new InMemoryAssertionRepository(),
-                new InMemoryAssertionRunStore(),
-                auditStore,
-                new AssertionValidator());
+                new InMemoryAssertionRunStore());
             var service = new StoreAppService(
                 storeRegistry,
                 relationshipStore,

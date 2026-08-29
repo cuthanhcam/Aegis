@@ -18,17 +18,20 @@ namespace Aegis.Api.Controllers
         private readonly IStoreRegistry _storeRegistry;
         private readonly WriteAssertionsUseCase _writeAssertionsUseCase;
         private readonly RunAssertionsUseCase _runAssertionsUseCase;
+        private readonly GenerateAssertionsFromAuditUseCase _generateAssertionsFromAuditUseCase;
 
         public StoreAssertionsController(
             IAssertionAppService assertionAppService,
             IStoreRegistry storeRegistry,
             WriteAssertionsUseCase writeAssertionsUseCase,
-            RunAssertionsUseCase runAssertionsUseCase)
+            RunAssertionsUseCase runAssertionsUseCase,
+            GenerateAssertionsFromAuditUseCase generateAssertionsFromAuditUseCase)
         {
             _assertionAppService = assertionAppService;
             _storeRegistry = storeRegistry;
             _writeAssertionsUseCase = writeAssertionsUseCase;
             _runAssertionsUseCase = runAssertionsUseCase;
+            _generateAssertionsFromAuditUseCase = generateAssertionsFromAuditUseCase;
         }
 
         [HttpGet("{authorizationModelId}")]
@@ -137,7 +140,11 @@ namespace Aegis.Api.Controllers
                 return storeAccess;
             }
 
-            var result = await _assertionAppService.GenerateFromAuditAsync(storeId, authorizationModelId, request, cancellationToken);
+            var result = await _generateAssertionsFromAuditUseCase.ExecuteAsync(
+                storeId,
+                authorizationModelId,
+                request,
+                cancellationToken);
             return this.OkResponse(result);
         }
     }
