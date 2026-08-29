@@ -276,7 +276,7 @@ This append-only log records completed iterations and their evidence. Plans desc
 ## 2026-08-29 — Governed contracts B1, iteration 20
 
 - Branch: `refactor/assertion-write-use-case-b1`
-- Status: In progress
+- Status: Complete
 - Intended result: make assertion replacement an explicit command and establish one validation component for persisted and audit-generated assertions.
 - Boundary: `StoreAssertionsController` retains store-tenant authorization and HTTP mapping. `WriteAssertionsUseCase` owns store/model scope validation, capacity, tuple/model-reference validation, cancellation, and the repository replace call.
 - Validation consistency: `AssertionValidator` is stateless and shared by write and audit generation. Invalid tuple, contextual tuple, type, or relation input is rejected before repository mutation.
@@ -284,3 +284,4 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Contract impact: none intended; routes, request/response payloads, error codes, tenant/store guards, and OpenAPI remain unchanged.
 - Follow-up: extract run orchestration against one captured assertion snapshot, then extract audit generation and decide how snapshot revision is recorded.
 - Verification: 14 targeted write, assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test pass. Locked restore and zero-warning Release build pass with 296 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Merge evidence: feature commit `d3b7805` was merged locally into `develop` as `9e86376` and pushed. GitHub Actions `.NET CI` run `33257467077` passed without modifying the workflow.

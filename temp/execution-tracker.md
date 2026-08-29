@@ -244,6 +244,8 @@ Iteration 19 merge evidence: feature commit `f759d8e` was merged locally into `d
 
 Iteration 20 application-boundary scope: extract assertion validation and replacement, route the controller directly to `WriteAssertionsUseCase`, and remove the broad-service write delegate.
 
-Iteration 20 local evidence: 14 targeted write, assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test passed. Locked restore, zero-warning Release build, 296 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed. Merge evidence remains pending.
+Iteration 20 local evidence: 14 targeted write, assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test passed. Locked restore, zero-warning Release build, 296 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 20 merge evidence: feature commit `d3b7805` was merged locally into `develop` as `9e86376`; `.NET CI` run `33257467077` passed. The workflow remained unchanged.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
