@@ -38,7 +38,6 @@ namespace Aegis.Application
             services.AddScoped<ListAssertionRunsUseCase>();
             services.AddScoped<GetAssertionRunUseCase>();
             services.AddScoped<GenerateAssertionsFromAuditUseCase>();
-            services.AddScoped<AssertionStorePurgeCoordinator>();
             services.AddSingleton<AuthorizationModelValidator>();
             services.AddScoped<CreateAuthorizationModelUseCase>();
             services.AddScoped<UpdateAuthorizationModelUseCase>();

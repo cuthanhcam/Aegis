@@ -14,6 +14,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Testcontainers.PostgreSql;
 using Testcontainers.Redis;
+using Npgsql;
+using Aegis.Contracts.Compatibility;
 
 namespace Aegis.IntegrationTests;
 
@@ -118,6 +120,90 @@ public sealed class PostgresRedisIntegrationTests
         var payload = await response.Content.ReadFromJsonAsync<ApiResponse<IReadOnlyList<RelationshipTupleDto>>>(JsonOptions);
         Assert.Single(payload!.Data!);
         Assert.Equal("user:anne", payload.Data![0].Subject);
+    }
+
+    [Fact]
+    public async Task Store_delete_cascades_operational_state_atomically_and_retains_audit()
+    {
+        if (!ShouldRunContainerTests())
+        {
+            return;
+        }
+
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("aegis")
+            .WithUsername("postgres")
+            .WithPassword("postgres")
+            .Build();
+        await using var redis = new RedisBuilder("redis:7-alpine").Build();
+        await postgres.StartAsync();
+        await redis.StartAsync();
+
+        await using var factory = new ContainerApiFactory(postgres.GetConnectionString(), redis.GetConnectionString());
+        var seed = await SeedAsync(factory.AppServices);
+
+        using (var scope = factory.AppServices.CreateScope())
+        {
+            var services = scope.ServiceProvider;
+            var rbac = services.GetRequiredService<IRbacAdminStore>();
+            var assertions = services.GetRequiredService<IAssertionRepository>();
+            var runs = services.GetRequiredService<IAssertionRunStore>();
+            var audit = services.GetRequiredService<IAuditStore>();
+            var deletion = services.GetRequiredService<IStoreDeletionRepository>();
+
+            await rbac.UpsertRoleInStoreAsync(seed.TenantId, seed.StoreId, "viewer", "Viewer");
+            await assertions.ReplaceAsync(
+                seed.StoreId,
+                seed.AuthorizationModelId,
+                [new AegisCompatAssertionDto(new AegisCompatTupleKeyDto("user:anne", "viewer", "document:roadmap"), true)]);
+            var now = DateTimeOffset.UtcNow;
+            await runs.SaveAsync(new AegisAssertionRunRecordDto(
+                "run-atomic-delete",
+                seed.StoreId,
+                seed.AuthorizationModelId,
+                1,
+                now,
+                now,
+                new AegisAssertionRunSummaryDto(0, 0, 0),
+                []));
+            await audit.WriteAsync(new AuditEvent(
+                seed.TenantId,
+                "check",
+                "user:anne",
+                "viewer",
+                "document:roadmap",
+                "Allow",
+                "RELATIONSHIP_MATCH",
+                now,
+                seed.StoreId));
+
+            Assert.False(await deletion.DeleteAsync("another-tenant", seed.StoreId));
+            Assert.True(await deletion.DeleteAsync(seed.TenantId, seed.StoreId));
+        }
+
+        await using var connection = new NpgsqlConnection(postgres.GetConnectionString());
+        await connection.OpenAsync();
+        foreach (var table in new[]
+                 {
+                     "stores", "authorization_models", "relationships", "relationship_changes",
+                     "rbac_roles", "assertion_sets", "assertion_run_records",
+                 })
+        {
+            await using var command = new NpgsqlCommand($"SELECT COUNT(*) FROM {table} WHERE store_id = @store_id;", connection);
+            if (table == "stores")
+            {
+                command.CommandText = "SELECT COUNT(*) FROM stores WHERE id = @store_id;";
+            }
+
+            command.Parameters.AddWithValue("store_id", seed.StoreId);
+            Assert.Equal(0L, (long)(await command.ExecuteScalarAsync())!);
+        }
+
+        await using var auditCommand = new NpgsqlCommand(
+            "SELECT COUNT(*) FROM audit_events WHERE store_id = @store_id;",
+            connection);
+        auditCommand.Parameters.AddWithValue("store_id", seed.StoreId);
+        Assert.Equal(1L, (long)(await auditCommand.ExecuteScalarAsync())!);
     }
 
     private static bool ShouldRunContainerTests()

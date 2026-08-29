@@ -13,7 +13,7 @@ Use this file as a release ledger, not as a substitute for issue tracking. Link 
 | B0 | Baseline and guardrails | Verified | ADRs, inventory, architecture tests, golden corpus, CI report |
 | B1 | Governed contracts | In progress | versioned OpenAPI, diff report, generated client, lifecycle tests |
 | B2 | Identity and isolation | Not started | threat model, isolation matrix, rotation/revocation drill, SBOM |
-| B3 | Durable data correctness | Not started | failure tests, migration report, restore drill, reconciliation report |
+| B3 | Durable data correctness | In progress | failure tests, migration report, restore drill, reconciliation report |
 | B4 | SLO-backed operations | Not started | dashboards, load report, game-day record, runbooks |
 | B5 | Releasable production system | Not started | signed artifact, promotion/canary/rollback evidence, readiness approval |
 | B6 | Scale and governance | Not started | customer-backed capability RFCs and their individual gates |
@@ -137,7 +137,9 @@ Application-boundary progress:
 - [x] Extract audit-derived assertion generation with draft-only and atomic-append semantics.
 - [x] Record the captured assertion definition revision in durable run history and expose it through the additive v1 contract.
 - [x] Move assertion definition and run-history reads to explicit query use cases and remove the broad assertion application service.
-- [ ] Make assertion purge and wider store deletion one recoverable/atomic durable lifecycle operation in B3.
+- [x] Make PostgreSQL store deletion tenant-scoped and atomic across operational authorization state.
+- [ ] Inventory legacy tenant/store foreign-key violations and validate migration 016 constraints.
+- [ ] Run backup/restore and injected-failure drills before the B3 exit review.
 - [x] Remove authorization-model mutation delegates after production and test caller migration.
 - [x] Remove temporary store-create delegates and nullable compatibility composition after caller audit.
 - [x] Remove dormant model-command compatibility factories and registry-only mutation fallbacks.
@@ -275,5 +277,9 @@ Iteration 24 application-boundary scope: replace the remaining broad assertion r
 Iteration 24 local evidence: 19 targeted query, store-deletion, and composition unit tests plus 5 assertion lifecycle integration tests passed. Caller audit finds no production dependency on `IAssertionAppService` or `AssertionAppService`. Locked restore, zero-warning Release build, 303 unit tests, and 30 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 Iteration 24 merge evidence: feature commit `830d10f` was merged locally into `develop` as `19aa1af`; `.NET CI` run `33259603421` passed. The workflow remained unchanged.
+
+Iteration 25 durable-correctness scope: move production store deletion into one PostgreSQL-owned cascade transaction, preserve audit evidence, and enforce composite tenant/store ownership for new operational rows.
+
+Iteration 25 local evidence: 9 focused store-boundary/composition unit tests pass and a PostgreSQL 16 container test proves cross-tenant no-op, atomic operational cascade, and audit retention. Locked restore, zero-warning Release build, 303 unit tests, and 31 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.

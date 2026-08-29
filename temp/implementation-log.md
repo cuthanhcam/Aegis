@@ -337,3 +337,16 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Verification: 19 targeted query, store-deletion, and composition unit tests plus 5 assertion lifecycle integration tests pass. Locked restore and zero-warning Release build pass with 303 unit tests and 30 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Follow-up: design one durable store-deletion transaction or recoverable workflow spanning assertion, relationship, RBAC, and store state.
 - Merge evidence: feature commit `830d10f` was merged locally into `develop` as `19aa1af` and pushed. GitHub Actions `.NET CI` run `33259603421` passed without modifying the workflow.
+
+## 2026-08-29 — Durable data correctness B3, iteration 25
+
+- Branch: `feat/atomic-store-deletion-b3`
+- Status: Complete
+- Intended result: eliminate partial production cleanup when a tenant-scoped store is deleted.
+- Transaction owner: `PostgresStoreDeletionRepository` performs one tenant/store-predicated parent delete. Migration 016 adds composite tenant/store foreign keys with cascade semantics for relationships, change rows, and store RBAC; existing model, assertion, run-history, and idempotency foreign keys complete the operational cascade.
+- Isolation: composite foreign keys reject new cross-tenant child ownership, and an incorrect tenant predicate deletes neither the store nor its children.
+- Retention: tenant user profiles and audit events do not cascade. Audit keeps the former store ID as historical security evidence.
+- Rollout safety: new constraints are `NOT VALID`, so new writes are enforced without silently deleting or blocking deployment on unknown legacy orphans. Inventory, reconciliation, and explicit validation remain tracked B3 evidence.
+- Provider semantics: in-memory deletion is serialized and functionally equivalent but is not crash-durable. PostgreSQL is the production atomicity boundary.
+- Verification: 9 focused store-boundary/composition unit tests pass; a PostgreSQL 16 container test runs migrations and proves cross-tenant no-op, atomic cascade across seeded operational tables, and audit retention. Locked restore and zero-warning Release build pass with 303 unit tests and 31 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: validate legacy foreign keys, add injected-failure evidence, and perform backup/restore plus reconciliation drills.

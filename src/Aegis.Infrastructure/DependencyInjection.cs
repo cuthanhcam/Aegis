@@ -65,6 +65,7 @@ namespace Aegis.Infrastructure
                 services.AddSingleton<IStoreRepository>(sp => sp.GetRequiredService<PostgresStoreRegistry>());
                 services.AddSingleton<IAuthorizationModelRegistry>(sp => sp.GetRequiredService<PostgresStoreRegistry>());
                 services.AddSingleton<IAuthorizationModelRepository>(sp => sp.GetRequiredService<PostgresStoreRegistry>());
+                services.AddSingleton<IStoreDeletionRepository, PostgresStoreDeletionRepository>();
                 services.AddSingleton<PostgresRelationshipStore>();
                 services.AddSingleton<IRelationshipStore>(sp => sp.GetRequiredService<PostgresRelationshipStore>());
                 services.AddSingleton<IRelationshipRepository>(sp => sp.GetRequiredService<PostgresRelationshipStore>());
@@ -84,15 +85,18 @@ namespace Aegis.Infrastructure
                 services.AddSingleton<IStoreRepository>(sp => sp.GetRequiredService<InMemoryStoreRegistry>());
                 services.AddSingleton<IAuthorizationModelRegistry>(sp => sp.GetRequiredService<InMemoryStoreRegistry>());
                 services.AddSingleton<IAuthorizationModelRepository>(sp => sp.GetRequiredService<InMemoryStoreRegistry>());
-
-                services.AddSingleton<IRelationshipStore, InMemoryRelationshipStore>();
-                services.AddSingleton<IRelationshipRepository>(sp => sp.GetRequiredService<IRelationshipStore>() as IRelationshipRepository ?? throw new InvalidOperationException("Relationship repository is unavailable."));
+                services.AddSingleton<InMemoryRelationshipStore>();
+                services.AddSingleton<IRelationshipStore>(sp => sp.GetRequiredService<InMemoryRelationshipStore>());
+                services.AddSingleton<IRelationshipRepository>(sp => sp.GetRequiredService<InMemoryRelationshipStore>());
                 services.AddSingleton<InMemoryRbacStore>();
                 services.AddSingleton<IRbacProvider>(sp => sp.GetRequiredService<InMemoryRbacStore>());
                 services.AddSingleton<IRbacAdminStore>(sp => sp.GetRequiredService<InMemoryRbacStore>());
                 services.AddSingleton<IAuditStore, InMemoryAuditStore>();
-                services.AddSingleton<IAssertionRunStore, InMemoryAssertionRunStore>();
-                services.AddSingleton<IAssertionRepository, InMemoryAssertionRepository>();
+                services.AddSingleton<InMemoryAssertionRunStore>();
+                services.AddSingleton<IAssertionRunStore>(sp => sp.GetRequiredService<InMemoryAssertionRunStore>());
+                services.AddSingleton<InMemoryAssertionRepository>();
+                services.AddSingleton<IAssertionRepository>(sp => sp.GetRequiredService<InMemoryAssertionRepository>());
+                services.AddSingleton<IStoreDeletionRepository, InMemoryStoreDeletionRepository>();
             }
 
             services.AddSingleton<IAuthorizationModelProvider, AuthorizationModelProvider>();

@@ -8,6 +8,7 @@ This is the full documentation index for Aegis. Articles follow the [metadata an
 - [Frontend Console Architecture](architecture/frontend-console.md)
 - [Legacy Architecture Overview](architecture.md)
 - [Backend Runtime Inventory](architecture/backend-runtime-inventory.md)
+- [Store Deletion Consistency](architecture/store-deletion-consistency.md)
 - [Architecture Decision Records](decisions/README.md)
 
 ## Product
