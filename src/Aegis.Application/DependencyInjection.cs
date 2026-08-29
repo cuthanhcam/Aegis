@@ -33,6 +33,7 @@ namespace Aegis.Application
             services.AddSingleton<AssertionValidator>();
             services.AddScoped<WriteAssertionsUseCase>();
             services.AddScoped<RunAssertionsUseCase>();
+            services.AddScoped<GenerateAssertionsFromAuditUseCase>();
             services.AddSingleton<AuthorizationModelValidator>();
             services.AddScoped<CreateAuthorizationModelUseCase>();
             services.AddScoped<UpdateAuthorizationModelUseCase>();

@@ -19,12 +19,6 @@ namespace Aegis.Application.Interfaces
             string runId,
             CancellationToken cancellationToken = default);
 
-        Task<AegisGenerateAssertionsFromAuditResponseDto> GenerateFromAuditAsync(
-            string storeId,
-            string authorizationModelId,
-            AegisGenerateAssertionsFromAuditRequestDto request,
-            CancellationToken cancellationToken = default);
-
         Task PurgeStoreAsync(string storeId, CancellationToken cancellationToken = default);
     }
 }

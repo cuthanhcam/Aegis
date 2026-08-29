@@ -77,7 +77,7 @@ namespace Aegis.UnitTests.Application.Services
             var assertionRepository = new InMemoryAssertionRepository();
             var auditStore = new InMemoryAuditStore();
             var validator = new AssertionValidator();
-            var service = new AssertionAppService(registry, registry, assertionRepository, runStore, auditStore, validator);
+            var service = new AssertionAppService(registry, registry, assertionRepository, runStore);
             var runUseCase = new RunAssertionsUseCase(registry, registry, assertionRepository, checker, runStore);
             var writeUseCase = new WriteAssertionsUseCase(registry, registry, assertionRepository, validator);
             await writeUseCase.ExecuteAsync(
@@ -90,7 +90,7 @@ namespace Aegis.UnitTests.Application.Services
                 ]));
 
             var run = await runUseCase.ExecuteAsync(store.Id, model.Id);
-            var reloadedService = new AssertionAppService(registry, registry, assertionRepository, runStore, auditStore, validator);
+            var reloadedService = new AssertionAppService(registry, registry, assertionRepository, runStore);
             var runs = await reloadedService.ListRunsAsync(store.Id, model.Id);
             var detail = await reloadedService.GetRunAsync(store.Id, run.RunId);
 
@@ -133,13 +133,24 @@ namespace Aegis.UnitTests.Application.Services
                 DateTimeOffset.UtcNow,
                 store.Id));
 
-            var service = CreateAssertionService(registry, auditStore);
+            var assertionRepository = new InMemoryAssertionRepository();
+            var useCase = new GenerateAssertionsFromAuditUseCase(
+                registry,
+                registry,
+                assertionRepository,
+                auditStore,
+                new AssertionValidator());
+            var service = new AssertionAppService(
+                registry,
+                registry,
+                assertionRepository,
+                new InMemoryAssertionRunStore());
 
-            var draft = await service.GenerateFromAuditAsync(
+            var draft = await useCase.ExecuteAsync(
                 store.Id,
                 model.Id,
                 new AegisGenerateAssertionsFromAuditRequestDto(Limit: 10));
-            var appended = await service.GenerateFromAuditAsync(
+            var appended = await useCase.ExecuteAsync(
                 store.Id,
                 model.Id,
                 new AegisGenerateAssertionsFromAuditRequestDto(Decision: "Allow", Append: true));
@@ -153,17 +164,5 @@ namespace Aegis.UnitTests.Application.Services
             Assert.Equal("user:anne", stored.Assertions[0].TupleKey.User);
         }
 
-        private static AssertionAppService CreateAssertionService(
-            InMemoryStoreRegistry registry,
-            IAuditStore auditStore)
-        {
-            return new AssertionAppService(
-                registry,
-                registry,
-                new InMemoryAssertionRepository(),
-                new InMemoryAssertionRunStore(),
-                auditStore,
-                new AssertionValidator());
-        }
     }
 }

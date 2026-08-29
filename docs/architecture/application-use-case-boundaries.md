@@ -22,7 +22,7 @@ The API adapter authenticates and authorizes the caller, resolves tenant/actor c
 | User delete | `DeleteUserUseCase` | RBAC administration repository transaction | Extracted |
 | Assertion write | `WriteAssertionsUseCase` | Versioned assertion repository replace | Extracted |
 | Assertion run | `RunAssertionsUseCase` | One captured definition snapshot plus append-only run store | Extracted |
-| Assertion generate | Broad assertion application service | Audit query plus atomic definition append | Extraction pending |
+| Assertion generate | `GenerateAssertionsFromAuditUseCase` | Audit query plus atomic definition append | Extracted |
 
 ## Store-create flow
 
@@ -85,6 +85,10 @@ Assertion replacement now enters through `WriteAssertionsUseCase` rather than th
 Assertion execution now enters through `RunAssertionsUseCase`. The use case validates store/model scope, reads one immutable `AssertionSetSnapshot`, and uses that captured collection and model ID for the entire run. Concurrent replacement may create a newer repository revision, but it cannot change the assertion collection already being evaluated. Permission checks retain trace-enabled audit behavior, cancellation is observed between items, and the completed run record is appended only after every captured assertion has produced a result.
 
 An empty snapshot is a valid executable state and produces a persisted zero-result run, preserving operational evidence that the command occurred. Invalid store/model scope and interrupted or failed evaluation do not write a misleading completed run. The controller consumes the run use case directly, and the run delegate plus permission-check dependency have been removed from the broad assertion service.
+
+Audit-derived generation now enters through `GenerateAssertionsFromAuditUseCase`. It validates store/model scope, normalizes the optional decision filter, constrains the requested limit, queries audit events within the resolved tenant and store, retains check/explain events, maps their decisions to expectations, filters candidates through `AssertionValidator`, and deduplicates before returning the draft. Draft-only generation performs no definition mutation.
+
+When append is requested, the use case passes the complete candidate set to the repository's serialized `AppendDistinctAsync` operation. Capacity is evaluated against the latest persisted snapshot inside that atomic boundary; overflow is mapped to the stable compatibility error and leaves revision/content unchanged. The controller consumes the use case directly, while audit and validator dependencies plus the generation delegate have been removed from `AssertionAppService`. The remaining service surface is read, run-history queries, and store purge.
 
 ## Review checklist
 
