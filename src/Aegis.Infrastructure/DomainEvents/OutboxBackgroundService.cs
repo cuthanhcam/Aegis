@@ -9,11 +9,16 @@ namespace Aegis.Infrastructure.DomainEvents
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<OutboxBackgroundService> _logger;
+        private readonly OutboxWorkerOptions _options;
 
-        public OutboxBackgroundService(IServiceProvider serviceProvider, ILogger<OutboxBackgroundService> logger)
+        public OutboxBackgroundService(
+            IServiceProvider serviceProvider,
+            ILogger<OutboxBackgroundService> logger,
+            OutboxWorkerOptions options)
         {
             _serviceProvider = serviceProvider;
             _logger = logger;
+            _options = options;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -24,14 +29,14 @@ namespace Aegis.Infrastructure.DomainEvents
                 {
                     using var scope = _serviceProvider.CreateScope();
                     var processor = scope.ServiceProvider.GetRequiredService<IOutboxProcessor>();
-                    await processor.ProcessPendingAsync(100, stoppingToken);
+                    await processor.ProcessPendingAsync(_options.BatchSize, stoppingToken);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Outbox processing failed.");
                 }
 
-                await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+                await Task.Delay(_options.PollInterval, stoppingToken);
             }
         }
     }

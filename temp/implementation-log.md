@@ -417,3 +417,16 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Verification: missing-secret exit behavior and the focused PostgreSQL 16 validation/interruption test pass. Locked restore and zero-warning Release build pass with 303 unit tests and 32 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Follow-up: provision distinct managed migration/runtime identities, apply least-privilege grants, order migrator before `Validate` replicas, and retain a rollback rehearsal before claiming the environment cutover.
 - Merge evidence: feature commit `9dd669f` was merged locally into `develop` as `c973e58` and pushed. GitHub Actions `.NET CI` run `33264009438` passed without modifying the workflow.
+
+## 2026-08-30 — Durable data correctness B3, iteration 31
+
+- Branch: `feat/durable-postgres-outbox-b3`
+- Status: Complete
+- Architecture direction: reaffirm ADR 0001. Aegis remains a modular monolith; Aspire, orchestration, and microservice extraction require measured business/operational evidence and are not near-term goals.
+- Intended result: ensure PostgreSQL outbox work and retry state survive process recreation while retaining the simple single-service deployment profile.
+- Persistence: migration 017 adds durable JSON payload, event time, creation time, attempt/error, next-attempt, and processed state with a due-message partial index.
+- Runtime: PostgreSQL composition selects `PostgresDomainEventOutboxStore`; local/test profiles retain the in-memory implementation. The worker consumes validated batch/poll/retry options and propagates requested cancellation.
+- Retry: failed delivery records a bounded 4,000-character error and exponential next-attempt delay capped by configuration; success clears the error and records completion.
+- Scope honesty: business mutation and outbox append are not yet one transaction, and messages are not claimed with leases. Logging publication, poison handling, backlog telemetry, replay, and retention remain pending.
+- Verification: focused PostgreSQL 16 tests prove the 17-migration history and durable outbox append, store reconstruction, delayed retry state, error clearing, and completion. Locked restore and zero-warning Release build pass with 303 unit tests and 33 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: design transaction ownership for business state plus outbox append before adding claim leases and operational delivery controls.

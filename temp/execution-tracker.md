@@ -146,6 +146,9 @@ Application-boundary progress:
 - [x] Serialize migration execution, enforce immutable checksums, and bound lock/statement waits.
 - [x] Terminate a visibly blocked migration connection, prove transaction/history rollback, and prove clean retry.
 - [x] Add a one-shot migrator and read-only replica validation mode without changing deployment automation.
+- [x] Persist PostgreSQL outbox messages and retry state across process restart; bind and validate worker settings.
+- [ ] Couple business mutations, audit evidence, and outbox append in one PostgreSQL transaction.
+- [ ] Add outbox claim leases, poison handling, backlog telemetry, replay, and retention controls.
 - [ ] Move managed migration authority out of ordinary application replicas after deployment design approval.
 - [x] Remove authorization-model mutation delegates after production and test caller migration.
 - [x] Remove temporary store-create delegates and nullable compatibility composition after caller audit.
@@ -320,5 +323,9 @@ Iteration 30 durable-correctness scope: establish a deployable code boundary bet
 Iteration 30 local evidence: missing migrator credentials return exit code 64 without exposing a connection string. Focused PostgreSQL 16 coverage passes for complete-schema validation and fail-closed pending, null-checksum, drift, lock-timeout, and connection-interruption paths. Locked restore, zero-warning Release build, 303 unit tests, and 32 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 Iteration 30 merge evidence: feature commit `9dd669f` was merged locally into `develop` as `c973e58`; `.NET CI` run `33264009438` passed. The workflow remained unchanged.
+
+Iteration 31 durable-correctness scope: replace the PostgreSQL profile's process-local outbox with migration-017 durable message, attempt, bounded error, retry schedule, and completion state. Bind and validate batch/poll/retry configuration, preserve in-memory behavior for local/test profiles, and stop cancellation from being recorded as delivery failure. This is restart durability, not yet a transactional or multi-worker leased outbox; those gaps remain explicit follow-up work.
+
+Iteration 31 local evidence: focused PostgreSQL 16 tests prove all 17 migrations remain serialized/checksummed and that outbox append, reconstruction, delayed failure retry, error clearing, and completion state are durable. Locked restore, zero-warning Release build, 303 unit tests, and 33 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
