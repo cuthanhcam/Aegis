@@ -83,6 +83,30 @@ public static class PostgresMigrationRunner
         }
     }
 
+    public static async Task ValidateReadyAsync(
+        NpgsqlDataSource dataSource,
+        TimeSpan statementTimeout,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (statementTimeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(statementTimeout), "Migration statement timeout must be positive.");
+        }
+
+        var migrations = await ReadMigrationsAsync(cancellationToken);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await EnsureHistoryExistsAsync(connection, statementTimeout, cancellationToken);
+        var applied = await ReadAppliedAsync(connection, statementTimeout, cancellationToken);
+        await VerifyChecksumsAsync(connection, migrations, applied, statementTimeout, bootstrapMissingChecksums: false, cancellationToken);
+
+        var pending = migrations.Where(migration => !applied.ContainsKey(migration.Name)).Select(migration => migration.Name).ToArray();
+        if (pending.Length > 0)
+        {
+            throw new InvalidOperationException($"Database schema is not ready. Pending migrations: {string.Join(", ", pending)}.");
+        }
+    }
+
     private static async Task<bool> AcquireLockAsync(NpgsqlConnection connection, TimeSpan timeout, CancellationToken cancellationToken)
     {
         var deadline = DateTimeOffset.UtcNow + timeout;
@@ -136,6 +160,17 @@ public static class PostgresMigrationRunner
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    private static async Task EnsureHistoryExistsAsync(NpgsqlConnection connection, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandTimeout = ToCommandTimeout(timeout);
+        command.CommandText = "SELECT to_regclass('schema_migrations') IS NOT NULL;";
+        if (!((bool?)await command.ExecuteScalarAsync(cancellationToken) ?? false))
+        {
+            throw new InvalidOperationException("Database schema is not ready. Migration history table does not exist.");
+        }
+    }
+
     private static async Task<Dictionary<string, string?>> ReadAppliedAsync(NpgsqlConnection connection, TimeSpan timeout, CancellationToken cancellationToken)
     {
         var applied = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
@@ -151,11 +186,20 @@ public static class PostgresMigrationRunner
         return applied;
     }
 
-    private static async Task VerifyAndBootstrapChecksumsAsync(
+    private static Task VerifyAndBootstrapChecksumsAsync(
         NpgsqlConnection connection,
         IReadOnlyList<MigrationResource> migrations,
         IReadOnlyDictionary<string, string?> applied,
         TimeSpan timeout,
+        CancellationToken cancellationToken) =>
+        VerifyChecksumsAsync(connection, migrations, applied, timeout, bootstrapMissingChecksums: true, cancellationToken);
+
+    private static async Task VerifyChecksumsAsync(
+        NpgsqlConnection connection,
+        IReadOnlyList<MigrationResource> migrations,
+        IReadOnlyDictionary<string, string?> applied,
+        TimeSpan timeout,
+        bool bootstrapMissingChecksums,
         CancellationToken cancellationToken)
     {
         var known = migrations.ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
@@ -174,6 +218,11 @@ public static class PostgresMigrationRunner
             if (record.Value is not null)
             {
                 continue;
+            }
+
+            if (!bootstrapMissingChecksums)
+            {
+                throw new InvalidOperationException($"Database schema is not ready. Applied migration '{record.Key}' has no checksum.");
             }
 
             await using var update = connection.CreateCommand();

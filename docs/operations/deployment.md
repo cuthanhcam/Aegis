@@ -59,9 +59,12 @@ Local development can run migrations and seed demo data automatically through th
 
 Production deployments should:
 
-- Run migrations explicitly during deployment.
+- Run `eng/migrate-database.ps1` explicitly with a migration-only database identity before starting replicas.
+- Configure API replicas with `Database__Migrations__Mode=Validate` and a runtime identity without DDL grants.
 - Keep seed data disabled unless intentionally bootstrapping a demo environment.
 - Back up PostgreSQL before schema changes.
+
+`Apply` remains the default for backward-compatible single-service and local operation. Selecting `Validate` makes startup read-only with respect to schema history and fails closed if migrations are missing, pending, or inconsistent. Do not switch managed replicas to `Validate` until the separate migration step and rollback ordering are proven in that environment.
 
 ## Operational Checklist
 

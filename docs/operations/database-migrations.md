@@ -31,12 +31,20 @@ Default configuration:
 {
   "Database": {
     "Migrations": {
+      "Mode": "Apply",
       "LockTimeoutSeconds": 30,
       "StatementTimeoutSeconds": 120
     }
   }
 }
 ```
+
+`Mode` defines startup authority:
+
+- `Apply` runs pending migrations and then permits development seeding. It is the backward-compatible monolith and local-development default.
+- `Validate` performs read-only history, completeness, and checksum checks. It fails startup when the history table is absent, a migration is pending or unknown, a checksum is absent, or checksum drift exists. Development seeding is rejected in this mode.
+
+Use `Validate` for ordinary production API replicas after the deployment migration step is established. This prevents replicas from acquiring DDL authority while still refusing to serve against an incompatible schema.
 
 The lock timeout bounds how long an instance waits behind another migrator. The statement timeout is applied through the database command timeout for history operations and migration SQL. Both values must be positive. Size them from rehearsed migration duration, not ordinary request latency.
 
@@ -52,6 +60,19 @@ For checksum drift, compare the deployed artifact, repository migration, stored 
 
 For SQL failure, preserve the database error, migration name, artifact revision, and pre-deployment backup. Verify that the failing migration has no history row and inspect transaction state on an isolated restore before retrying.
 
+## Separate migration entry point
+
+`Aegis.Migrator` is the repository-owned one-shot DDL process. It reads the connection string only from `ConnectionStrings__Aegis`, applies migrations with the same lock/checksum/transaction guarantees as application `Apply` mode, performs a final read-only readiness validation, and exits. It does not start HTTP traffic or development seeding.
+
+From the repository root on PowerShell:
+
+```powershell
+$env:ConnectionStrings__Aegis = "Host=...;Database=...;Username=...;Password=..."
+./eng/migrate-database.ps1 -LockTimeoutSeconds 30 -StatementTimeoutSeconds 120
+```
+
+After it succeeds, configure replicas with `Database__Migrations__Mode=Validate`. Give the migration identity DDL plus migration-history rights; give the runtime identity only the DML and sequence rights required by Aegis. Never place the connection string on the command line or retain it in shell history, logs, or evidence.
+
 ## Remaining production gate
 
-Application startup still owns migration authority. Production deployment should eventually run the same runner as a separately authorized migration job before serving traffic, leaving ordinary replicas with schema-readiness checks but no DDL permission. That cutover requires deployment and rollback design and is not claimed by the current change.
+The code boundary for a separately authorized migration job now exists, but no managed environment has been cut over by this repository change. Production readiness still requires deployment ordering, distinct database identities and grants, failure rollback, and a managed rehearsal proving that the migrator succeeds while `Validate` replicas cannot perform DDL.

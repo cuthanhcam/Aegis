@@ -303,8 +303,17 @@ public sealed class PostgresRedisIntegrationTests
         await postgres.StartAsync();
         await using var dataSource = NpgsqlDataSource.Create(postgres.GetConnectionString());
 
+        var missingHistory = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Aegis.Infrastructure.Persistence.PostgresMigrationRunner.ValidateReadyAsync(
+                dataSource,
+                TimeSpan.FromSeconds(10)));
+        Assert.Contains("history table does not exist", missingHistory.Message, StringComparison.Ordinal);
+
         await Task.WhenAll(Enumerable.Range(0, 4).Select(_ =>
             Aegis.Infrastructure.Persistence.PostgresMigrationRunner.MigrateAsync(dataSource)));
+        await Aegis.Infrastructure.Persistence.PostgresMigrationRunner.ValidateReadyAsync(
+            dataSource,
+            TimeSpan.FromSeconds(10));
 
         await using (var connection = await dataSource.OpenConnectionAsync())
         {
@@ -351,6 +360,12 @@ public sealed class PostgresRedisIntegrationTests
             Assert.Equal(1, await clearChecksum.ExecuteNonQueryAsync());
         }
 
+        var missingChecksum = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Aegis.Infrastructure.Persistence.PostgresMigrationRunner.ValidateReadyAsync(
+                dataSource,
+                TimeSpan.FromSeconds(10)));
+        Assert.Contains("has no checksum", missingChecksum.Message, StringComparison.Ordinal);
+
         await Aegis.Infrastructure.Persistence.PostgresMigrationRunner.MigrateAsync(dataSource);
         await using (var bootstrapVerification = await dataSource.OpenConnectionAsync())
         {
@@ -371,6 +386,12 @@ public sealed class PostgresRedisIntegrationTests
                     """;
                 Assert.Equal(1, await removeHistory.ExecuteNonQueryAsync());
             }
+
+            var pending = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                Aegis.Infrastructure.Persistence.PostgresMigrationRunner.ValidateReadyAsync(
+                    dataSource,
+                    TimeSpan.FromSeconds(10)));
+            Assert.Contains("Pending migrations", pending.Message, StringComparison.Ordinal);
 
             await using (var blockMigration = blockerConnection.CreateCommand())
             {
@@ -445,6 +466,9 @@ public sealed class PostgresRedisIntegrationTests
                 """;
             Assert.Equal(1L, (long)(await history.ExecuteScalarAsync())!);
         }
+        await Aegis.Infrastructure.Persistence.PostgresMigrationRunner.ValidateReadyAsync(
+            dataSource,
+            TimeSpan.FromSeconds(10));
 
         await using (var driftConnection = await dataSource.OpenConnectionAsync())
         await using (var drift = driftConnection.CreateCommand())
@@ -460,6 +484,11 @@ public sealed class PostgresRedisIntegrationTests
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             Aegis.Infrastructure.Persistence.PostgresMigrationRunner.MigrateAsync(dataSource));
         Assert.Contains("Checksum mismatch", exception.Message, StringComparison.Ordinal);
+        var validationException = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Aegis.Infrastructure.Persistence.PostgresMigrationRunner.ValidateReadyAsync(
+                dataSource,
+                TimeSpan.FromSeconds(10)));
+        Assert.Contains("Checksum mismatch", validationException.Message, StringComparison.Ordinal);
     }
 
     private static bool ShouldRunContainerTests()

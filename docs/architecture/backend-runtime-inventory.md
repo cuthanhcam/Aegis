@@ -65,7 +65,9 @@ Configuration access is currently split between `Program.cs`, Infrastructure reg
 
 PostgreSQL is the durable provider; in-memory implementations support tests and evaluation. Sixteen embedded forward migrations currently cover initial schema, RBAC conditions, relationship effects/indexes, store and tenant scoping, authorization model lifecycle/revisions/single-active invariant, assertion definitions/run history, transactional idempotency, and atomic store deletion.
 
-The migration runner orders embedded resource names, serializes concurrent instances with a PostgreSQL session advisory lock, executes and records each migration in one transaction, and stores a normalized SHA-256 checksum. It fails closed on checksum drift, missing embedded history, lock timeout, cancellation, or statement failure. Existing pre-checksum history is bootstrapped once from the matching embedded resources. Lock and statement deadlines are configurable under `Database:Migrations`. Expand/contract review and separating migration authority from ordinary application startup remain Phase B3/B5 work.
+The migration runner orders embedded resource names, serializes concurrent instances with a PostgreSQL session advisory lock, executes and records each migration in one transaction, and stores a normalized SHA-256 checksum. It fails closed on checksum drift, missing embedded history, lock timeout, cancellation, or statement failure. Existing pre-checksum history is bootstrapped once from the matching embedded resources. Lock and statement deadlines are configurable under `Database:Migrations`.
+
+Startup now has explicit `Apply` and `Validate` authority modes. `Apply` preserves monolith/local behavior. `Validate` is read-only and refuses absent history, pending/unknown migrations, missing checksums, or drift. The one-shot `Aegis.Migrator` executable owns the same apply logic without hosting the API or seed path. This creates the code boundary for production privilege separation; managed identity/grant cutover and rehearsal remain Phase B3/B5 deployment work.
 
 ## Cache inventory
 

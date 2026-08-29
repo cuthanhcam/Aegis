@@ -145,6 +145,7 @@ Application-boundary progress:
 - [ ] Execute a staging-sized managed restore, full golden decisions, and measured RPO/RTO evidence.
 - [x] Serialize migration execution, enforce immutable checksums, and bound lock/statement waits.
 - [x] Terminate a visibly blocked migration connection, prove transaction/history rollback, and prove clean retry.
+- [x] Add a one-shot migrator and read-only replica validation mode without changing deployment automation.
 - [ ] Move managed migration authority out of ordinary application replicas after deployment design approval.
 - [x] Remove authorization-model mutation delegates after production and test caller migration.
 - [x] Remove temporary store-create delegates and nullable compatibility composition after caller audit.
@@ -313,5 +314,9 @@ Iteration 29 durable-correctness scope: prove migration recovery under physical 
 Iteration 29 local evidence: the focused PostgreSQL 16 interruption test passed. Locked restore, zero-warning Release build, 303 unit tests, and 32 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 Iteration 29 merge evidence: feature commit `9aa0ed0` was merged locally into `develop` as `01afe97`; `.NET CI` run `33263431325` passed. The workflow remained unchanged.
+
+Iteration 30 durable-correctness scope: establish a deployable code boundary between schema mutation and ordinary API startup. `Aegis.Migrator` is a one-shot executable and PowerShell operator entry point using the hardened runner; API startup supports backward-compatible `Apply` and read-only `Validate` modes. Validation fails closed for absent history, pending/unknown migrations, missing checksums, and drift, and cannot run development seeding. Managed identity/grant separation and deployment ordering remain unclaimed environment gates.
+
+Iteration 30 local evidence: missing migrator credentials return exit code 64 without exposing a connection string. Focused PostgreSQL 16 coverage passes for complete-schema validation and fail-closed pending, null-checksum, drift, lock-timeout, and connection-interruption paths. Locked restore, zero-warning Release build, 303 unit tests, and 32 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
