@@ -288,6 +288,81 @@ public sealed class PostgresRedisIntegrationTests
     }
 
     [Fact]
+    public async Task Postgres_outbox_survives_store_recreation_and_schedules_failed_delivery()
+    {
+        if (!ShouldRunContainerTests())
+        {
+            return;
+        }
+
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("aegis")
+            .WithUsername("postgres")
+            .WithPassword("postgres")
+            .Build();
+        await postgres.StartAsync();
+        await using var dataSource = NpgsqlDataSource.Create(postgres.GetConnectionString());
+        await Aegis.Infrastructure.Persistence.PostgresMigrationRunner.MigrateAsync(dataSource);
+
+        var options = new Aegis.Infrastructure.DomainEvents.OutboxWorkerOptions(
+            10,
+            TimeSpan.FromSeconds(1),
+            TimeSpan.FromSeconds(2),
+            TimeSpan.FromSeconds(30));
+        var firstStore = new Aegis.Infrastructure.DomainEvents.PostgresDomainEventOutboxStore(dataSource, options);
+        await firstStore.AppendAsync(
+            new Aegis.Domain.Events.StoreCreatedDomainEvent("store-outbox", "Outbox", DateTimeOffset.UtcNow),
+            CancellationToken.None);
+
+        var recreatedStore = new Aegis.Infrastructure.DomainEvents.PostgresDomainEventOutboxStore(dataSource, options);
+        var message = Assert.Single(await recreatedStore.GetPendingAsync(10));
+        Assert.Equal(nameof(Aegis.Domain.Events.StoreCreatedDomainEvent), message.EventType);
+        Assert.Contains("store-outbox", message.Payload, StringComparison.Ordinal);
+
+        await recreatedStore.MarkFailedAsync(message.Id, "temporary failure");
+        Assert.Empty(await recreatedStore.GetPendingAsync(10));
+        await using (var connection = await dataSource.OpenConnectionAsync())
+        await using (var inspectFailure = connection.CreateCommand())
+        {
+            inspectFailure.CommandText = """
+                SELECT attempt_count, last_error, next_attempt_at > NOW()
+                FROM outbox_messages
+                WHERE id = @id;
+                """;
+            inspectFailure.Parameters.AddWithValue("id", message.Id);
+            await using var reader = await inspectFailure.ExecuteReaderAsync();
+            Assert.True(await reader.ReadAsync());
+            Assert.Equal(1, reader.GetInt32(0));
+            Assert.Equal("temporary failure", reader.GetString(1));
+            Assert.True(reader.GetBoolean(2));
+        }
+
+        await using (var connection = await dataSource.OpenConnectionAsync())
+        await using (var makeDue = connection.CreateCommand())
+        {
+            makeDue.CommandText = "UPDATE outbox_messages SET next_attempt_at = NOW() WHERE id = @id;";
+            makeDue.Parameters.AddWithValue("id", message.Id);
+            Assert.Equal(1, await makeDue.ExecuteNonQueryAsync());
+        }
+
+        var retry = Assert.Single(await recreatedStore.GetPendingAsync(10));
+        Assert.Equal(1, retry.AttemptCount);
+        await recreatedStore.MarkProcessedAsync(retry.Id);
+        Assert.Empty(await recreatedStore.GetPendingAsync(10));
+
+        await using (var connection = await dataSource.OpenConnectionAsync())
+        await using (var inspectProcessed = connection.CreateCommand())
+        {
+            inspectProcessed.CommandText = "SELECT processed_at IS NOT NULL, last_error IS NULL FROM outbox_messages WHERE id = @id;";
+            inspectProcessed.Parameters.AddWithValue("id", message.Id);
+            await using var reader = await inspectProcessed.ExecuteReaderAsync();
+            Assert.True(await reader.ReadAsync());
+            Assert.True(reader.GetBoolean(0));
+            Assert.True(reader.GetBoolean(1));
+        }
+    }
+
+    [Fact]
     public async Task Migration_runner_serializes_startup_rejects_drift_and_honors_lock_timeout()
     {
         if (!ShouldRunContainerTests())
@@ -326,9 +401,9 @@ public sealed class PostgresRedisIntegrationTests
                 """;
             await using var reader = await history.ExecuteReaderAsync();
             Assert.True(await reader.ReadAsync());
-            Assert.Equal(16, reader.GetInt64(0));
-            Assert.Equal(16, reader.GetInt64(1));
-            Assert.Equal(16, reader.GetInt64(2));
+            Assert.Equal(17, reader.GetInt64(0));
+            Assert.Equal(17, reader.GetInt64(1));
+            Assert.Equal(17, reader.GetInt64(2));
         }
 
         await using (var lockConnection = await dataSource.OpenConnectionAsync())

@@ -130,7 +130,7 @@ public sealed class ComprehensiveDomainAggregateTests
 /// </summary>
 public sealed class DomainEventOutboxTests
 {
-    private readonly IDomainEventOutboxStore _outboxStore = new InMemoryDomainEventOutboxStore();
+    private readonly IDomainEventOutboxStore _outboxStore = new InMemoryDomainEventOutboxStore(TimeSpan.Zero);
 
     [Fact]
     public async Task AppendAndGetPending_ReturnsAppendedMessages()
