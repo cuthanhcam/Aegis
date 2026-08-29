@@ -351,3 +351,15 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Verification: 9 focused store-boundary/composition unit tests pass; a PostgreSQL 16 container test runs migrations and proves cross-tenant no-op, atomic cascade across seeded operational tables, and audit retention. Locked restore and zero-warning Release build pass with 303 unit tests and 31 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Follow-up: validate legacy foreign keys, add injected-failure evidence, and perform backup/restore plus reconciliation drills.
 - Merge evidence: feature commit `23f87a2` was merged locally into `develop` as `05d9176` and pushed. GitHub Actions `.NET CI` run `33260311533` passed without modifying the workflow.
+
+## 2026-08-29 — Durable data correctness B3, iteration 26
+
+- Branch: `feat/store-constraint-reconciliation-b3`
+- Status: Complete
+- Intended result: make legacy integrity discovery and migration-016 validation repeatable, reviewable, and safe by default.
+- Tooling: `Aegis.DatabaseAdmin` reads credentials only from `ConnectionStrings__Aegis`, emits a JSON report, returns `2` for discovered violations, and performs no mutation unless `--validate` is explicit. The PowerShell entry point restores in locked mode and writes evidence under `artifacts/database` by default.
+- Audit contract: report every target table's constraint status and total orphan/mismatched tenant-store count, with at most 20 identifier samples. The tool never guesses repairs or deletes data.
+- Validation guard: validation is refused when any violation exists. With a clean audit, all six constraints validate inside one transaction and their catalog state is reread into the report.
+- Operational guidance: the runbook defines secret handling, restored-copy rehearsal, reconciliation ownership, exit codes, evidence retention, and failure response.
+- Verification: zero-warning Release build passes with the database-admin tool included. PostgreSQL 16 container coverage injects one legacy orphan by bypassing triggers, proves detection and validation refusal, removes the test orphan, and proves transactional validation of all six constraints. Missing secret configuration returns exit code 64 without exposing credentials. Locked restore, 303 unit tests, and 31 integration tests pass. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: execute the runbook per managed environment, then add injected-failure and backup/restore evidence.

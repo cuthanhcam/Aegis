@@ -140,6 +140,40 @@ public sealed class PostgresRedisIntegrationTests
         await redis.StartAsync();
 
         await using var factory = new ContainerApiFactory(postgres.GetConnectionString(), redis.GetConnectionString());
+        var dataSource = factory.AppServices.GetRequiredService<NpgsqlDataSource>();
+        var reconciliation = new Aegis.Infrastructure.Persistence.StoreConstraintReconciliationService(dataSource);
+        await using (var legacyConnection = await dataSource.OpenConnectionAsync())
+        {
+            await using var legacyCommand = legacyConnection.CreateCommand();
+            legacyCommand.CommandText = """
+                ALTER TABLE relationships DISABLE TRIGGER ALL;
+                INSERT INTO relationships
+                    (id, tenant_id, store_id, subject, relation, object_ref, effect, created_at, updated_at)
+                VALUES
+                    (@id, 'legacy-tenant', 'orphan-store', 'user:legacy', 'viewer', 'document:legacy', 'Allow', NOW(), NOW());
+                ALTER TABLE relationships ENABLE TRIGGER ALL;
+                """;
+            legacyCommand.Parameters.AddWithValue("id", Guid.NewGuid());
+            await legacyCommand.ExecuteNonQueryAsync();
+        }
+
+        var blockedValidation = await reconciliation.AuditAsync(validate: true);
+        Assert.Equal(1, blockedValidation.TotalViolations);
+        Assert.False(blockedValidation.ValidationCompleted);
+        Assert.Contains(
+            blockedValidation.Tables,
+            x => x.Table == "relationships"
+                 && x.ViolationCount == 1
+                 && x.Samples.Any(sample => sample.StoreId == "orphan-store"));
+
+        await using (var cleanupConnection = await dataSource.OpenConnectionAsync())
+        await using (var cleanupCommand = new NpgsqlCommand(
+                         "DELETE FROM relationships WHERE tenant_id = 'legacy-tenant' AND store_id = 'orphan-store';",
+                         cleanupConnection))
+        {
+            await cleanupCommand.ExecuteNonQueryAsync();
+        }
+
         var seed = await SeedAsync(factory.AppServices);
 
         using (var scope = factory.AppServices.CreateScope())
@@ -204,6 +238,11 @@ public sealed class PostgresRedisIntegrationTests
             connection);
         auditCommand.Parameters.AddWithValue("store_id", seed.StoreId);
         Assert.Equal(1L, (long)(await auditCommand.ExecuteScalarAsync())!);
+
+        var validated = await reconciliation.AuditAsync(validate: true);
+        Assert.Equal(0, validated.TotalViolations);
+        Assert.True(validated.ValidationCompleted);
+        Assert.All(validated.Tables, table => Assert.True(table.Validated));
     }
 
     private static bool ShouldRunContainerTests()

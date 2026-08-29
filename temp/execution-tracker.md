@@ -138,7 +138,8 @@ Application-boundary progress:
 - [x] Record the captured assertion definition revision in durable run history and expose it through the additive v1 contract.
 - [x] Move assertion definition and run-history reads to explicit query use cases and remove the broad assertion application service.
 - [x] Make PostgreSQL store deletion tenant-scoped and atomic across operational authorization state.
-- [ ] Inventory legacy tenant/store foreign-key violations and validate migration 016 constraints.
+- [x] Add a read-only legacy violation inventory, guarded validation tool, JSON evidence, and reconciliation runbook for migration 016.
+- [ ] Execute the reconciliation/validation runbook against each managed environment and retain approved reports.
 - [ ] Run backup/restore and injected-failure drills before the B3 exit review.
 - [x] Remove authorization-model mutation delegates after production and test caller migration.
 - [x] Remove temporary store-create delegates and nullable compatibility composition after caller audit.
@@ -283,5 +284,9 @@ Iteration 25 durable-correctness scope: move production store deletion into one 
 Iteration 25 local evidence: 9 focused store-boundary/composition unit tests pass and a PostgreSQL 16 container test proves cross-tenant no-op, atomic operational cascade, and audit retention. Locked restore, zero-warning Release build, 303 unit tests, and 31 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 Iteration 25 merge evidence: feature commit `23f87a2` was merged locally into `develop` as `05d9176`; `.NET CI` run `33260311533` passed. The workflow remained unchanged.
+
+Iteration 26 durable-correctness scope: add an operator-safe inventory and validation workflow for the six staged tenant/store foreign keys introduced by migration 016.
+
+Iteration 26 local evidence: Release build includes the new database-admin tool with zero warnings/errors. PostgreSQL 16 container coverage injects a legacy orphan, proves audit sampling and validation refusal, reconciles it, then validates all six constraints transactionally. Missing secret configuration returns the documented usage exit code without exposing credentials. Locked restore, 303 unit tests, and 31 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
