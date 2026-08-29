@@ -289,7 +289,7 @@ This append-only log records completed iterations and their evidence. Plans desc
 ## 2026-08-29 — Governed contracts B1, iteration 21
 
 - Branch: `refactor/assertion-run-use-case-b1`
-- Status: In progress
+- Status: Complete
 - Intended result: isolate assertion execution behind one explicit use case that evaluates a stable definition snapshot and appends only completed run history.
 - Boundary: `StoreAssertionsController` retains tenant/store authorization and HTTP mapping. `RunAssertionsUseCase` owns store/model validation, snapshot capture, permission-check iteration, result aggregation, cancellation, and completed-history persistence.
 - Consistency: one `AssertionSetSnapshot` is read before evaluation and its collection is used for the entire run. Concurrent definition replacement cannot alter the captured work set. The current internal revision is deliberately not added to the public run DTO in this non-contract-changing slice.
@@ -298,3 +298,4 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Contract impact: none intended; routes, payloads, error/status mapping, tenant/store guards, and OpenAPI remain unchanged.
 - Follow-up: extract audit generation and then make the additive contract decision for definition revision in run records.
 - Verification: 13 targeted run, remaining assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test pass. Locked restore and zero-warning Release build pass with 298 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Merge evidence: feature commit `7f2dc2f` was merged locally into `develop` as `28da9a0` and pushed. GitHub Actions `.NET CI` run `33257783985` passed without modifying the workflow.

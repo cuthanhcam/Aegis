@@ -251,6 +251,8 @@ Iteration 20 merge evidence: feature commit `d3b7805` was merged locally into `d
 
 Iteration 21 application-boundary scope: extract assertion execution, capture one repository snapshot per run, and remove the broad-service run delegate and permission-check dependency.
 
-Iteration 21 local evidence: 13 targeted run, remaining assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test passed. Locked restore, zero-warning Release build, 298 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed. Merge evidence remains pending.
+Iteration 21 local evidence: 13 targeted run, remaining assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test passed. Locked restore, zero-warning Release build, 298 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 21 merge evidence: feature commit `7f2dc2f` was merged locally into `develop` as `28da9a0`; `.NET CI` run `33257783985` passed. The workflow remained unchanged.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
