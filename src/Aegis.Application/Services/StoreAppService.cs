@@ -1,6 +1,4 @@
-using Aegis.Application.DomainEvents;
 using Aegis.Application.Interfaces;
-using Aegis.Authorization.Core.Interfaces;
 using Aegis.Contracts.Administration;
 using Aegis.Domain.Entities;
 using Aegis.Domain.Repositories;
@@ -10,34 +8,17 @@ namespace Aegis.Application.Services
     public sealed class StoreAppService : IStoreAppService
     {
         private readonly IStoreRegistry _storeRegistry;
-        private readonly IRelationshipStore _relationshipStore;
-        private readonly IRbacAdminStore? _rbacAdminStore;
-        private readonly IStoreRepository? _storeRepository;
-        private readonly AssertionStorePurgeCoordinator? _assertionPurgeCoordinator;
-        private readonly IDomainEventDispatcher? _domainEventDispatcher;
-
-        public StoreAppService(IStoreRegistry storeRegistry, IRelationshipStore relationshipStore)
-        {
-            _storeRegistry = storeRegistry;
-            _relationshipStore = relationshipStore;
-            _rbacAdminStore = null;
-            _storeRepository = storeRegistry as IStoreRepository;
-            _domainEventDispatcher = null;
-        }
+        private readonly IStoreRepository _storeRepository;
+        private readonly IStoreDeletionRepository _storeDeletionRepository;
 
         public StoreAppService(
             IStoreRegistry storeRegistry,
-            IRelationshipStore relationshipStore,
-            IRbacAdminStore rbacAdminStore,
             IStoreRepository storeRepository,
-            AssertionStorePurgeCoordinator assertionPurgeCoordinator,
-            IDomainEventDispatcher domainEventDispatcher)
-            : this(storeRegistry, relationshipStore)
+            IStoreDeletionRepository storeDeletionRepository)
         {
-            _rbacAdminStore = rbacAdminStore;
+            _storeRegistry = storeRegistry;
             _storeRepository = storeRepository;
-            _assertionPurgeCoordinator = assertionPurgeCoordinator;
-            _domainEventDispatcher = domainEventDispatcher;
+            _storeDeletionRepository = storeDeletionRepository;
         }
 
         public Task<IReadOnlyList<StoreDto>> ListAsync(CancellationToken cancellationToken = default)
@@ -72,13 +53,8 @@ namespace Aegis.Application.Services
                 return await _storeRegistry.GetForTenantAsync(tenantId, storeId, cancellationToken);
             }
 
-            if (_storeRepository is not null)
-            {
-                var store = await _storeRepository.GetByIdAsync(storeId, cancellationToken);
-                return store is null ? null : ToDto(store);
-            }
-
-            return await _storeRegistry.GetAsync(storeId, cancellationToken);
+            var store = await _storeRepository.GetByIdAsync(storeId, cancellationToken);
+            return store is null ? null : ToDto(store);
         }
 
         public async Task<bool> DeleteAsync(string storeId, CancellationToken cancellationToken = default)
@@ -101,44 +77,16 @@ namespace Aegis.Application.Services
                     return false;
                 }
 
-                if (_assertionPurgeCoordinator is not null)
-                {
-                    await _assertionPurgeCoordinator.PurgeStoreAsync(storeId, cancellationToken);
-                }
-
-                await _relationshipStore.PurgeStoreAsync(tenantId, storeId, cancellationToken);
-                if (_rbacAdminStore is not null)
-                {
-                    await _rbacAdminStore.PurgeStoreAsync(tenantId, storeId, cancellationToken);
-                }
-
-                return await _storeRegistry.DeleteForTenantAsync(tenantId, storeId, cancellationToken);
+                return await _storeDeletionRepository.DeleteAsync(tenantId, storeId, cancellationToken);
             }
 
-            if (_assertionPurgeCoordinator is not null)
+            var existing = await _storeRegistry.GetAsync(storeId, cancellationToken);
+            if (existing is null)
             {
-                await _assertionPurgeCoordinator.PurgeStoreAsync(storeId, cancellationToken);
+                return false;
             }
 
-            if (_storeRepository is not null)
-            {
-                var store = await _storeRepository.GetByIdAsync(storeId, cancellationToken);
-                if (store is null)
-                {
-                    return false;
-                }
-
-                store.MarkDeleted();
-                var deleted = await _storeRepository.DeleteAsync(store, cancellationToken);
-                if (deleted)
-                {
-                    await _domainEventDispatcher.DispatchAndClearAsync(store, cancellationToken);
-                }
-
-                return deleted;
-            }
-
-            return await _storeRegistry.DeleteAsync(storeId, cancellationToken);
+            return await _storeDeletionRepository.DeleteAsync(existing.TenantId ?? string.Empty, storeId, cancellationToken);
         }
 
         private static StoreDto ToDto(Store store)
@@ -146,15 +94,5 @@ namespace Aegis.Application.Services
             return new StoreDto(store.Id, store.Name, store.CreatedAt, store.UpdatedAt, null, null);
         }
 
-        private async Task<IReadOnlyList<StoreDto>> ListWithDomainAsync(CancellationToken cancellationToken)
-        {
-            if (_storeRepository is null)
-            {
-                throw new InvalidOperationException("Domain store repository is not configured.");
-            }
-
-            var stores = await _storeRepository.ListAsync(cancellationToken);
-            return stores.Select(ToDto).ToList();
-        }
     }
 }

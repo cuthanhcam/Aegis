@@ -92,7 +92,7 @@ Audit-derived generation now enters through `GenerateAssertionsFromAuditUseCase`
 
 When append is requested, the use case passes the complete candidate set to the repository's serialized `AppendDistinctAsync` operation. Capacity is evaluated against the latest persisted snapshot inside that atomic boundary; overflow is mapped to the stable compatibility error and leaves revision/content unchanged. The controller consumes the use case directly, and no compatibility-service delegate remains.
 
-Store deletion uses `AssertionStorePurgeCoordinator` to remove definition snapshots and run history. Its name intentionally describes coordination rather than transaction ownership: the two repository purges are sequential today. A failure between them can leave partial cleanup, so atomic assertion cleanup and the wider store-delete transaction remain durable-correctness work rather than a claimed B1 guarantee.
+Store deletion now enters through `IStoreDeletionRepository`. PostgreSQL owns the durable boundary: one tenant-scoped parent delete cascades to relationships, change history, store RBAC, models, assertion definitions, run history, and idempotency state in the same database transaction. Audit events remain as historical evidence. The in-memory implementation preserves functional cleanup parity but does not claim crash durability. See [Store Deletion Consistency](store-deletion-consistency.md).
 
 ## Review checklist
 
