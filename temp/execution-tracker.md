@@ -328,4 +328,6 @@ Iteration 31 durable-correctness scope: replace the PostgreSQL profile's process
 
 Iteration 31 local evidence: focused PostgreSQL 16 tests prove all 17 migrations remain serialized/checksummed and that outbox append, reconstruction, delayed failure retry, error clearing, and completion state are durable. Locked restore, zero-warning Release build, 303 unit tests, and 33 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
+Iteration 31 merge evidence: feature commit `d14113b` was merged locally into `develop` as `c7addd0`; `.NET CI` run `33264519329` passed. The workflow remained unchanged.
+
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
