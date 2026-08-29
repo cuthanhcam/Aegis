@@ -324,3 +324,15 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Verification: 9 targeted unit tests and 5 assertion lifecycle integration tests pass. Locked restore and zero-warning Release build pass with 300 unit tests and 30 integration tests. The promoted runtime OpenAPI is semantically identical to its baseline; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Follow-up: review whether assertion definition reads, run-history queries, and store purge coordination should remain grouped or move to narrower query/lifecycle boundaries.
 - Merge evidence: feature commit `2339325` was merged locally into `develop` as `22ded7e` and pushed. GitHub Actions `.NET CI` run `33259188992` passed without modifying the workflow.
+
+## 2026-08-29 — Governed contracts B1, iteration 24
+
+- Branch: `refactor/assertion-query-lifecycle-boundaries-b1`
+- Status: Complete
+- Intended result: finish the assertion HTTP boundary split without overstating store-purge consistency.
+- Query boundaries: definition read, run-history list, and run-detail lookup now use `ReadAssertionsUseCase`, `ListAssertionRunsUseCase`, and `GetAssertionRunUseCase`. `AssertionScopeGuard` preserves store/model validation and compatibility error behavior; the controller retains tenant authorization and HTTP mapping.
+- Interface cleanup: remove `IAssertionAppService` and its broad implementation after all HTTP callers migrate. Composition registers explicit query use cases directly.
+- Lifecycle boundary: store deletion depends on `AssertionStorePurgeCoordinator`. It performs definition and run-history cleanup sequentially and is deliberately not described as atomic; transactional/recoverable cleanup remains B3 work.
+- Contract impact: none intended; routes, payloads, status/error mapping, tenant/store guards, and OpenAPI remain unchanged.
+- Verification: 19 targeted query, store-deletion, and composition unit tests plus 5 assertion lifecycle integration tests pass. Locked restore and zero-warning Release build pass with 303 unit tests and 30 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: design one durable store-deletion transaction or recoverable workflow spanning assertion, relationship, RBAC, and store state.

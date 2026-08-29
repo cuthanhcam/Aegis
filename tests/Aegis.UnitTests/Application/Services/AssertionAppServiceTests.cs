@@ -12,11 +12,11 @@ using Aegis.Infrastructure.Persistence;
 namespace Aegis.UnitTests.Application.Services
 {
     /// <summary>
-    /// Tests for AssertionAppService - Assertion management
+    /// Tests for assertion use-case boundaries.
     /// </summary>
     [Trait("Category", "ApplicationTests")]
     [Trait("Feature", "Services")]
-    public class AssertionAppServiceTests
+    public class AssertionUseCaseTests
     {
         [Fact]
         public void CreateAssertionAsync_WithValidAssertion_PersistsAssertion()
@@ -77,7 +77,9 @@ namespace Aegis.UnitTests.Application.Services
             var assertionRepository = new InMemoryAssertionRepository();
             var auditStore = new InMemoryAuditStore();
             var validator = new AssertionValidator();
-            var service = new AssertionAppService(registry, registry, assertionRepository, runStore);
+            var scopeGuard = new AssertionScopeGuard(registry, registry);
+            var listRunsUseCase = new ListAssertionRunsUseCase(scopeGuard, runStore);
+            var getRunUseCase = new GetAssertionRunUseCase(scopeGuard, runStore);
             var runUseCase = new RunAssertionsUseCase(registry, registry, assertionRepository, checker, runStore);
             var writeUseCase = new WriteAssertionsUseCase(registry, registry, assertionRepository, validator);
             await writeUseCase.ExecuteAsync(
@@ -90,9 +92,8 @@ namespace Aegis.UnitTests.Application.Services
                 ]));
 
             var run = await runUseCase.ExecuteAsync(store.Id, model.Id);
-            var reloadedService = new AssertionAppService(registry, registry, assertionRepository, runStore);
-            var runs = await reloadedService.ListRunsAsync(store.Id, model.Id);
-            var detail = await reloadedService.GetRunAsync(store.Id, run.RunId);
+            var runs = await listRunsUseCase.ExecuteAsync(store.Id, model.Id);
+            var detail = await getRunUseCase.ExecuteAsync(store.Id, run.RunId);
 
             Assert.Equal(2, run.Summary.Total);
             Assert.Equal(1, run.DefinitionRevision);
@@ -141,11 +142,9 @@ namespace Aegis.UnitTests.Application.Services
                 assertionRepository,
                 auditStore,
                 new AssertionValidator());
-            var service = new AssertionAppService(
-                registry,
-                registry,
-                assertionRepository,
-                new InMemoryAssertionRunStore());
+            var readUseCase = new ReadAssertionsUseCase(
+                new AssertionScopeGuard(registry, registry),
+                assertionRepository);
 
             var draft = await useCase.ExecuteAsync(
                 store.Id,
@@ -155,7 +154,7 @@ namespace Aegis.UnitTests.Application.Services
                 store.Id,
                 model.Id,
                 new AegisGenerateAssertionsFromAuditRequestDto(Decision: "Allow", Append: true));
-            var stored = await service.ReadAsync(store.Id, model.Id);
+            var stored = await readUseCase.ExecuteAsync(store.Id, model.Id);
 
             Assert.Equal(2, draft.GeneratedCount);
             Assert.Contains(draft.Assertions, x => x.TupleKey.User == "user:anne" && x.Expectation);
@@ -163,6 +162,55 @@ namespace Aegis.UnitTests.Application.Services
             Assert.True(appended.Appended);
             Assert.Single(stored.Assertions);
             Assert.Equal("user:anne", stored.Assertions[0].TupleKey.User);
+        }
+
+        [Fact]
+        public async Task ReadAssertions_WithUnknownStore_PreservesCompatibilityError()
+        {
+            var registry = new InMemoryStoreRegistry();
+            var useCase = new ReadAssertionsUseCase(
+                new AssertionScopeGuard(registry, registry),
+                new InMemoryAssertionRepository());
+
+            var exception = await Assert.ThrowsAsync<Aegis.Contracts.Compatibility.CompatibilityApiException>(
+                () => useCase.ExecuteAsync("missing-store", "missing-model"));
+
+            Assert.Equal(404, exception.StatusCode);
+            Assert.Equal("store_id_not_found", exception.ErrorCode);
+        }
+
+        [Fact]
+        public async Task ListRuns_WithModelOutsideStore_PreservesCompatibilityError()
+        {
+            var registry = new InMemoryStoreRegistry();
+            var firstStore = await registry.CreateAsync("first");
+            var secondStore = await registry.CreateAsync("second");
+            var secondModel = await registry.CreateAsync(secondStore.Id, "1.1", "type user");
+            var useCase = new ListAssertionRunsUseCase(
+                new AssertionScopeGuard(registry, registry),
+                new InMemoryAssertionRunStore());
+
+            var exception = await Assert.ThrowsAsync<Aegis.Contracts.Compatibility.CompatibilityApiException>(
+                () => useCase.ExecuteAsync(firstStore.Id, secondModel.Id));
+
+            Assert.Equal(400, exception.StatusCode);
+            Assert.Equal("authorization_model_not_found", exception.ErrorCode);
+        }
+
+        [Fact]
+        public async Task GetRun_WithEmptyRunId_RejectsBeforeStoreLookup()
+        {
+            var registry = new InMemoryStoreRegistry();
+            var store = await registry.CreateAsync("docs");
+            var useCase = new GetAssertionRunUseCase(
+                new AssertionScopeGuard(registry, registry),
+                new InMemoryAssertionRunStore());
+
+            var exception = await Assert.ThrowsAsync<Aegis.Contracts.Compatibility.CompatibilityApiException>(
+                () => useCase.ExecuteAsync(store.Id, " "));
+
+            Assert.Equal(400, exception.StatusCode);
+            Assert.Equal("validation_error", exception.ErrorCode);
         }
 
     }

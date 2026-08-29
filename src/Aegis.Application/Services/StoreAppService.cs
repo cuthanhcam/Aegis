@@ -13,7 +13,7 @@ namespace Aegis.Application.Services
         private readonly IRelationshipStore _relationshipStore;
         private readonly IRbacAdminStore? _rbacAdminStore;
         private readonly IStoreRepository? _storeRepository;
-        private readonly AssertionAppService? _assertionAppService;
+        private readonly AssertionStorePurgeCoordinator? _assertionPurgeCoordinator;
         private readonly IDomainEventDispatcher? _domainEventDispatcher;
 
         public StoreAppService(IStoreRegistry storeRegistry, IRelationshipStore relationshipStore)
@@ -30,13 +30,13 @@ namespace Aegis.Application.Services
             IRelationshipStore relationshipStore,
             IRbacAdminStore rbacAdminStore,
             IStoreRepository storeRepository,
-            AssertionAppService assertionAppService,
+            AssertionStorePurgeCoordinator assertionPurgeCoordinator,
             IDomainEventDispatcher domainEventDispatcher)
             : this(storeRegistry, relationshipStore)
         {
             _rbacAdminStore = rbacAdminStore;
             _storeRepository = storeRepository;
-            _assertionAppService = assertionAppService;
+            _assertionPurgeCoordinator = assertionPurgeCoordinator;
             _domainEventDispatcher = domainEventDispatcher;
         }
 
@@ -101,9 +101,9 @@ namespace Aegis.Application.Services
                     return false;
                 }
 
-                if (_assertionAppService is not null)
+                if (_assertionPurgeCoordinator is not null)
                 {
-                    await _assertionAppService.PurgeStoreAsync(storeId, cancellationToken);
+                    await _assertionPurgeCoordinator.PurgeStoreAsync(storeId, cancellationToken);
                 }
 
                 await _relationshipStore.PurgeStoreAsync(tenantId, storeId, cancellationToken);
@@ -115,9 +115,9 @@ namespace Aegis.Application.Services
                 return await _storeRegistry.DeleteForTenantAsync(tenantId, storeId, cancellationToken);
             }
 
-            if (_assertionAppService is not null)
+            if (_assertionPurgeCoordinator is not null)
             {
-                await _assertionAppService.PurgeStoreAsync(storeId, cancellationToken);
+                await _assertionPurgeCoordinator.PurgeStoreAsync(storeId, cancellationToken);
             }
 
             if (_storeRepository is not null)

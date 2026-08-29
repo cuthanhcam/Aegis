@@ -14,23 +14,29 @@ namespace Aegis.Api.Controllers
     [Authorize(Policy = AuthorizationPolicies.ManagementApiAccess)]
     public sealed class StoreAssertionsController : ControllerBase
     {
-        private readonly IAssertionAppService _assertionAppService;
         private readonly IStoreRegistry _storeRegistry;
+        private readonly ReadAssertionsUseCase _readAssertionsUseCase;
         private readonly WriteAssertionsUseCase _writeAssertionsUseCase;
         private readonly RunAssertionsUseCase _runAssertionsUseCase;
+        private readonly ListAssertionRunsUseCase _listAssertionRunsUseCase;
+        private readonly GetAssertionRunUseCase _getAssertionRunUseCase;
         private readonly GenerateAssertionsFromAuditUseCase _generateAssertionsFromAuditUseCase;
 
         public StoreAssertionsController(
-            IAssertionAppService assertionAppService,
             IStoreRegistry storeRegistry,
+            ReadAssertionsUseCase readAssertionsUseCase,
             WriteAssertionsUseCase writeAssertionsUseCase,
             RunAssertionsUseCase runAssertionsUseCase,
+            ListAssertionRunsUseCase listAssertionRunsUseCase,
+            GetAssertionRunUseCase getAssertionRunUseCase,
             GenerateAssertionsFromAuditUseCase generateAssertionsFromAuditUseCase)
         {
-            _assertionAppService = assertionAppService;
             _storeRegistry = storeRegistry;
+            _readAssertionsUseCase = readAssertionsUseCase;
             _writeAssertionsUseCase = writeAssertionsUseCase;
             _runAssertionsUseCase = runAssertionsUseCase;
+            _listAssertionRunsUseCase = listAssertionRunsUseCase;
+            _getAssertionRunUseCase = getAssertionRunUseCase;
             _generateAssertionsFromAuditUseCase = generateAssertionsFromAuditUseCase;
         }
 
@@ -47,7 +53,7 @@ namespace Aegis.Api.Controllers
                 return storeAccess;
             }
 
-            var result = await _assertionAppService.ReadAsync(storeId, authorizationModelId, cancellationToken);
+            var result = await _readAssertionsUseCase.ExecuteAsync(storeId, authorizationModelId, cancellationToken);
             return this.OkResponse(result);
         }
 
@@ -99,7 +105,7 @@ namespace Aegis.Api.Controllers
                 return storeAccess;
             }
 
-            var result = await _assertionAppService.ListRunsAsync(storeId, authorizationModelId, cancellationToken);
+            var result = await _listAssertionRunsUseCase.ExecuteAsync(storeId, authorizationModelId, cancellationToken);
             return this.OkResponse(result);
         }
 
@@ -117,7 +123,7 @@ namespace Aegis.Api.Controllers
                 return storeAccess;
             }
 
-            var result = await _assertionAppService.GetRunAsync(storeId, runId, cancellationToken);
+            var result = await _getAssertionRunUseCase.ExecuteAsync(storeId, runId, cancellationToken);
             if (result is null)
             {
                 return this.NotFoundResponse<AegisAssertionRunRecordDto>(NativeErrorCodes.AssertionRunNotFound, $"Assertion run '{runId}' was not found.");
