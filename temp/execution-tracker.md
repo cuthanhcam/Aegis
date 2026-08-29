@@ -282,4 +282,6 @@ Iteration 25 durable-correctness scope: move production store deletion into one 
 
 Iteration 25 local evidence: 9 focused store-boundary/composition unit tests pass and a PostgreSQL 16 container test proves cross-tenant no-op, atomic operational cascade, and audit retention. Locked restore, zero-warning Release build, 303 unit tests, and 31 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
+Iteration 25 merge evidence: feature commit `23f87a2` was merged locally into `develop` as `05d9176`; `.NET CI` run `33260311533` passed. The workflow remained unchanged.
+
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.
