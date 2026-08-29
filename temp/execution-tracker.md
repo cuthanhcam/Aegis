@@ -274,4 +274,6 @@ Iteration 24 application-boundary scope: replace the remaining broad assertion r
 
 Iteration 24 local evidence: 19 targeted query, store-deletion, and composition unit tests plus 5 assertion lifecycle integration tests passed. Caller audit finds no production dependency on `IAssertionAppService` or `AssertionAppService`. Locked restore, zero-warning Release build, 303 unit tests, and 30 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
+Iteration 24 merge evidence: feature commit `830d10f` was merged locally into `develop` as `19aa1af`; `.NET CI` run `33259603421` passed. The workflow remained unchanged.
+
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.

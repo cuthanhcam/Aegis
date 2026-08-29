@@ -336,3 +336,4 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Contract impact: none intended; routes, payloads, status/error mapping, tenant/store guards, and OpenAPI remain unchanged.
 - Verification: 19 targeted query, store-deletion, and composition unit tests plus 5 assertion lifecycle integration tests pass. Locked restore and zero-warning Release build pass with 303 unit tests and 30 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Follow-up: design one durable store-deletion transaction or recoverable workflow spanning assertion, relationship, RBAC, and store state.
+- Merge evidence: feature commit `830d10f` was merged locally into `develop` as `19aa1af` and pushed. GitHub Actions `.NET CI` run `33259603421` passed without modifying the workflow.
