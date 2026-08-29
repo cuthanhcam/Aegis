@@ -77,7 +77,8 @@ namespace Aegis.UnitTests.Application.Services
             var assertionRepository = new InMemoryAssertionRepository();
             var auditStore = new InMemoryAuditStore();
             var validator = new AssertionValidator();
-            var service = new AssertionAppService(registry, registry, checker, assertionRepository, runStore, auditStore, validator);
+            var service = new AssertionAppService(registry, registry, assertionRepository, runStore, auditStore, validator);
+            var runUseCase = new RunAssertionsUseCase(registry, registry, assertionRepository, checker, runStore);
             var writeUseCase = new WriteAssertionsUseCase(registry, registry, assertionRepository, validator);
             await writeUseCase.ExecuteAsync(
                 store.Id,
@@ -88,8 +89,8 @@ namespace Aegis.UnitTests.Application.Services
                     new AegisCompatAssertionDto(new AegisCompatTupleKeyDto("user:bob", "viewer", "document:roadmap"), true),
                 ]));
 
-            var run = await service.RunAsync(store.Id, model.Id);
-            var reloadedService = new AssertionAppService(registry, registry, checker, assertionRepository, runStore, auditStore, validator);
+            var run = await runUseCase.ExecuteAsync(store.Id, model.Id);
+            var reloadedService = new AssertionAppService(registry, registry, assertionRepository, runStore, auditStore, validator);
             var runs = await reloadedService.ListRunsAsync(store.Id, model.Id);
             var detail = await reloadedService.GetRunAsync(store.Id, run.RunId);
 
@@ -156,15 +157,9 @@ namespace Aegis.UnitTests.Application.Services
             InMemoryStoreRegistry registry,
             IAuditStore auditStore)
         {
-            var relationships = new InMemoryRelationshipStore();
-            var checker = new CheckPermissionUseCase(
-                new AuthorizationEngine(relationships, new InMemoryRbacStore(), authorizationModelProvider: new AuthorizationModelProvider(registry)),
-                auditStore);
-
             return new AssertionAppService(
                 registry,
                 registry,
-                checker,
                 new InMemoryAssertionRepository(),
                 new InMemoryAssertionRunStore(),
                 auditStore,

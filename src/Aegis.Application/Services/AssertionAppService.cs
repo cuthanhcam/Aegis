@@ -1,12 +1,10 @@
 using Aegis.Application.Features.Assertions;
-using Aegis.Application.Features.Permissions;
 using Aegis.Application.Interfaces;
 using Aegis.Authorization.Core.Interfaces;
 using Aegis.Authorization.Core.Models;
 using Aegis.Contracts.Administration;
 using Aegis.Contracts.Common;
 using Aegis.Contracts.Compatibility;
-using Aegis.Contracts.Permissions;
 
 namespace Aegis.Application.Services
 {
@@ -15,7 +13,6 @@ namespace Aegis.Application.Services
         private const int MaxAssertionsPerModel = WriteAssertionsUseCase.MaximumAssertionsPerModel;
         private readonly IStoreRegistry _storeRegistry;
         private readonly IAuthorizationModelRegistry _authorizationModelRegistry;
-        private readonly CheckPermissionUseCase _checkPermissionUseCase;
         private readonly IAssertionRepository _assertionRepository;
         private readonly IAssertionRunStore _assertionRunStore;
         private readonly IAuditStore _auditStore;
@@ -24,7 +21,6 @@ namespace Aegis.Application.Services
         public AssertionAppService(
             IStoreRegistry storeRegistry,
             IAuthorizationModelRegistry authorizationModelRegistry,
-            CheckPermissionUseCase checkPermissionUseCase,
             IAssertionRepository assertionRepository,
             IAssertionRunStore assertionRunStore,
             IAuditStore auditStore,
@@ -32,7 +28,6 @@ namespace Aegis.Application.Services
         {
             _storeRegistry = storeRegistry;
             _authorizationModelRegistry = authorizationModelRegistry;
-            _checkPermissionUseCase = checkPermissionUseCase;
             _assertionRepository = assertionRepository;
             _assertionRunStore = assertionRunStore;
             _auditStore = auditStore;
@@ -54,58 +49,6 @@ namespace Aegis.Application.Services
 
             var snapshot = await _assertionRepository.ReadAsync(storeId, authorizationModelId, cancellationToken);
             return new AegisCompatReadAssertionsResponseDto(authorizationModelId, snapshot.Assertions);
-        }
-
-        public async Task<AegisAssertionRunRecordDto> RunAsync(
-            string storeId,
-            string authorizationModelId,
-            CancellationToken cancellationToken = default)
-        {
-            var store = await EnsureStoreExists(storeId, cancellationToken);
-            var model = await EnsureModelExists(storeId, authorizationModelId, cancellationToken);
-            var tenantId = string.IsNullOrWhiteSpace(store.TenantId) ? storeId : store.TenantId;
-            var assertionSet = await _assertionRepository.ReadAsync(storeId, authorizationModelId, cancellationToken);
-            var startedAt = DateTimeOffset.UtcNow;
-            var results = new List<AegisAssertionRunResultItemDto>();
-
-            foreach (var assertion in assertionSet.Assertions)
-            {
-                var response = await _checkPermissionUseCase.ExecuteAsync(
-                    tenantId,
-                    new CheckRequestDto(
-                        assertion.TupleKey.User,
-                        assertion.TupleKey.Relation,
-                        assertion.TupleKey.Object,
-                        assertion.ContextualTuples?.TupleKeys.Select(tuple => new ContextualTupleDto(tuple.User, tuple.Relation, tuple.Object)).ToList(),
-                        null,
-                        model.Id),
-                    includeTrace: true,
-                    cancellationToken,
-                    storeId);
-
-                var passed = response.Allowed == assertion.Expectation;
-                results.Add(new AegisAssertionRunResultItemDto(
-                    assertion.TupleKey,
-                    assertion.Expectation,
-                    response.Allowed,
-                    passed,
-                    response.Decision,
-                    response.ReasonCode,
-                    response.Trace is { Count: > 0 } ? NewUlidLikeId() : null));
-            }
-
-            var summary = new AegisAssertionRunSummaryDto(results.Count, results.Count(x => x.Passed), results.Count(x => !x.Passed));
-            var record = new AegisAssertionRunRecordDto(
-                NewUlidLikeId(),
-                storeId,
-                authorizationModelId,
-                startedAt,
-                DateTimeOffset.UtcNow,
-                summary,
-                results);
-
-            await _assertionRunStore.SaveAsync(record, cancellationToken);
-            return record;
         }
 
         public async Task<AegisAssertionRunListResponseDto> ListRunsAsync(
@@ -267,9 +210,5 @@ namespace Aegis.Application.Services
             throw new CompatibilityApiException(400, "validation_error", "decision must be Allow or Deny.");
         }
 
-        private static string NewUlidLikeId()
-        {
-            return Convert.ToBase64String(Guid.NewGuid().ToByteArray()).Replace("=", string.Empty).Replace("+", "A").Replace("/", "B");
-        }
     }
 }

@@ -21,7 +21,8 @@ The API adapter authenticates and authorizes the caller, resolves tenant/actor c
 | User update | `UpdateUserUseCase` | RBAC administration repository update-and-return | Extracted |
 | User delete | `DeleteUserUseCase` | RBAC administration repository transaction | Extracted |
 | Assertion write | `WriteAssertionsUseCase` | Versioned assertion repository replace | Extracted |
-| Assertion run/generate | Broad assertion application service | Versioned definition repository and append-only run/audit stores | Extraction pending |
+| Assertion run | `RunAssertionsUseCase` | One captured definition snapshot plus append-only run store | Extracted |
+| Assertion generate | Broad assertion application service | Audit query plus atomic definition append | Extraction pending |
 
 ## Store-create flow
 
@@ -79,7 +80,11 @@ The PostgreSQL provider stores one JSONB assertion set per `(store_id, authoriza
 
 Assertion replacement now enters through `WriteAssertionsUseCase` rather than the broad service. The controller retains store-tenant authorization and HTTP response mapping. The use case validates store/model scope, the 100-item command limit, tuple shapes, contextual tuples, and model type/relation references before invoking one repository replace. Failed validation never mutates or advances the assertion snapshot.
 
-`AssertionValidator` is the single stateless owner of assertion tuple and model-reference validation. Audit generation consumes the same validator when filtering candidate events, preventing write and generated assertions from drifting into different validity rules. The write delegate has been removed from `IAssertionAppService`; run, history queries, generation, and purge remain until their callers are migrated.
+`AssertionValidator` is the single stateless owner of assertion tuple and model-reference validation. Audit generation consumes the same validator when filtering candidate events, preventing write and generated assertions from drifting into different validity rules. Write and run delegates have been removed from `IAssertionAppService`; read, history queries, generation, and purge remain until their callers are migrated.
+
+Assertion execution now enters through `RunAssertionsUseCase`. The use case validates store/model scope, reads one immutable `AssertionSetSnapshot`, and uses that captured collection and model ID for the entire run. Concurrent replacement may create a newer repository revision, but it cannot change the assertion collection already being evaluated. Permission checks retain trace-enabled audit behavior, cancellation is observed between items, and the completed run record is appended only after every captured assertion has produced a result.
+
+An empty snapshot is a valid executable state and produces a persisted zero-result run, preserving operational evidence that the command occurred. Invalid store/model scope and interrupted or failed evaluation do not write a misleading completed run. The controller consumes the run use case directly, and the run delegate plus permission-check dependency have been removed from the broad assertion service.
 
 ## Review checklist
 
