@@ -43,6 +43,8 @@ Migration 016 adds new foreign keys as `NOT VALID`. PostgreSQL still enforces th
 3. run `VALIDATE CONSTRAINT` for every store foreign key;
 4. record the validation report as B3 migration evidence.
 
+The executable workflow and exit-code contract are defined in the [Store Constraint Reconciliation Runbook](../operations/store-constraint-reconciliation.md).
+
 Do not delete legacy rows automatically during migration. Relationships, assignments, and change history may be security-relevant data; reconciliation needs an explicit owner and audit trail.
 
 ## Verification strategy

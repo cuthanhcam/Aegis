@@ -31,6 +31,7 @@ Architecture rationale is recorded in the [Architecture Decision Records](decisi
 Backend contributors should also maintain the [Backend Runtime Inventory](architecture/backend-runtime-inventory.md), which maps HTTP, configuration, persistence, cache, worker, health, and metrics surfaces to their remaining product-readiness work.
 
 Store lifecycle and durable cleanup guarantees are documented in [Store Deletion Consistency](architecture/store-deletion-consistency.md).
+Operators can audit and validate its staged foreign keys with the [Store Constraint Reconciliation Runbook](operations/store-constraint-reconciliation.md).
 
 ## Documentation Structure
 
