@@ -297,4 +297,6 @@ Iteration 27 durable-correctness scope: make PostgreSQL logical backup/restore c
 
 Iteration 27 local evidence: three isolated PostgreSQL 16 restore rehearsals passed. The final run restored the deterministic operational/audit fixture, validated exact counts and authorization tuple, produced a clean/validated reconciliation report, recorded a dump hash, and completed in 13.827 seconds before removing the dump and containers. Focused container failure injection proves a raised child delete rolls store, relationship, and assertion state back. Locked restore, zero-warning Release build, 303 unit tests, and 31 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
+Iteration 27 merge evidence: feature commit `1bdd4a4` was merged locally into `develop` as `951da3d`; `.NET CI` run `33261885697` passed. The workflow remained unchanged.
+
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.

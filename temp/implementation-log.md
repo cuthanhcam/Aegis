@@ -377,3 +377,4 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Contract impact: none; runtime HTTP/OpenAPI behavior is unchanged.
 - Verification: three isolated restore rehearsals and the focused PostgreSQL failure-injection test pass. Locked restore and zero-warning Release build pass with 303 unit tests and 31 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Follow-up: execute the managed restore runbook, retain approved evidence, and expand failure testing to migration/connection interruption scenarios.
+- Merge evidence: feature commit `1bdd4a4` was merged locally into `develop` as `951da3d` and pushed. GitHub Actions `.NET CI` run `33261885697` passed without modifying the workflow.
