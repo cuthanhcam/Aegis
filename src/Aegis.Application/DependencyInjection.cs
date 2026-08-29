@@ -1,3 +1,4 @@
+using Aegis.Application.Features.Assertions;
 using Aegis.Application.Features.Permissions;
 using Aegis.Application.Features.Query;
 using Aegis.Application.Features.Stores;
@@ -29,6 +30,14 @@ namespace Aegis.Application
             services.AddScoped<CreateUserUseCase>();
             services.AddScoped<UpdateUserUseCase>();
             services.AddScoped<DeleteUserUseCase>();
+            services.AddSingleton<AssertionValidator>();
+            services.AddScoped<AssertionScopeGuard>();
+            services.AddScoped<ReadAssertionsUseCase>();
+            services.AddScoped<WriteAssertionsUseCase>();
+            services.AddScoped<RunAssertionsUseCase>();
+            services.AddScoped<ListAssertionRunsUseCase>();
+            services.AddScoped<GetAssertionRunUseCase>();
+            services.AddScoped<GenerateAssertionsFromAuditUseCase>();
             services.AddSingleton<AuthorizationModelValidator>();
             services.AddScoped<CreateAuthorizationModelUseCase>();
             services.AddScoped<UpdateAuthorizationModelUseCase>();
@@ -43,7 +52,6 @@ namespace Aegis.Application
             services.AddScoped<IAuthorizationQueryAppService, AuthorizationQueryAppService>();
             services.AddScoped<IPermissionAppService, PermissionAppService>();
             services.AddScoped<IRelationshipService, RelationshipAppService>();
-            services.AddScoped<IAssertionAppService, AssertionAppService>();
             services.AddScoped<IRbacAdminService, RbacAdminService>();
             services.AddSingleton<IPresetAppService, PresetAppService>();
 

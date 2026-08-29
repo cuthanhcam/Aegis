@@ -20,7 +20,9 @@ The API adapter authenticates and authorizes the caller, resolves tenant/actor c
 | User create | `CreateUserUseCase` | RBAC administration repository insert | Extracted |
 | User update | `UpdateUserUseCase` | RBAC administration repository update-and-return | Extracted |
 | User delete | `DeleteUserUseCase` | RBAC administration repository transaction | Extracted |
-| Assertion write/run/generate | Broad assertion application service | Versioned assertion repository; command extraction pending | Repository foundation complete |
+| Assertion write | `WriteAssertionsUseCase` | Versioned assertion repository replace | Extracted |
+| Assertion run | `RunAssertionsUseCase` | One captured definition snapshot plus append-only run store | Extracted |
+| Assertion generate | `GenerateAssertionsFromAuditUseCase` | Audit query plus atomic definition append | Extracted |
 
 ## Store-create flow
 
@@ -74,7 +76,23 @@ Assertion definitions now use `IAssertionRepository`; the process-local static d
 
 The PostgreSQL provider stores one JSONB assertion set per `(store_id, authorization_model_id)` through migration 014. A transaction-scoped advisory lock serializes both first-write and existing-row mutations, avoiding the missing-row race that `SELECT ... FOR UPDATE` alone cannot prevent. The in-memory provider uses an equivalent per-key critical section. Both implementations deduplicate audit-generated assertions and enforce the 100-item capacity before committing, so a rejected append leaves the prior revision unchanged. Store purge removes definition snapshots as well as append-only run history.
 
-`AssertionAppService` still owns validation and orchestration temporarily, but read, write, run, and audit generation all consume the same repository snapshot. Its permission checker, definition repository, run-history store, and audit store are mandatory dependencies. The next extraction may therefore introduce explicit write, run, and generate use cases without inventing transaction ownership. A subsequent additive contract decision is still required before exposing the internal definition revision or recording it on public run DTOs.
+The broad `IAssertionAppService` boundary has been removed. Definition reads, run-history lists, and run-detail lookup now enter through `ReadAssertionsUseCase`, `ListAssertionRunsUseCase`, and `GetAssertionRunUseCase`. `AssertionScopeGuard` centralizes their compatibility validation for store/model identity without moving tenant authorization out of the controller. Write, run, and audit-generation commands retain their explicit use-case boundaries, while repositories remain the owners of definition and history persistence.
+
+Assertion replacement now enters through `WriteAssertionsUseCase` rather than the broad service. The controller retains store-tenant authorization and HTTP response mapping. The use case validates store/model scope, the 100-item command limit, tuple shapes, contextual tuples, and model type/relation references before invoking one repository replace. Failed validation never mutates or advances the assertion snapshot.
+
+`AssertionValidator` is the single stateless owner of assertion tuple and model-reference validation. Audit generation consumes the same validator when filtering candidate events, preventing write and generated assertions from drifting into different validity rules. No assertion HTTP endpoint depends on a broad application service; every command or query names its own orchestration boundary.
+
+Assertion execution now enters through `RunAssertionsUseCase`. The use case validates store/model scope, reads one immutable `AssertionSetSnapshot`, and uses that captured collection and model ID for the entire run. Concurrent replacement may create a newer repository revision, but it cannot change the assertion collection already being evaluated. Permission checks retain trace-enabled audit behavior, cancellation is observed between items, and the completed run record is appended only after every captured assertion has produced a result.
+
+An empty snapshot is a valid executable state and produces a persisted zero-result run, preserving operational evidence that the command occurred. Invalid store/model scope and interrupted or failed evaluation do not write a misleading completed run. The controller consumes the run use case directly, and the run delegate plus permission-check dependency have been removed from the broad assertion service.
+
+Every completed run records the revision of the captured definition snapshot as public `definition_revision`. This makes historical results explainable even after the definition set changes: the value identifies exactly which version supplied the evaluated assertions. Revision `0` means that no definition set had been written when the run started; migration 015 backfills existing history with the same explicit unknown/legacy value. New non-empty runs persist the repository snapshot revision, and the value is immutable with the rest of the completed record.
+
+Audit-derived generation now enters through `GenerateAssertionsFromAuditUseCase`. It validates store/model scope, normalizes the optional decision filter, constrains the requested limit, queries audit events within the resolved tenant and store, retains check/explain events, maps their decisions to expectations, filters candidates through `AssertionValidator`, and deduplicates before returning the draft. Draft-only generation performs no definition mutation.
+
+When append is requested, the use case passes the complete candidate set to the repository's serialized `AppendDistinctAsync` operation. Capacity is evaluated against the latest persisted snapshot inside that atomic boundary; overflow is mapped to the stable compatibility error and leaves revision/content unchanged. The controller consumes the use case directly, and no compatibility-service delegate remains.
+
+Store deletion now enters through `IStoreDeletionRepository`. PostgreSQL owns the durable boundary: one tenant-scoped parent delete cascades to relationships, change history, store RBAC, models, assertion definitions, run history, and idempotency state in the same database transaction. Audit events remain as historical evidence. The in-memory implementation preserves functional cleanup parity but does not claim crash durability. See [Store Deletion Consistency](store-deletion-consistency.md).
 
 ## Review checklist
 

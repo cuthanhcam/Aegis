@@ -8,6 +8,10 @@ This is the full documentation index for Aegis. Articles follow the [metadata an
 - [Frontend Console Architecture](architecture/frontend-console.md)
 - [Legacy Architecture Overview](architecture.md)
 - [Backend Runtime Inventory](architecture/backend-runtime-inventory.md)
+- [Store Deletion Consistency](architecture/store-deletion-consistency.md)
+- [Store Constraint Reconciliation Runbook](operations/store-constraint-reconciliation.md)
+- [PostgreSQL Backup and Restore Drill](operations/postgres-backup-restore.md)
+- [Database Migration Execution](operations/database-migrations.md)
 - [Architecture Decision Records](decisions/README.md)
 
 ## Product

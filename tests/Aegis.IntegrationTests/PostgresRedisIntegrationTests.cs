@@ -14,6 +14,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Testcontainers.PostgreSql;
 using Testcontainers.Redis;
+using Npgsql;
+using Aegis.Contracts.Compatibility;
 
 namespace Aegis.IntegrationTests;
 
@@ -118,6 +120,450 @@ public sealed class PostgresRedisIntegrationTests
         var payload = await response.Content.ReadFromJsonAsync<ApiResponse<IReadOnlyList<RelationshipTupleDto>>>(JsonOptions);
         Assert.Single(payload!.Data!);
         Assert.Equal("user:anne", payload.Data![0].Subject);
+    }
+
+    [Fact]
+    public async Task Store_delete_cascades_operational_state_atomically_and_retains_audit()
+    {
+        if (!ShouldRunContainerTests())
+        {
+            return;
+        }
+
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("aegis")
+            .WithUsername("postgres")
+            .WithPassword("postgres")
+            .Build();
+        await using var redis = new RedisBuilder("redis:7-alpine").Build();
+        await postgres.StartAsync();
+        await redis.StartAsync();
+
+        await using var factory = new ContainerApiFactory(postgres.GetConnectionString(), redis.GetConnectionString());
+        var dataSource = factory.AppServices.GetRequiredService<NpgsqlDataSource>();
+        var reconciliation = new Aegis.Infrastructure.Persistence.StoreConstraintReconciliationService(dataSource);
+        await using (var legacyConnection = await dataSource.OpenConnectionAsync())
+        {
+            await using var legacyCommand = legacyConnection.CreateCommand();
+            legacyCommand.CommandText = """
+                ALTER TABLE relationships DISABLE TRIGGER ALL;
+                INSERT INTO relationships
+                    (id, tenant_id, store_id, subject, relation, object_ref, effect, created_at, updated_at)
+                VALUES
+                    (@id, 'legacy-tenant', 'orphan-store', 'user:legacy', 'viewer', 'document:legacy', 'Allow', NOW(), NOW());
+                ALTER TABLE relationships ENABLE TRIGGER ALL;
+                """;
+            legacyCommand.Parameters.AddWithValue("id", Guid.NewGuid());
+            await legacyCommand.ExecuteNonQueryAsync();
+        }
+
+        var blockedValidation = await reconciliation.AuditAsync(validate: true);
+        Assert.Equal(1, blockedValidation.TotalViolations);
+        Assert.False(blockedValidation.ValidationCompleted);
+        Assert.Contains(
+            blockedValidation.Tables,
+            x => x.Table == "relationships"
+                 && x.ViolationCount == 1
+                 && x.Samples.Any(sample => sample.StoreId == "orphan-store"));
+
+        await using (var cleanupConnection = await dataSource.OpenConnectionAsync())
+        await using (var cleanupCommand = new NpgsqlCommand(
+                         "DELETE FROM relationships WHERE tenant_id = 'legacy-tenant' AND store_id = 'orphan-store';",
+                         cleanupConnection))
+        {
+            await cleanupCommand.ExecuteNonQueryAsync();
+        }
+
+        var seed = await SeedAsync(factory.AppServices);
+
+        using (var scope = factory.AppServices.CreateScope())
+        {
+            var services = scope.ServiceProvider;
+            var rbac = services.GetRequiredService<IRbacAdminStore>();
+            var assertions = services.GetRequiredService<IAssertionRepository>();
+            var runs = services.GetRequiredService<IAssertionRunStore>();
+            var audit = services.GetRequiredService<IAuditStore>();
+            var deletion = services.GetRequiredService<IStoreDeletionRepository>();
+
+            await rbac.UpsertRoleInStoreAsync(seed.TenantId, seed.StoreId, "viewer", "Viewer");
+            await assertions.ReplaceAsync(
+                seed.StoreId,
+                seed.AuthorizationModelId,
+                [new AegisCompatAssertionDto(new AegisCompatTupleKeyDto("user:anne", "viewer", "document:roadmap"), true)]);
+            var now = DateTimeOffset.UtcNow;
+            await runs.SaveAsync(new AegisAssertionRunRecordDto(
+                "run-atomic-delete",
+                seed.StoreId,
+                seed.AuthorizationModelId,
+                1,
+                now,
+                now,
+                new AegisAssertionRunSummaryDto(0, 0, 0),
+                []));
+            await audit.WriteAsync(new AuditEvent(
+                seed.TenantId,
+                "check",
+                "user:anne",
+                "viewer",
+                "document:roadmap",
+                "Allow",
+                "RELATIONSHIP_MATCH",
+                now,
+                seed.StoreId));
+
+            Assert.False(await deletion.DeleteAsync("another-tenant", seed.StoreId));
+
+            await using (var failureConnection = await dataSource.OpenConnectionAsync())
+            await using (var failureCommand = failureConnection.CreateCommand())
+            {
+                failureCommand.CommandText = """
+                    CREATE OR REPLACE FUNCTION fail_restore_drill_relationship_delete()
+                    RETURNS trigger LANGUAGE plpgsql AS $$
+                    BEGIN
+                        RAISE EXCEPTION 'injected relationship delete failure';
+                    END;
+                    $$;
+                    CREATE TRIGGER trg_fail_restore_drill_relationship_delete
+                    BEFORE DELETE ON relationships
+                    FOR EACH ROW EXECUTE FUNCTION fail_restore_drill_relationship_delete();
+                    """;
+                await failureCommand.ExecuteNonQueryAsync();
+            }
+
+            await Assert.ThrowsAsync<PostgresException>(
+                () => deletion.DeleteAsync(seed.TenantId, seed.StoreId));
+
+            Assert.NotNull(await services.GetRequiredService<IStoreRegistry>().GetForTenantAsync(seed.TenantId, seed.StoreId));
+            Assert.Single(await services.GetRequiredService<IRelationshipStore>().QueryAsync(
+                seed.TenantId,
+                null,
+                null,
+                null,
+                null,
+                CancellationToken.None,
+                seed.StoreId));
+            Assert.NotEmpty((await assertions.ReadAsync(seed.StoreId, seed.AuthorizationModelId)).Assertions);
+
+            await using (var recoveryConnection = await dataSource.OpenConnectionAsync())
+            await using (var recoveryCommand = recoveryConnection.CreateCommand())
+            {
+                recoveryCommand.CommandText = """
+                    DROP TRIGGER trg_fail_restore_drill_relationship_delete ON relationships;
+                    DROP FUNCTION fail_restore_drill_relationship_delete();
+                    """;
+                await recoveryCommand.ExecuteNonQueryAsync();
+            }
+
+            Assert.True(await deletion.DeleteAsync(seed.TenantId, seed.StoreId));
+        }
+
+        await using var connection = new NpgsqlConnection(postgres.GetConnectionString());
+        await connection.OpenAsync();
+        foreach (var table in new[]
+                 {
+                     "stores", "authorization_models", "relationships", "relationship_changes",
+                     "rbac_roles", "assertion_sets", "assertion_run_records",
+                 })
+        {
+            await using var command = new NpgsqlCommand($"SELECT COUNT(*) FROM {table} WHERE store_id = @store_id;", connection);
+            if (table == "stores")
+            {
+                command.CommandText = "SELECT COUNT(*) FROM stores WHERE id = @store_id;";
+            }
+
+            command.Parameters.AddWithValue("store_id", seed.StoreId);
+            Assert.Equal(0L, (long)(await command.ExecuteScalarAsync())!);
+        }
+
+        await using var auditCommand = new NpgsqlCommand(
+            "SELECT COUNT(*) FROM audit_events WHERE store_id = @store_id;",
+            connection);
+        auditCommand.Parameters.AddWithValue("store_id", seed.StoreId);
+        Assert.Equal(1L, (long)(await auditCommand.ExecuteScalarAsync())!);
+
+        var validated = await reconciliation.AuditAsync(validate: true);
+        Assert.Equal(0, validated.TotalViolations);
+        Assert.True(validated.ValidationCompleted);
+        Assert.All(validated.Tables, table => Assert.True(table.Validated));
+    }
+
+    [Fact]
+    public async Task Postgres_outbox_survives_store_recreation_and_schedules_failed_delivery()
+    {
+        if (!ShouldRunContainerTests())
+        {
+            return;
+        }
+
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("aegis")
+            .WithUsername("postgres")
+            .WithPassword("postgres")
+            .Build();
+        await postgres.StartAsync();
+        await using var dataSource = NpgsqlDataSource.Create(postgres.GetConnectionString());
+        await Aegis.Infrastructure.Persistence.PostgresMigrationRunner.MigrateAsync(dataSource);
+
+        var options = new Aegis.Infrastructure.DomainEvents.OutboxWorkerOptions(
+            10,
+            TimeSpan.FromSeconds(1),
+            TimeSpan.FromSeconds(2),
+            TimeSpan.FromSeconds(30));
+        var firstStore = new Aegis.Infrastructure.DomainEvents.PostgresDomainEventOutboxStore(dataSource, options);
+        await firstStore.AppendAsync(
+            new Aegis.Domain.Events.StoreCreatedDomainEvent("store-outbox", "Outbox", DateTimeOffset.UtcNow),
+            CancellationToken.None);
+
+        var recreatedStore = new Aegis.Infrastructure.DomainEvents.PostgresDomainEventOutboxStore(dataSource, options);
+        var message = Assert.Single(await recreatedStore.GetPendingAsync(10));
+        Assert.Equal(nameof(Aegis.Domain.Events.StoreCreatedDomainEvent), message.EventType);
+        Assert.Contains("store-outbox", message.Payload, StringComparison.Ordinal);
+
+        await recreatedStore.MarkFailedAsync(message.Id, "temporary failure");
+        Assert.Empty(await recreatedStore.GetPendingAsync(10));
+        await using (var connection = await dataSource.OpenConnectionAsync())
+        await using (var inspectFailure = connection.CreateCommand())
+        {
+            inspectFailure.CommandText = """
+                SELECT attempt_count, last_error, next_attempt_at > NOW()
+                FROM outbox_messages
+                WHERE id = @id;
+                """;
+            inspectFailure.Parameters.AddWithValue("id", message.Id);
+            await using var reader = await inspectFailure.ExecuteReaderAsync();
+            Assert.True(await reader.ReadAsync());
+            Assert.Equal(1, reader.GetInt32(0));
+            Assert.Equal("temporary failure", reader.GetString(1));
+            Assert.True(reader.GetBoolean(2));
+        }
+
+        await using (var connection = await dataSource.OpenConnectionAsync())
+        await using (var makeDue = connection.CreateCommand())
+        {
+            makeDue.CommandText = "UPDATE outbox_messages SET next_attempt_at = NOW() WHERE id = @id;";
+            makeDue.Parameters.AddWithValue("id", message.Id);
+            Assert.Equal(1, await makeDue.ExecuteNonQueryAsync());
+        }
+
+        var retry = Assert.Single(await recreatedStore.GetPendingAsync(10));
+        Assert.Equal(1, retry.AttemptCount);
+        await recreatedStore.MarkProcessedAsync(retry.Id);
+        Assert.Empty(await recreatedStore.GetPendingAsync(10));
+
+        await using (var connection = await dataSource.OpenConnectionAsync())
+        await using (var inspectProcessed = connection.CreateCommand())
+        {
+            inspectProcessed.CommandText = "SELECT processed_at IS NOT NULL, last_error IS NULL FROM outbox_messages WHERE id = @id;";
+            inspectProcessed.Parameters.AddWithValue("id", message.Id);
+            await using var reader = await inspectProcessed.ExecuteReaderAsync();
+            Assert.True(await reader.ReadAsync());
+            Assert.True(reader.GetBoolean(0));
+            Assert.True(reader.GetBoolean(1));
+        }
+    }
+
+    [Fact]
+    public async Task Migration_runner_serializes_startup_rejects_drift_and_honors_lock_timeout()
+    {
+        if (!ShouldRunContainerTests())
+        {
+            return;
+        }
+
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("aegis")
+            .WithUsername("postgres")
+            .WithPassword("postgres")
+            .Build();
+        await postgres.StartAsync();
+        await using var dataSource = NpgsqlDataSource.Create(postgres.GetConnectionString());
+
+        var missingHistory = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Aegis.Infrastructure.Persistence.PostgresMigrationRunner.ValidateReadyAsync(
+                dataSource,
+                TimeSpan.FromSeconds(10)));
+        Assert.Contains("history table does not exist", missingHistory.Message, StringComparison.Ordinal);
+
+        await Task.WhenAll(Enumerable.Range(0, 4).Select(_ =>
+            Aegis.Infrastructure.Persistence.PostgresMigrationRunner.MigrateAsync(dataSource)));
+        await Aegis.Infrastructure.Persistence.PostgresMigrationRunner.ValidateReadyAsync(
+            dataSource,
+            TimeSpan.FromSeconds(10));
+
+        await using (var connection = await dataSource.OpenConnectionAsync())
+        {
+            await using var history = connection.CreateCommand();
+            history.CommandText = """
+                SELECT COUNT(*),
+                       COUNT(*) FILTER (WHERE checksum_sha256 IS NOT NULL AND char_length(checksum_sha256) = 64),
+                       COUNT(DISTINCT migration_name)
+                FROM schema_migrations;
+                """;
+            await using var reader = await history.ExecuteReaderAsync();
+            Assert.True(await reader.ReadAsync());
+            Assert.Equal(17, reader.GetInt64(0));
+            Assert.Equal(17, reader.GetInt64(1));
+            Assert.Equal(17, reader.GetInt64(2));
+        }
+
+        await using (var lockConnection = await dataSource.OpenConnectionAsync())
+        {
+            await using var acquire = lockConnection.CreateCommand();
+            acquire.CommandText = "SELECT pg_advisory_lock(6344347956172591941);";
+            await acquire.ExecuteScalarAsync();
+
+            await Assert.ThrowsAsync<TimeoutException>(() =>
+                Aegis.Infrastructure.Persistence.PostgresMigrationRunner.MigrateAsync(
+                    dataSource,
+                    new Aegis.Infrastructure.Persistence.PostgresMigrationOptions(
+                        TimeSpan.FromMilliseconds(350),
+                        TimeSpan.FromSeconds(10))));
+
+            await using var release = lockConnection.CreateCommand();
+            release.CommandText = "SELECT pg_advisory_unlock(6344347956172591941);";
+            Assert.True((bool)(await release.ExecuteScalarAsync())!);
+        }
+
+        await using (var bootstrapConnection = await dataSource.OpenConnectionAsync())
+        {
+            await using var clearChecksum = bootstrapConnection.CreateCommand();
+            clearChecksum.CommandText = """
+                UPDATE schema_migrations
+                SET checksum_sha256 = NULL
+                WHERE migration_name = (SELECT MIN(migration_name) FROM schema_migrations);
+                """;
+            Assert.Equal(1, await clearChecksum.ExecuteNonQueryAsync());
+        }
+
+        var missingChecksum = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Aegis.Infrastructure.Persistence.PostgresMigrationRunner.ValidateReadyAsync(
+                dataSource,
+                TimeSpan.FromSeconds(10)));
+        Assert.Contains("has no checksum", missingChecksum.Message, StringComparison.Ordinal);
+
+        await Aegis.Infrastructure.Persistence.PostgresMigrationRunner.MigrateAsync(dataSource);
+        await using (var bootstrapVerification = await dataSource.OpenConnectionAsync())
+        {
+            await using var checksum = bootstrapVerification.CreateCommand();
+            checksum.CommandText = "SELECT COUNT(*) FROM schema_migrations WHERE checksum_sha256 IS NULL;";
+            Assert.Equal(0L, (long)(await checksum.ExecuteScalarAsync())!);
+        }
+
+        await using (var blockerConnection = await dataSource.OpenConnectionAsync())
+        await using (var blockerTransaction = await blockerConnection.BeginTransactionAsync())
+        {
+            await using (var removeHistoryConnection = await dataSource.OpenConnectionAsync())
+            await using (var removeHistory = removeHistoryConnection.CreateCommand())
+            {
+                removeHistory.CommandText = """
+                    DELETE FROM schema_migrations
+                    WHERE migration_name LIKE '%016_atomic_store_deletion';
+                    """;
+                Assert.Equal(1, await removeHistory.ExecuteNonQueryAsync());
+            }
+
+            var pending = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                Aegis.Infrastructure.Persistence.PostgresMigrationRunner.ValidateReadyAsync(
+                    dataSource,
+                    TimeSpan.FromSeconds(10)));
+            Assert.Contains("Pending migrations", pending.Message, StringComparison.Ordinal);
+
+            await using (var blockMigration = blockerConnection.CreateCommand())
+            {
+                blockMigration.Transaction = blockerTransaction;
+                blockMigration.CommandText = "LOCK TABLE stores IN ACCESS EXCLUSIVE MODE;";
+                await blockMigration.ExecuteNonQueryAsync();
+            }
+
+            var interruptedMigration = Aegis.Infrastructure.Persistence.PostgresMigrationRunner.MigrateAsync(
+                dataSource,
+                new Aegis.Infrastructure.Persistence.PostgresMigrationOptions(
+                    TimeSpan.FromSeconds(5),
+                    TimeSpan.FromSeconds(30)));
+
+            await using var observer = await dataSource.OpenConnectionAsync();
+            int? migrationBackendPid = null;
+            var observationDeadline = DateTimeOffset.UtcNow.AddSeconds(10);
+            while (migrationBackendPid is null && DateTimeOffset.UtcNow < observationDeadline)
+            {
+                await using var findBackend = observer.CreateCommand();
+                findBackend.CommandText = """
+                    SELECT pid
+                    FROM pg_stat_activity
+                    WHERE datname = current_database()
+                      AND pid <> pg_backend_pid()
+                      AND state = 'active'
+                      AND query LIKE '%ux_stores_tenant_id_id%'
+                    ORDER BY query_start DESC
+                    LIMIT 1;
+                    """;
+                var observedPid = await findBackend.ExecuteScalarAsync();
+                if (observedPid is int pid)
+                {
+                    migrationBackendPid = pid;
+                    break;
+                }
+
+                await Task.Delay(100);
+            }
+
+            Assert.True(migrationBackendPid.HasValue, "The blocked migration backend was not observed.");
+            await using (var terminate = observer.CreateCommand())
+            {
+                terminate.CommandText = "SELECT pg_terminate_backend(@pid);";
+                terminate.Parameters.AddWithValue("pid", migrationBackendPid.Value);
+                Assert.True((bool)(await terminate.ExecuteScalarAsync())!);
+            }
+
+            await Assert.ThrowsAnyAsync<NpgsqlException>(() => interruptedMigration);
+            await blockerTransaction.RollbackAsync();
+        }
+
+        await using (var interruptedVerification = await dataSource.OpenConnectionAsync())
+        {
+            await using var history = interruptedVerification.CreateCommand();
+            history.CommandText = """
+                SELECT COUNT(*)
+                FROM schema_migrations
+                WHERE migration_name LIKE '%016_atomic_store_deletion';
+                """;
+            Assert.Equal(0L, (long)(await history.ExecuteScalarAsync())!);
+        }
+
+        await Aegis.Infrastructure.Persistence.PostgresMigrationRunner.MigrateAsync(dataSource);
+        await using (var retryVerification = await dataSource.OpenConnectionAsync())
+        {
+            await using var history = retryVerification.CreateCommand();
+            history.CommandText = """
+                SELECT COUNT(*)
+                FROM schema_migrations
+                WHERE migration_name LIKE '%016_atomic_store_deletion';
+                """;
+            Assert.Equal(1L, (long)(await history.ExecuteScalarAsync())!);
+        }
+        await Aegis.Infrastructure.Persistence.PostgresMigrationRunner.ValidateReadyAsync(
+            dataSource,
+            TimeSpan.FromSeconds(10));
+
+        await using (var driftConnection = await dataSource.OpenConnectionAsync())
+        await using (var drift = driftConnection.CreateCommand())
+        {
+            drift.CommandText = """
+                UPDATE schema_migrations
+                SET checksum_sha256 = repeat('0', 64)
+                WHERE migration_name = (SELECT MIN(migration_name) FROM schema_migrations);
+                """;
+            await drift.ExecuteNonQueryAsync();
+        }
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Aegis.Infrastructure.Persistence.PostgresMigrationRunner.MigrateAsync(dataSource));
+        Assert.Contains("Checksum mismatch", exception.Message, StringComparison.Ordinal);
+        var validationException = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Aegis.Infrastructure.Persistence.PostgresMigrationRunner.ValidateReadyAsync(
+                dataSource,
+                TimeSpan.FromSeconds(10)));
+        Assert.Contains("Checksum mismatch", validationException.Message, StringComparison.Ordinal);
     }
 
     private static bool ShouldRunContainerTests()

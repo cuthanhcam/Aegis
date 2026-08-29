@@ -272,3 +272,162 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Follow-up: extract assertion write/run/generate use cases, then make an additive contract decision for recording the executed definition revision in run history.
 - Verification: 15 targeted assertion/store tests and the assertion lifecycle endpoint integration test pass. Locked restore and zero-warning Release build pass with 293 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Merge evidence: feature commit `f759d8e` was merged locally into `develop` as `c5dd3d0` and pushed. GitHub Actions `.NET CI` run `33192371166` passed without modifying the workflow.
+
+## 2026-08-29 — Governed contracts B1, iteration 20
+
+- Branch: `refactor/assertion-write-use-case-b1`
+- Status: Complete
+- Intended result: make assertion replacement an explicit command and establish one validation component for persisted and audit-generated assertions.
+- Boundary: `StoreAssertionsController` retains store-tenant authorization and HTTP mapping. `WriteAssertionsUseCase` owns store/model scope validation, capacity, tuple/model-reference validation, cancellation, and the repository replace call.
+- Validation consistency: `AssertionValidator` is stateless and shared by write and audit generation. Invalid tuple, contextual tuple, type, or relation input is rejected before repository mutation.
+- Interface cleanup: remove `WriteAsync` from `IAssertionAppService` and `AssertionAppService` after the controller and tests migrate to the command.
+- Contract impact: none intended; routes, request/response payloads, error codes, tenant/store guards, and OpenAPI remain unchanged.
+- Follow-up: extract run orchestration against one captured assertion snapshot, then extract audit generation and decide how snapshot revision is recorded.
+- Verification: 14 targeted write, assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test pass. Locked restore and zero-warning Release build pass with 296 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Merge evidence: feature commit `d3b7805` was merged locally into `develop` as `9e86376` and pushed. GitHub Actions `.NET CI` run `33257467077` passed without modifying the workflow.
+
+## 2026-08-29 — Governed contracts B1, iteration 21
+
+- Branch: `refactor/assertion-run-use-case-b1`
+- Status: Complete
+- Intended result: isolate assertion execution behind one explicit use case that evaluates a stable definition snapshot and appends only completed run history.
+- Boundary: `StoreAssertionsController` retains tenant/store authorization and HTTP mapping. `RunAssertionsUseCase` owns store/model validation, snapshot capture, permission-check iteration, result aggregation, cancellation, and completed-history persistence.
+- Consistency: one `AssertionSetSnapshot` is read before evaluation and its collection is used for the entire run. Concurrent definition replacement cannot alter the captured work set. The current internal revision is deliberately not added to the public run DTO in this non-contract-changing slice.
+- Failure semantics: invalid scope, cancellation, or a failed permission check cannot persist a completed run record. An empty definition is valid and persists a zero-result run for operational traceability.
+- Interface cleanup: remove `RunAsync` and the permission-check dependency from the broad assertion service after controller and test migration.
+- Contract impact: none intended; routes, payloads, error/status mapping, tenant/store guards, and OpenAPI remain unchanged.
+- Follow-up: extract audit generation and then make the additive contract decision for definition revision in run records.
+- Verification: 13 targeted run, remaining assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test pass. Locked restore and zero-warning Release build pass with 298 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Merge evidence: feature commit `7f2dc2f` was merged locally into `develop` as `28da9a0` and pushed. GitHub Actions `.NET CI` run `33257783985` passed without modifying the workflow.
+
+## 2026-08-29 — Governed contracts B1, iteration 22
+
+- Branch: `refactor/assertion-generate-use-case-b1`
+- Status: Complete
+- Intended result: isolate audit-derived assertion generation and its optional atomic append behind one explicit command boundary.
+- Boundary: `StoreAssertionsController` retains tenant/store authorization and HTTP mapping. `GenerateAssertionsFromAuditUseCase` owns store/model validation, decision and limit validation, scoped audit querying, candidate filtering/deduplication, and optional repository append.
+- Mutation safety: draft-only generation never writes. Append delegates combined-set deduplication, capacity enforcement, serialization, and revision advance to `IAssertionRepository`; a capacity rejection preserves the prior snapshot.
+- Interface cleanup: remove generation from `IAssertionAppService` and remove audit/validator dependencies from `AssertionAppService`. Its remaining surface is definition read, run-history read, and purge coordination.
+- Contract impact: none intended; routes, payloads, stable error codes, tenant/store guards, and OpenAPI remain unchanged.
+- Follow-up: decide and implement the additive definition-revision contract for run history, then review whether read/history/purge deserve narrower query/lifecycle boundaries.
+- Verification: 13 targeted generation, remaining assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test pass. Locked restore and zero-warning Release build pass with 300 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Merge evidence: feature commit `c873c66` was merged locally into `develop` as `6bcf734` and pushed. GitHub Actions `.NET CI` run `33258613352` passed without modifying the workflow.
+
+## 2026-08-29 — Governed contracts B1, iteration 23
+
+- Branch: `feat/assertion-run-definition-revision-b1`
+- Status: Complete
+- Intended result: make completed assertion history identify the exact definition snapshot that was evaluated.
+- Persistence: migration 015 adds non-negative `definition_revision` to assertion run records and backfills existing rows with zero. PostgreSQL save/list/get operations persist and hydrate the field; new runs copy it from the single snapshot captured before evaluation.
+- Contract decision: `AegisAssertionRunRecordDto` exposes additive `definition_revision` as `int64`. Zero means legacy history or no definition set written at capture time; positive values identify a repository definition revision.
+- Compatibility evidence: the contract report retains 53 paths, removes no path, operation, or schema, and classifies the candidate as non-breaking. The reviewed candidate is promoted to the committed v1 baseline.
+- Verification: 9 targeted unit tests and 5 assertion lifecycle integration tests pass. Locked restore and zero-warning Release build pass with 300 unit tests and 30 integration tests. The promoted runtime OpenAPI is semantically identical to its baseline; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: review whether assertion definition reads, run-history queries, and store purge coordination should remain grouped or move to narrower query/lifecycle boundaries.
+- Merge evidence: feature commit `2339325` was merged locally into `develop` as `22ded7e` and pushed. GitHub Actions `.NET CI` run `33259188992` passed without modifying the workflow.
+
+## 2026-08-29 — Governed contracts B1, iteration 24
+
+- Branch: `refactor/assertion-query-lifecycle-boundaries-b1`
+- Status: Complete
+- Intended result: finish the assertion HTTP boundary split without overstating store-purge consistency.
+- Query boundaries: definition read, run-history list, and run-detail lookup now use `ReadAssertionsUseCase`, `ListAssertionRunsUseCase`, and `GetAssertionRunUseCase`. `AssertionScopeGuard` preserves store/model validation and compatibility error behavior; the controller retains tenant authorization and HTTP mapping.
+- Interface cleanup: remove `IAssertionAppService` and its broad implementation after all HTTP callers migrate. Composition registers explicit query use cases directly.
+- Lifecycle boundary: store deletion depends on `AssertionStorePurgeCoordinator`. It performs definition and run-history cleanup sequentially and is deliberately not described as atomic; transactional/recoverable cleanup remains B3 work.
+- Contract impact: none intended; routes, payloads, status/error mapping, tenant/store guards, and OpenAPI remain unchanged.
+- Verification: 19 targeted query, store-deletion, and composition unit tests plus 5 assertion lifecycle integration tests pass. Locked restore and zero-warning Release build pass with 303 unit tests and 30 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: design one durable store-deletion transaction or recoverable workflow spanning assertion, relationship, RBAC, and store state.
+- Merge evidence: feature commit `830d10f` was merged locally into `develop` as `19aa1af` and pushed. GitHub Actions `.NET CI` run `33259603421` passed without modifying the workflow.
+
+## 2026-08-29 — Durable data correctness B3, iteration 25
+
+- Branch: `feat/atomic-store-deletion-b3`
+- Status: Complete
+- Intended result: eliminate partial production cleanup when a tenant-scoped store is deleted.
+- Transaction owner: `PostgresStoreDeletionRepository` performs one tenant/store-predicated parent delete. Migration 016 adds composite tenant/store foreign keys with cascade semantics for relationships, change rows, and store RBAC; existing model, assertion, run-history, and idempotency foreign keys complete the operational cascade.
+- Isolation: composite foreign keys reject new cross-tenant child ownership, and an incorrect tenant predicate deletes neither the store nor its children.
+- Retention: tenant user profiles and audit events do not cascade. Audit keeps the former store ID as historical security evidence.
+- Rollout safety: new constraints are `NOT VALID`, so new writes are enforced without silently deleting or blocking deployment on unknown legacy orphans. Inventory, reconciliation, and explicit validation remain tracked B3 evidence.
+- Provider semantics: in-memory deletion is serialized and functionally equivalent but is not crash-durable. PostgreSQL is the production atomicity boundary.
+- Verification: 9 focused store-boundary/composition unit tests pass; a PostgreSQL 16 container test runs migrations and proves cross-tenant no-op, atomic cascade across seeded operational tables, and audit retention. Locked restore and zero-warning Release build pass with 303 unit tests and 31 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: validate legacy foreign keys, add injected-failure evidence, and perform backup/restore plus reconciliation drills.
+- Merge evidence: feature commit `23f87a2` was merged locally into `develop` as `05d9176` and pushed. GitHub Actions `.NET CI` run `33260311533` passed without modifying the workflow.
+
+## 2026-08-29 — Durable data correctness B3, iteration 26
+
+- Branch: `feat/store-constraint-reconciliation-b3`
+- Status: Complete
+- Intended result: make legacy integrity discovery and migration-016 validation repeatable, reviewable, and safe by default.
+- Tooling: `Aegis.DatabaseAdmin` reads credentials only from `ConnectionStrings__Aegis`, emits a JSON report, returns `2` for discovered violations, and performs no mutation unless `--validate` is explicit. The PowerShell entry point restores in locked mode and writes evidence under `artifacts/database` by default.
+- Audit contract: report every target table's constraint status and total orphan/mismatched tenant-store count, with at most 20 identifier samples. The tool never guesses repairs or deletes data.
+- Validation guard: validation is refused when any violation exists. With a clean audit, all six constraints validate inside one transaction and their catalog state is reread into the report.
+- Operational guidance: the runbook defines secret handling, restored-copy rehearsal, reconciliation ownership, exit codes, evidence retention, and failure response.
+- Verification: zero-warning Release build passes with the database-admin tool included. PostgreSQL 16 container coverage injects one legacy orphan by bypassing triggers, proves detection and validation refusal, removes the test orphan, and proves transactional validation of all six constraints. Missing secret configuration returns exit code 64 without exposing credentials. Locked restore, 303 unit tests, and 31 integration tests pass. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: execute the runbook per managed environment, then add injected-failure and backup/restore evidence.
+- Merge evidence: feature commit `253cb2f` was merged locally into `develop` as `93e8582` and pushed. GitHub Actions `.NET CI` run `33260956484` passed without modifying the workflow.
+
+## 2026-08-29 — Durable data correctness B3, iteration 27
+
+- Branch: `feat/postgres-restore-drill-b3`
+- Status: Complete
+- Intended result: turn logical backup compatibility and atomic rollback from assumptions into repeatable evidence.
+- Restore automation: `eng/test-postgres-restore.ps1` creates isolated GUID-named PostgreSQL 16 source/target containers, applies committed migrations, seeds a deterministic authorization fixture, creates and hashes a custom-format dump, restores with exit-on-error, verifies exact counts/fixture, and runs constraint reconciliation plus validation.
+- Data safety: no existing database is contacted; credentials are ephemeral; the dump lives only under ignored artifacts and is deleted in `finally`; exact drill containers are forcibly removed. JSON retains versions, timings, counts, dump hash, and linked reconciliation evidence.
+- Failure evidence: the PostgreSQL integration test installs a temporary trigger that raises during relationship cascade deletion. The parent delete throws and store, relationship, and assertion state remain intact; after trigger removal the atomic delete succeeds.
+- Scope honesty: the final 13.827-second local synthetic restore is compatibility evidence, not a production RTO. A staging-sized managed restore must still run full application golden decisions and measure declared RPO/RTO.
+- Contract impact: none; runtime HTTP/OpenAPI behavior is unchanged.
+- Verification: three isolated restore rehearsals and the focused PostgreSQL failure-injection test pass. Locked restore and zero-warning Release build pass with 303 unit tests and 31 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: execute the managed restore runbook, retain approved evidence, and expand failure testing to migration/connection interruption scenarios.
+- Merge evidence: feature commit `1bdd4a4` was merged locally into `develop` as `951da3d` and pushed. GitHub Actions `.NET CI` run `33261885697` passed without modifying the workflow.
+
+## 2026-08-29 — Durable data correctness B3, iteration 28
+
+- Branch: `feat/migration-execution-safety-b3`
+- Status: Complete
+- Intended result: make database startup fail safely and diagnostically under concurrent migration, drift, timeout, and interrupted SQL conditions.
+- Serialization: one fixed PostgreSQL session advisory lock protects history inspection and migration execution. Competing instances poll until the configured deadline, reread committed history after acquisition, and explicitly unlock in `finally`.
+- Provenance: `schema_migrations` now records normalized SHA-256 values. Applied files are immutable; mismatches and applied names absent from the build fail startup. Legacy null checksums bootstrap once from same-named embedded resources while locked.
+- Atomicity: each SQL resource and its history insert remain in one transaction. A statement failure, cancellation, or connection loss cannot commit a success marker independently of schema work.
+- Deadlines: `Database:Migrations:LockTimeoutSeconds` defaults to 30 and `StatementTimeoutSeconds` to 120; non-positive values are rejected.
+- Operational guidance: the migration article covers pre-checksum rollout, pooled-session lock behavior, drift/SQL failure response, and the remaining need to separate managed DDL authority from application replicas.
+- Verification: PostgreSQL 16 coverage runs four concurrent migrators and observes 16 unique checksummed rows, forces lock timeout, releases the manually held pooled-session lock, bootstraps a legacy null checksum, corrupts one checksum, and verifies fail-closed drift detection. Locked restore and zero-warning Release build pass with 303 unit tests and 32 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: test connection interruption against an intentionally long transaction and design the separate managed migration job.
+- Merge evidence: feature commit `e3cf1e7` was merged locally into `develop` as `d80ff0b` and pushed. GitHub Actions `.NET CI` run `33262928783` passed without modifying the workflow.
+
+## 2026-08-29 — Durable data correctness B3, iteration 29
+
+- Branch: `test/migration-connection-interruption-b3`
+- Status: Complete
+- Intended result: turn the migration runner's connection-loss rollback claim into deterministic PostgreSQL evidence.
+- Failure injection: make migration 016 pending, hold an exclusive lock on `stores`, observe the blocked migration PID through its unique DDL text in `pg_stat_activity`, and terminate only that backend.
+- Required assertions: the interrupted runner fails, migration 016 has no committed history marker, and a clean retry records it exactly once before checksum drift enforcement is tested.
+- Scope boundary: local PostgreSQL 16 evidence only. Managed-environment rehearsal and a separately authorized migration job remain pending deployment decisions.
+- Verification: the focused PostgreSQL 16 interruption test passes. Locked restore and zero-warning Release build pass with 303 unit tests and 32 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: design and approve the separately authorized migration job, then rehearse interruption and recovery through the managed deployment identity.
+- Merge evidence: feature commit `9aa0ed0` was merged locally into `develop` as `01afe97` and pushed. GitHub Actions `.NET CI` run `33263431325` passed without modifying the workflow.
+
+## 2026-08-29 — Durable data correctness B3, iteration 30
+
+- Branch: `feat/separate-migration-authority-b3`
+- Status: Complete
+- Intended result: separate schema mutation capability from the normal API replica startup path while retaining simple monolith/local operation.
+- Runtime modes: `Database:Migrations:Mode=Apply` remains the default; `Validate` performs read-only schema-history/completeness/checksum verification and rejects development seeding.
+- Operator boundary: `Aegis.Migrator` plus `eng/migrate-database.ps1` provides a one-shot process that reads credentials from `ConnectionStrings__Aegis`, applies migrations, validates the final schema, and exits without hosting HTTP or seed behavior.
+- Safety evidence: missing migrator credentials return usage exit code 64. PostgreSQL 16 coverage proves validate success on a complete schema and failure on pending history, missing checksum, and checksum drift while existing interruption/retry evidence remains intact.
+- Scope boundary: repository code and runbook only. No pipeline, deployment resource, database grant, or managed environment has been changed.
+- Verification: missing-secret exit behavior and the focused PostgreSQL 16 validation/interruption test pass. Locked restore and zero-warning Release build pass with 303 unit tests and 32 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: provision distinct managed migration/runtime identities, apply least-privilege grants, order migrator before `Validate` replicas, and retain a rollback rehearsal before claiming the environment cutover.
+- Merge evidence: feature commit `9dd669f` was merged locally into `develop` as `c973e58` and pushed. GitHub Actions `.NET CI` run `33264009438` passed without modifying the workflow.
+
+## 2026-08-30 — Durable data correctness B3, iteration 31
+
+- Branch: `feat/durable-postgres-outbox-b3`
+- Status: Complete
+- Architecture direction: reaffirm ADR 0001. Aegis remains a modular monolith; Aspire, orchestration, and microservice extraction require measured business/operational evidence and are not near-term goals.
+- Intended result: ensure PostgreSQL outbox work and retry state survive process recreation while retaining the simple single-service deployment profile.
+- Persistence: migration 017 adds durable JSON payload, event time, creation time, attempt/error, next-attempt, and processed state with a due-message partial index.
+- Runtime: PostgreSQL composition selects `PostgresDomainEventOutboxStore`; local/test profiles retain the in-memory implementation. The worker consumes validated batch/poll/retry options and propagates requested cancellation.
+- Retry: failed delivery records a bounded 4,000-character error and exponential next-attempt delay capped by configuration; success clears the error and records completion.
+- Scope honesty: business mutation and outbox append are not yet one transaction, and messages are not claimed with leases. Logging publication, poison handling, backlog telemetry, replay, and retention remain pending.
+- Verification: focused PostgreSQL 16 tests prove the 17-migration history and durable outbox append, store reconstruction, delayed retry state, error clearing, and completion. Locked restore and zero-warning Release build pass with 303 unit tests and 33 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: design transaction ownership for business state plus outbox append before adding claim leases and operational delivery controls.
+- Merge evidence: feature commit `d14113b` was merged locally into `develop` as `c7addd0` and pushed. GitHub Actions `.NET CI` run `33264519329` passed without modifying the workflow.

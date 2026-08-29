@@ -4252,6 +4252,10 @@
             "type": "string",
             "nullable": true
           },
+          "definition_revision": {
+            "type": "integer",
+            "format": "int64"
+          },
           "started_at": {
             "type": "string",
             "format": "date-time"

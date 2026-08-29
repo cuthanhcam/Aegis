@@ -55,7 +55,7 @@ Native and compatibility behavior currently coexist. Phase B1 must generate this
 | `RateLimiting:Auth:*`       | Fixed-window login limit                                    | Validate positive bounds and trusted proxy/IP behavior                           |
 | `RequestTimeouts:DefaultSeconds` | Global request deadline, default 30 seconds             | Startup validates the supported 1–300 second range                               |
 | `AuthorizationEngine:*`     | depth and parsed-model cache budgets                        | Validate all bounds and document exhaustion behavior                             |
-| `Outbox:*`                  | Present in settings                                         | Worker currently hard-codes batch 100/poll 10 seconds; bind and validate options |
+| `Outbox:*`                  | Batch, poll, and retry schedule                              | Startup validates bounds; retention, leasing, and dead-letter policy remain       |
 | `Seed:Development:Enabled`  | Controls development seed                                   | Environment guard remains mandatory                                              |
 | `Logging:Http:Enabled`      | Adds method/path/status/duration logging in development     | Maintain redaction and cardinality policy                                        |
 
@@ -63,9 +63,11 @@ Configuration access is currently split between `Program.cs`, Infrastructure reg
 
 ## Persistence and migrations
 
-PostgreSQL is the durable provider; in-memory implementations support tests and evaluation. Thirteen embedded forward migrations currently cover initial schema, RBAC conditions, relationship effects/indexes, store and tenant scoping, authorization model lifecycle/revisions/single-active invariant, assertion-run history, and transactional idempotency records for model/store creation.
+PostgreSQL is the durable provider; in-memory implementations support tests and evaluation. Sixteen embedded forward migrations currently cover initial schema, RBAC conditions, relationship effects/indexes, store and tenant scoping, authorization model lifecycle/revisions/single-active invariant, assertion definitions/run history, transactional idempotency, and atomic store deletion.
 
-The migration runner orders embedded resource names, records successful names in `schema_migrations`, and executes each migration transactionally. It does not yet record checksums, acquire a migration lock, enforce expand/contract compatibility, or separate migration authority fully from application startup. These are Phase B3 gaps.
+The migration runner orders embedded resource names, serializes concurrent instances with a PostgreSQL session advisory lock, executes and records each migration in one transaction, and stores a normalized SHA-256 checksum. It fails closed on checksum drift, missing embedded history, lock timeout, cancellation, or statement failure. Existing pre-checksum history is bootstrapped once from the matching embedded resources. Lock and statement deadlines are configurable under `Database:Migrations`.
+
+Startup now has explicit `Apply` and `Validate` authority modes. `Apply` preserves monolith/local behavior. `Validate` is read-only and refuses absent history, pending/unknown migrations, missing checksums, or drift. The one-shot `Aegis.Migrator` executable owns the same apply logic without hosting the API or seed path. This creates the code boundary for production privilege separation; managed identity/grant cutover and rehearsal remain Phase B3/B5 deployment work.
 
 ## Cache inventory
 
@@ -79,9 +81,9 @@ Redis is optional for the decision cache; local memory remains present. Cache lo
 
 ## Background processing
 
-One hosted service processes the domain-event outbox. It creates a scope, requests up to 100 pending items, logs failures, and waits 10 seconds. The outbox store is currently in-memory even with PostgreSQL selected, and the publisher logs rather than delivering to a durable external destination. This is a development foundation, not crash-safe production delivery.
+One hosted service processes the domain-event outbox with validated batch, polling, and retry settings. PostgreSQL profiles persist payload, attempts, bounded error state, next-attempt time, and completion; in-memory profiles remain local/test only. The publisher still logs rather than delivering to a durable external destination.
 
-Required evolution includes durable outbox persistence, configuration-bound batch/poll settings, idempotent publishing, retry/backoff, poison handling, backlog age/count metrics, graceful draining, and operator replay controls.
+Business writes and outbox append are not yet one transaction, and pending reads do not lease work across multiple workers. Required evolution includes transaction ownership, claim/lease semantics, idempotent publishing, poison handling, backlog age/count metrics, graceful draining, retention, and operator replay controls.
 
 ## Operational signals
 

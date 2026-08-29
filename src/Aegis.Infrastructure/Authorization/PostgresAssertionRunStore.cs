@@ -23,6 +23,7 @@ INSERT INTO assertion_run_records (
     run_id,
     store_id,
     authorization_model_id,
+    definition_revision,
     started_at,
     completed_at,
     total,
@@ -33,6 +34,7 @@ VALUES (
     @run_id,
     @store_id,
     @authorization_model_id,
+    @definition_revision,
     @started_at,
     @completed_at,
     @total,
@@ -42,6 +44,7 @@ VALUES (
 ON CONFLICT (run_id) DO UPDATE SET
     store_id = EXCLUDED.store_id,
     authorization_model_id = EXCLUDED.authorization_model_id,
+    definition_revision = EXCLUDED.definition_revision,
     started_at = EXCLUDED.started_at,
     completed_at = EXCLUDED.completed_at,
     total = EXCLUDED.total,
@@ -54,6 +57,7 @@ ON CONFLICT (run_id) DO UPDATE SET
             command.Parameters.AddWithValue("run_id", NpgsqlDbType.Text, record.RunId);
             command.Parameters.AddWithValue("store_id", NpgsqlDbType.Text, record.StoreId);
             command.Parameters.AddWithValue("authorization_model_id", NpgsqlDbType.Text, record.AuthorizationModelId);
+            command.Parameters.AddWithValue("definition_revision", NpgsqlDbType.Bigint, record.DefinitionRevision);
             command.Parameters.AddWithValue("started_at", NpgsqlDbType.TimestampTz, record.StartedAt);
             command.Parameters.AddWithValue("completed_at", NpgsqlDbType.TimestampTz, record.CompletedAt);
             command.Parameters.AddWithValue("total", NpgsqlDbType.Integer, record.Summary.Total);
@@ -70,7 +74,7 @@ ON CONFLICT (run_id) DO UPDATE SET
             CancellationToken cancellationToken = default)
         {
             const string sql = @"
-SELECT run_id, store_id, authorization_model_id, started_at, completed_at, total, passed, failed, results_json
+SELECT run_id, store_id, authorization_model_id, definition_revision, started_at, completed_at, total, passed, failed, results_json
 FROM assertion_run_records
 WHERE store_id = @store_id
   AND authorization_model_id = @authorization_model_id
@@ -99,7 +103,7 @@ LIMIT @limit;";
             CancellationToken cancellationToken = default)
         {
             const string sql = @"
-SELECT run_id, store_id, authorization_model_id, started_at, completed_at, total, passed, failed, results_json
+SELECT run_id, store_id, authorization_model_id, definition_revision, started_at, completed_at, total, passed, failed, results_json
 FROM assertion_run_records
 WHERE store_id = @store_id
   AND run_id = @run_id;";
@@ -125,16 +129,17 @@ WHERE store_id = @store_id
 
         private static AegisAssertionRunRecordDto ReadRecord(NpgsqlDataReader reader)
         {
-            var results = JsonSerializer.Deserialize<List<AegisAssertionRunResultItemDto>>(reader.GetString(8), JsonOptions)
+            var results = JsonSerializer.Deserialize<List<AegisAssertionRunResultItemDto>>(reader.GetString(9), JsonOptions)
                 ?? [];
 
             return new AegisAssertionRunRecordDto(
                 reader.GetString(0),
                 reader.GetString(1),
                 reader.GetString(2),
-                reader.GetFieldValue<DateTimeOffset>(3),
+                reader.GetInt64(3),
                 reader.GetFieldValue<DateTimeOffset>(4),
-                new AegisAssertionRunSummaryDto(reader.GetInt32(5), reader.GetInt32(6), reader.GetInt32(7)),
+                reader.GetFieldValue<DateTimeOffset>(5),
+                new AegisAssertionRunSummaryDto(reader.GetInt32(6), reader.GetInt32(7), reader.GetInt32(8)),
                 results);
         }
     }

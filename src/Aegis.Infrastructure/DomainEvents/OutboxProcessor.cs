@@ -28,6 +28,11 @@ namespace Aegis.Infrastructure.DomainEvents
                 }
                 catch (Exception ex)
                 {
+                    if (ex is OperationCanceledException && cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+
                     await _outboxStore.MarkFailedAsync(message.Id, ex.Message, cancellationToken);
                 }
             }

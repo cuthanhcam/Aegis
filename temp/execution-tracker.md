@@ -13,7 +13,7 @@ Use this file as a release ledger, not as a substitute for issue tracking. Link 
 | B0 | Baseline and guardrails | Verified | ADRs, inventory, architecture tests, golden corpus, CI report |
 | B1 | Governed contracts | In progress | versioned OpenAPI, diff report, generated client, lifecycle tests |
 | B2 | Identity and isolation | Not started | threat model, isolation matrix, rotation/revocation drill, SBOM |
-| B3 | Durable data correctness | Not started | failure tests, migration report, restore drill, reconciliation report |
+| B3 | Durable data correctness | In progress | failure tests, migration report, restore drill, reconciliation report |
 | B4 | SLO-backed operations | Not started | dashboards, load report, game-day record, runbooks |
 | B5 | Releasable production system | Not started | signed artifact, promotion/canary/rollback evidence, readiness approval |
 | B6 | Scale and governance | Not started | customer-backed capability RFCs and their individual gates |
@@ -132,7 +132,24 @@ Application-boundary progress:
 - [x] Extract model publish and rollback while retaining repository-owned store serialization.
 - [x] Split user create/update/delete mutations after repository transaction review and remove their broad-service delegates.
 - [x] Introduce a durable, versioned assertion repository with atomic replace/append and store purge semantics.
-- [ ] Split assertion write/run/generate commands and decide how definition revision appears in run history.
+- [x] Extract assertion validation and write/replace into an explicit command boundary.
+- [x] Extract assertion run against one captured definition snapshot and append completed history only after evaluation.
+- [x] Extract audit-derived assertion generation with draft-only and atomic-append semantics.
+- [x] Record the captured assertion definition revision in durable run history and expose it through the additive v1 contract.
+- [x] Move assertion definition and run-history reads to explicit query use cases and remove the broad assertion application service.
+- [x] Make PostgreSQL store deletion tenant-scoped and atomic across operational authorization state.
+- [x] Add a read-only legacy violation inventory, guarded validation tool, JSON evidence, and reconciliation runbook for migration 016.
+- [ ] Execute the reconciliation/validation runbook against each managed environment and retain approved reports.
+- [x] Add and execute an isolated PostgreSQL logical backup/restore rehearsal with JSON evidence.
+- [x] Inject a child-cascade failure and prove atomic store-delete rollback.
+- [ ] Execute a staging-sized managed restore, full golden decisions, and measured RPO/RTO evidence.
+- [x] Serialize migration execution, enforce immutable checksums, and bound lock/statement waits.
+- [x] Terminate a visibly blocked migration connection, prove transaction/history rollback, and prove clean retry.
+- [x] Add a one-shot migrator and read-only replica validation mode without changing deployment automation.
+- [x] Persist PostgreSQL outbox messages and retry state across process restart; bind and validate worker settings.
+- [ ] Couple business mutations, audit evidence, and outbox append in one PostgreSQL transaction.
+- [ ] Add outbox claim leases, poison handling, backlog telemetry, replay, and retention controls.
+- [ ] Move managed migration authority out of ordinary application replicas after deployment design approval.
 - [x] Remove authorization-model mutation delegates after production and test caller migration.
 - [x] Remove temporary store-create delegates and nullable compatibility composition after caller audit.
 - [x] Remove dormant model-command compatibility factories and registry-only mutation fallbacks.
@@ -240,5 +257,77 @@ Iteration 19 persistence scope: replace process-local assertion definitions with
 Iteration 19 local evidence: 15 targeted assertion/store tests and the assertion lifecycle endpoint integration test passed. Locked restore, zero-warning Release build, 293 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
 
 Iteration 19 merge evidence: feature commit `f759d8e` was merged locally into `develop` as `c5dd3d0`; `.NET CI` run `33192371166` passed. The workflow remained unchanged.
+
+Iteration 20 application-boundary scope: extract assertion validation and replacement, route the controller directly to `WriteAssertionsUseCase`, and remove the broad-service write delegate.
+
+Iteration 20 local evidence: 14 targeted write, assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test passed. Locked restore, zero-warning Release build, 296 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 20 merge evidence: feature commit `d3b7805` was merged locally into `develop` as `9e86376`; `.NET CI` run `33257467077` passed. The workflow remained unchanged.
+
+Iteration 21 application-boundary scope: extract assertion execution, capture one repository snapshot per run, and remove the broad-service run delegate and permission-check dependency.
+
+Iteration 21 local evidence: 13 targeted run, remaining assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test passed. Locked restore, zero-warning Release build, 298 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 21 merge evidence: feature commit `7f2dc2f` was merged locally into `develop` as `28da9a0`; `.NET CI` run `33257783985` passed. The workflow remained unchanged.
+
+Iteration 22 application-boundary scope: extract audit-derived assertion generation, route the controller directly to the use case, and reduce the assertion service to read/history/purge responsibilities.
+
+Iteration 22 local evidence: 13 targeted generation, remaining assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test passed. Locked restore, zero-warning Release build, 300 unit tests, and 30 integration tests passed. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 22 merge evidence: feature commit `c873c66` was merged locally into `develop` as `6bcf734`; `.NET CI` run `33258613352` passed. The workflow remained unchanged.
+
+Iteration 23 contract scope: persist the captured assertion-definition revision with every completed run and expose it as additive `definition_revision` in the v1 run-history contract. Revision zero explicitly represents legacy history or a run captured before any definition set was written.
+
+Iteration 23 local evidence: 9 targeted unit tests and 5 assertion lifecycle integration tests passed. The candidate retained all 53 paths and reported zero removed paths, operations, or schemas with `breaking: false`; the reviewed additive candidate was promoted to the committed OpenAPI baseline. Locked restore, zero-warning Release build, 300 unit tests, and 30 integration tests passed. The promoted runtime OpenAPI is semantically identical to its baseline; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 23 merge evidence: feature commit `2339325` was merged locally into `develop` as `22ded7e`; `.NET CI` run `33259188992` passed. The workflow remained unchanged.
+
+Iteration 24 application-boundary scope: replace the remaining broad assertion read/history surface with explicit query use cases and isolate store cleanup behind a purge coordinator whose non-atomic semantics are documented.
+
+Iteration 24 local evidence: 19 targeted query, store-deletion, and composition unit tests plus 5 assertion lifecycle integration tests passed. Caller audit finds no production dependency on `IAssertionAppService` or `AssertionAppService`. Locked restore, zero-warning Release build, 303 unit tests, and 30 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 24 merge evidence: feature commit `830d10f` was merged locally into `develop` as `19aa1af`; `.NET CI` run `33259603421` passed. The workflow remained unchanged.
+
+Iteration 25 durable-correctness scope: move production store deletion into one PostgreSQL-owned cascade transaction, preserve audit evidence, and enforce composite tenant/store ownership for new operational rows.
+
+Iteration 25 local evidence: 9 focused store-boundary/composition unit tests pass and a PostgreSQL 16 container test proves cross-tenant no-op, atomic operational cascade, and audit retention. Locked restore, zero-warning Release build, 303 unit tests, and 31 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 25 merge evidence: feature commit `23f87a2` was merged locally into `develop` as `05d9176`; `.NET CI` run `33260311533` passed. The workflow remained unchanged.
+
+Iteration 26 durable-correctness scope: add an operator-safe inventory and validation workflow for the six staged tenant/store foreign keys introduced by migration 016.
+
+Iteration 26 local evidence: Release build includes the new database-admin tool with zero warnings/errors. PostgreSQL 16 container coverage injects a legacy orphan, proves audit sampling and validation refusal, reconciles it, then validates all six constraints transactionally. Missing secret configuration returns the documented usage exit code without exposing credentials. Locked restore, 303 unit tests, and 31 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 26 merge evidence: feature commit `253cb2f` was merged locally into `develop` as `93e8582`; `.NET CI` run `33260956484` passed. The workflow remained unchanged.
+
+Iteration 27 durable-correctness scope: make PostgreSQL logical backup/restore compatibility repeatable and prove store-delete rollback under an injected cascade failure.
+
+Iteration 27 local evidence: three isolated PostgreSQL 16 restore rehearsals passed. The final run restored the deterministic operational/audit fixture, validated exact counts and authorization tuple, produced a clean/validated reconciliation report, recorded a dump hash, and completed in 13.827 seconds before removing the dump and containers. Focused container failure injection proves a raised child delete rolls store, relationship, and assertion state back. Locked restore, zero-warning Release build, 303 unit tests, and 31 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 27 merge evidence: feature commit `1bdd4a4` was merged locally into `develop` as `951da3d`; `.NET CI` run `33261885697` passed. The workflow remained unchanged.
+
+Iteration 28 durable-correctness scope: harden embedded PostgreSQL migration execution against concurrent startup, immutable-history drift, unbounded waits, and interrupted statements.
+
+Iteration 28 local evidence: PostgreSQL 16 container coverage runs four migration callers concurrently and produces exactly 16 unique checksummed history rows, proves a held advisory lock yields the configured timeout, explicitly releases the pooled-session lock, bootstraps a legacy null checksum, and proves checksum drift fails closed. Locked restore, zero-warning Release build, 303 unit tests, and 32 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 28 merge evidence: feature commit `e3cf1e7` was merged locally into `develop` as `d80ff0b`; `.NET CI` run `33262928783` passed. The workflow remained unchanged.
+
+Iteration 29 durable-correctness scope: prove migration recovery under physical connection termination rather than relying only on transaction design. PostgreSQL 16 coverage makes migration 016 pending, blocks its first DDL statement, discovers the exact active backend through `pg_stat_activity`, terminates it, verifies that the transaction left no success marker, and proves the subsequent retry records the migration exactly once. Managed-environment interruption rehearsal and separation of DDL authority remain explicit deployment gates.
+
+Iteration 29 local evidence: the focused PostgreSQL 16 interruption test passed. Locked restore, zero-warning Release build, 303 unit tests, and 32 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 29 merge evidence: feature commit `9aa0ed0` was merged locally into `develop` as `01afe97`; `.NET CI` run `33263431325` passed. The workflow remained unchanged.
+
+Iteration 30 durable-correctness scope: establish a deployable code boundary between schema mutation and ordinary API startup. `Aegis.Migrator` is a one-shot executable and PowerShell operator entry point using the hardened runner; API startup supports backward-compatible `Apply` and read-only `Validate` modes. Validation fails closed for absent history, pending/unknown migrations, missing checksums, and drift, and cannot run development seeding. Managed identity/grant separation and deployment ordering remain unclaimed environment gates.
+
+Iteration 30 local evidence: missing migrator credentials return exit code 64 without exposing a connection string. Focused PostgreSQL 16 coverage passes for complete-schema validation and fail-closed pending, null-checksum, drift, lock-timeout, and connection-interruption paths. Locked restore, zero-warning Release build, 303 unit tests, and 32 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 30 merge evidence: feature commit `9dd669f` was merged locally into `develop` as `c973e58`; `.NET CI` run `33264009438` passed. The workflow remained unchanged.
+
+Iteration 31 durable-correctness scope: replace the PostgreSQL profile's process-local outbox with migration-017 durable message, attempt, bounded error, retry schedule, and completion state. Bind and validate batch/poll/retry configuration, preserve in-memory behavior for local/test profiles, and stop cancellation from being recorded as delivery failure. This is restart durability, not yet a transactional or multi-worker leased outbox; those gaps remain explicit follow-up work.
+
+Iteration 31 local evidence: focused PostgreSQL 16 tests prove all 17 migrations remain serialized/checksummed and that outbox append, reconstruction, delayed failure retry, error clearing, and completion state are durable. Locked restore, zero-warning Release build, 303 unit tests, and 33 integration tests passed. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit passed.
+
+Iteration 31 merge evidence: feature commit `d14113b` was merged locally into `develop` as `c7addd0`; `.NET CI` run `33264519329` passed. The workflow remained unchanged.
 
 B0 is `Verified`: local Windows verification, clean Linux-container reproduction, and `develop` Actions run `31955303976` passed. Remaining improvements identified by the inventory belong to their planned B1–B4 phases.

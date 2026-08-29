@@ -24,6 +24,8 @@ namespace Aegis.Infrastructure
             var storageProvider = configuration.GetSection("Storage").GetValue<string>("Provider") ?? "InMemory";
             var cacheProvider = configuration.GetSection("Cache").GetValue<string>("Provider") ?? "Memory";
             var cacheTtlSeconds = configuration.GetSection("Cache").GetValue<int?>("DecisionTtlSeconds") ?? 15;
+            var outboxOptions = ReadOutboxOptions(configuration);
+            services.AddSingleton(outboxOptions);
 
             if (cacheProvider.Equals("Redis", StringComparison.OrdinalIgnoreCase))
             {
@@ -43,7 +45,6 @@ namespace Aegis.Infrastructure
             // In-memory cache for local decision caching (simple MemoryCache instance)
             services.AddSingleton<Microsoft.Extensions.Caching.Memory.IMemoryCache>(_ => new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()));
 
-            services.AddSingleton<IDomainEventOutboxStore, InMemoryDomainEventOutboxStore>();
             services.AddScoped<IDomainEventDispatcher, InProcessDomainEventDispatcher>();
             services.AddScoped(typeof(IDomainEventHandler<>), typeof(LoggingDomainEventHandler<>));
             services.AddScoped(typeof(IDomainEventHandler<>), typeof(PersistDomainEventToOutboxHandler<>));
@@ -60,11 +61,13 @@ namespace Aegis.Infrastructure
                 }
 
                 services.AddSingleton(NpgsqlDataSource.Create(connectionString));
+                services.AddSingleton<IDomainEventOutboxStore, PostgresDomainEventOutboxStore>();
                 services.AddSingleton<PostgresStoreRegistry>();
                 services.AddSingleton<IStoreRegistry>(sp => sp.GetRequiredService<PostgresStoreRegistry>());
                 services.AddSingleton<IStoreRepository>(sp => sp.GetRequiredService<PostgresStoreRegistry>());
                 services.AddSingleton<IAuthorizationModelRegistry>(sp => sp.GetRequiredService<PostgresStoreRegistry>());
                 services.AddSingleton<IAuthorizationModelRepository>(sp => sp.GetRequiredService<PostgresStoreRegistry>());
+                services.AddSingleton<IStoreDeletionRepository, PostgresStoreDeletionRepository>();
                 services.AddSingleton<PostgresRelationshipStore>();
                 services.AddSingleton<IRelationshipStore>(sp => sp.GetRequiredService<PostgresRelationshipStore>());
                 services.AddSingleton<IRelationshipRepository>(sp => sp.GetRequiredService<PostgresRelationshipStore>());
@@ -79,20 +82,25 @@ namespace Aegis.Infrastructure
             }
             else
             {
+                services.AddSingleton<IDomainEventOutboxStore>(_ =>
+                    new InMemoryDomainEventOutboxStore(outboxOptions.InitialRetryDelay));
                 services.AddSingleton<InMemoryStoreRegistry>();
                 services.AddSingleton<IStoreRegistry>(sp => sp.GetRequiredService<InMemoryStoreRegistry>());
                 services.AddSingleton<IStoreRepository>(sp => sp.GetRequiredService<InMemoryStoreRegistry>());
                 services.AddSingleton<IAuthorizationModelRegistry>(sp => sp.GetRequiredService<InMemoryStoreRegistry>());
                 services.AddSingleton<IAuthorizationModelRepository>(sp => sp.GetRequiredService<InMemoryStoreRegistry>());
-
-                services.AddSingleton<IRelationshipStore, InMemoryRelationshipStore>();
-                services.AddSingleton<IRelationshipRepository>(sp => sp.GetRequiredService<IRelationshipStore>() as IRelationshipRepository ?? throw new InvalidOperationException("Relationship repository is unavailable."));
+                services.AddSingleton<InMemoryRelationshipStore>();
+                services.AddSingleton<IRelationshipStore>(sp => sp.GetRequiredService<InMemoryRelationshipStore>());
+                services.AddSingleton<IRelationshipRepository>(sp => sp.GetRequiredService<InMemoryRelationshipStore>());
                 services.AddSingleton<InMemoryRbacStore>();
                 services.AddSingleton<IRbacProvider>(sp => sp.GetRequiredService<InMemoryRbacStore>());
                 services.AddSingleton<IRbacAdminStore>(sp => sp.GetRequiredService<InMemoryRbacStore>());
                 services.AddSingleton<IAuditStore, InMemoryAuditStore>();
-                services.AddSingleton<IAssertionRunStore, InMemoryAssertionRunStore>();
-                services.AddSingleton<IAssertionRepository, InMemoryAssertionRepository>();
+                services.AddSingleton<InMemoryAssertionRunStore>();
+                services.AddSingleton<IAssertionRunStore>(sp => sp.GetRequiredService<InMemoryAssertionRunStore>());
+                services.AddSingleton<InMemoryAssertionRepository>();
+                services.AddSingleton<IAssertionRepository>(sp => sp.GetRequiredService<InMemoryAssertionRepository>());
+                services.AddSingleton<IStoreDeletionRepository, InMemoryStoreDeletionRepository>();
             }
 
             services.AddSingleton<IAuthorizationModelProvider, AuthorizationModelProvider>();
@@ -114,6 +122,36 @@ namespace Aegis.Infrastructure
             services.AddSingleton<IAuthSessionService, JwtAuthSessionService>();
 
             return services;
+        }
+
+        private static OutboxWorkerOptions ReadOutboxOptions(IConfiguration configuration)
+        {
+            var batchSize = configuration.GetValue<int?>("Outbox:BatchSize") ?? 100;
+            var pollIntervalSeconds = configuration.GetValue<int?>("Outbox:PollIntervalSeconds") ?? 10;
+            var initialRetrySeconds = configuration.GetValue<int?>("Outbox:InitialRetrySeconds") ?? 2;
+            var maximumRetrySeconds = configuration.GetValue<int?>("Outbox:MaximumRetrySeconds") ?? 300;
+            if (batchSize is < 1 or > 1000)
+            {
+                throw new InvalidOperationException("Outbox:BatchSize must be between 1 and 1000.");
+            }
+
+            if (pollIntervalSeconds is < 1 or > 300)
+            {
+                throw new InvalidOperationException("Outbox:PollIntervalSeconds must be between 1 and 300.");
+            }
+
+            if (initialRetrySeconds is < 1 or > 300 || maximumRetrySeconds is < 1 or > 86400
+                || maximumRetrySeconds < initialRetrySeconds)
+            {
+                throw new InvalidOperationException(
+                    "Outbox retry seconds must be positive, bounded, and MaximumRetrySeconds must not be less than InitialRetrySeconds.");
+            }
+
+            return new OutboxWorkerOptions(
+                batchSize,
+                TimeSpan.FromSeconds(pollIntervalSeconds),
+                TimeSpan.FromSeconds(initialRetrySeconds),
+                TimeSpan.FromSeconds(maximumRetrySeconds));
         }
     }
 }

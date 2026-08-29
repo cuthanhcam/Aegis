@@ -39,6 +39,8 @@ Database changes follow expand/contract: add compatible schema, deploy compatibl
 
 Define RPO/RTO for models, relationships, audits, and configuration. Prove backups by restoring into isolation, checking schema/counts, running golden decisions, reconciling audit/outbox data, and recording elapsed time. Redis caches are reconstructible, not authoritative backups.
 
+Use the [PostgreSQL backup and restore drill](./postgres-backup-restore.md) for the repeatable repository rehearsal and the evidence required from a staging-sized managed restore.
+
 Runbooks cover latency/errors, unexpected decision-pattern changes, database saturation, cache failure/invalidation lag, outbox/audit backlog, bad model activation, identity/key failure, suspected tenant exposure, and failed release/migration. Each alert links symptoms to safe mitigation, ownership, and recovery verification.
 
 ## Release checklist
