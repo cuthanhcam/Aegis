@@ -359,6 +359,93 @@ public sealed class PostgresRedisIntegrationTests
             Assert.Equal(0L, (long)(await checksum.ExecuteScalarAsync())!);
         }
 
+        await using (var blockerConnection = await dataSource.OpenConnectionAsync())
+        await using (var blockerTransaction = await blockerConnection.BeginTransactionAsync())
+        {
+            await using (var removeHistoryConnection = await dataSource.OpenConnectionAsync())
+            await using (var removeHistory = removeHistoryConnection.CreateCommand())
+            {
+                removeHistory.CommandText = """
+                    DELETE FROM schema_migrations
+                    WHERE migration_name LIKE '%016_atomic_store_deletion';
+                    """;
+                Assert.Equal(1, await removeHistory.ExecuteNonQueryAsync());
+            }
+
+            await using (var blockMigration = blockerConnection.CreateCommand())
+            {
+                blockMigration.Transaction = blockerTransaction;
+                blockMigration.CommandText = "LOCK TABLE stores IN ACCESS EXCLUSIVE MODE;";
+                await blockMigration.ExecuteNonQueryAsync();
+            }
+
+            var interruptedMigration = Aegis.Infrastructure.Persistence.PostgresMigrationRunner.MigrateAsync(
+                dataSource,
+                new Aegis.Infrastructure.Persistence.PostgresMigrationOptions(
+                    TimeSpan.FromSeconds(5),
+                    TimeSpan.FromSeconds(30)));
+
+            await using var observer = await dataSource.OpenConnectionAsync();
+            int? migrationBackendPid = null;
+            var observationDeadline = DateTimeOffset.UtcNow.AddSeconds(10);
+            while (migrationBackendPid is null && DateTimeOffset.UtcNow < observationDeadline)
+            {
+                await using var findBackend = observer.CreateCommand();
+                findBackend.CommandText = """
+                    SELECT pid
+                    FROM pg_stat_activity
+                    WHERE datname = current_database()
+                      AND pid <> pg_backend_pid()
+                      AND state = 'active'
+                      AND query LIKE '%ux_stores_tenant_id_id%'
+                    ORDER BY query_start DESC
+                    LIMIT 1;
+                    """;
+                var observedPid = await findBackend.ExecuteScalarAsync();
+                if (observedPid is int pid)
+                {
+                    migrationBackendPid = pid;
+                    break;
+                }
+
+                await Task.Delay(100);
+            }
+
+            Assert.True(migrationBackendPid.HasValue, "The blocked migration backend was not observed.");
+            await using (var terminate = observer.CreateCommand())
+            {
+                terminate.CommandText = "SELECT pg_terminate_backend(@pid);";
+                terminate.Parameters.AddWithValue("pid", migrationBackendPid.Value);
+                Assert.True((bool)(await terminate.ExecuteScalarAsync())!);
+            }
+
+            await Assert.ThrowsAnyAsync<NpgsqlException>(() => interruptedMigration);
+            await blockerTransaction.RollbackAsync();
+        }
+
+        await using (var interruptedVerification = await dataSource.OpenConnectionAsync())
+        {
+            await using var history = interruptedVerification.CreateCommand();
+            history.CommandText = """
+                SELECT COUNT(*)
+                FROM schema_migrations
+                WHERE migration_name LIKE '%016_atomic_store_deletion';
+                """;
+            Assert.Equal(0L, (long)(await history.ExecuteScalarAsync())!);
+        }
+
+        await Aegis.Infrastructure.Persistence.PostgresMigrationRunner.MigrateAsync(dataSource);
+        await using (var retryVerification = await dataSource.OpenConnectionAsync())
+        {
+            await using var history = retryVerification.CreateCommand();
+            history.CommandText = """
+                SELECT COUNT(*)
+                FROM schema_migrations
+                WHERE migration_name LIKE '%016_atomic_store_deletion';
+                """;
+            Assert.Equal(1L, (long)(await history.ExecuteScalarAsync())!);
+        }
+
         await using (var driftConnection = await dataSource.OpenConnectionAsync())
         await using (var drift = driftConnection.CreateCommand())
         {
