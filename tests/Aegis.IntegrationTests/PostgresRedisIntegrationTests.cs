@@ -212,6 +212,48 @@ public sealed class PostgresRedisIntegrationTests
                 seed.StoreId));
 
             Assert.False(await deletion.DeleteAsync("another-tenant", seed.StoreId));
+
+            await using (var failureConnection = await dataSource.OpenConnectionAsync())
+            await using (var failureCommand = failureConnection.CreateCommand())
+            {
+                failureCommand.CommandText = """
+                    CREATE OR REPLACE FUNCTION fail_restore_drill_relationship_delete()
+                    RETURNS trigger LANGUAGE plpgsql AS $$
+                    BEGIN
+                        RAISE EXCEPTION 'injected relationship delete failure';
+                    END;
+                    $$;
+                    CREATE TRIGGER trg_fail_restore_drill_relationship_delete
+                    BEFORE DELETE ON relationships
+                    FOR EACH ROW EXECUTE FUNCTION fail_restore_drill_relationship_delete();
+                    """;
+                await failureCommand.ExecuteNonQueryAsync();
+            }
+
+            await Assert.ThrowsAsync<PostgresException>(
+                () => deletion.DeleteAsync(seed.TenantId, seed.StoreId));
+
+            Assert.NotNull(await services.GetRequiredService<IStoreRegistry>().GetForTenantAsync(seed.TenantId, seed.StoreId));
+            Assert.Single(await services.GetRequiredService<IRelationshipStore>().QueryAsync(
+                seed.TenantId,
+                null,
+                null,
+                null,
+                null,
+                CancellationToken.None,
+                seed.StoreId));
+            Assert.NotEmpty((await assertions.ReadAsync(seed.StoreId, seed.AuthorizationModelId)).Assertions);
+
+            await using (var recoveryConnection = await dataSource.OpenConnectionAsync())
+            await using (var recoveryCommand = recoveryConnection.CreateCommand())
+            {
+                recoveryCommand.CommandText = """
+                    DROP TRIGGER trg_fail_restore_drill_relationship_delete ON relationships;
+                    DROP FUNCTION fail_restore_drill_relationship_delete();
+                    """;
+                await recoveryCommand.ExecuteNonQueryAsync();
+            }
+
             Assert.True(await deletion.DeleteAsync(seed.TenantId, seed.StoreId));
         }
 

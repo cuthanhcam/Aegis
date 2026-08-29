@@ -51,4 +51,4 @@ Do not delete legacy rows automatically during migration. Relationships, assignm
 
 The container integration test starts PostgreSQL 16 and Redis, runs all migrations, seeds each major store-owned category, attempts a cross-tenant delete, and then performs the valid delete. Direct database queries prove that the parent store and operational children are absent while the audit event remains.
 
-Additional B3 work still includes injected transaction failure tests, legacy constraint validation, backup/restore drills, and reconciliation reporting. The atomic cascade closes the known partial-cleanup path; it does not by itself complete the durable-data phase.
+Injected transaction failure coverage now proves that a failed child cascade rolls the parent and previously visited children back. The repository backup/restore drill proves logical backup compatibility on a deterministic local fixture. Managed-environment constraint reports, staging-sized restore/RPO/RTO evidence, and broader reconciliation remain required before the durable-data phase can exit.

@@ -364,3 +364,16 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Verification: zero-warning Release build passes with the database-admin tool included. PostgreSQL 16 container coverage injects one legacy orphan by bypassing triggers, proves detection and validation refusal, removes the test orphan, and proves transactional validation of all six constraints. Missing secret configuration returns exit code 64 without exposing credentials. Locked restore, 303 unit tests, and 31 integration tests pass. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Follow-up: execute the runbook per managed environment, then add injected-failure and backup/restore evidence.
 - Merge evidence: feature commit `253cb2f` was merged locally into `develop` as `93e8582` and pushed. GitHub Actions `.NET CI` run `33260956484` passed without modifying the workflow.
+
+## 2026-08-29 — Durable data correctness B3, iteration 27
+
+- Branch: `feat/postgres-restore-drill-b3`
+- Status: Complete
+- Intended result: turn logical backup compatibility and atomic rollback from assumptions into repeatable evidence.
+- Restore automation: `eng/test-postgres-restore.ps1` creates isolated GUID-named PostgreSQL 16 source/target containers, applies committed migrations, seeds a deterministic authorization fixture, creates and hashes a custom-format dump, restores with exit-on-error, verifies exact counts/fixture, and runs constraint reconciliation plus validation.
+- Data safety: no existing database is contacted; credentials are ephemeral; the dump lives only under ignored artifacts and is deleted in `finally`; exact drill containers are forcibly removed. JSON retains versions, timings, counts, dump hash, and linked reconciliation evidence.
+- Failure evidence: the PostgreSQL integration test installs a temporary trigger that raises during relationship cascade deletion. The parent delete throws and store, relationship, and assertion state remain intact; after trigger removal the atomic delete succeeds.
+- Scope honesty: the final 13.827-second local synthetic restore is compatibility evidence, not a production RTO. A staging-sized managed restore must still run full application golden decisions and measure declared RPO/RTO.
+- Contract impact: none; runtime HTTP/OpenAPI behavior is unchanged.
+- Verification: three isolated restore rehearsals and the focused PostgreSQL failure-injection test pass. Locked restore and zero-warning Release build pass with 303 unit tests and 31 integration tests. Runtime OpenAPI remains semantically identical; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: execute the managed restore runbook, retain approved evidence, and expand failure testing to migration/connection interruption scenarios.
