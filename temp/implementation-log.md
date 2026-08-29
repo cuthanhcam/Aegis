@@ -312,3 +312,14 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Follow-up: decide and implement the additive definition-revision contract for run history, then review whether read/history/purge deserve narrower query/lifecycle boundaries.
 - Verification: 13 targeted generation, remaining assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test pass. Locked restore and zero-warning Release build pass with 300 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Merge evidence: feature commit `c873c66` was merged locally into `develop` as `6bcf734` and pushed. GitHub Actions `.NET CI` run `33258613352` passed without modifying the workflow.
+
+## 2026-08-29 — Governed contracts B1, iteration 23
+
+- Branch: `feat/assertion-run-definition-revision-b1`
+- Status: Complete
+- Intended result: make completed assertion history identify the exact definition snapshot that was evaluated.
+- Persistence: migration 015 adds non-negative `definition_revision` to assertion run records and backfills existing rows with zero. PostgreSQL save/list/get operations persist and hydrate the field; new runs copy it from the single snapshot captured before evaluation.
+- Contract decision: `AegisAssertionRunRecordDto` exposes additive `definition_revision` as `int64`. Zero means legacy history or no definition set written at capture time; positive values identify a repository definition revision.
+- Compatibility evidence: the contract report retains 53 paths, removes no path, operation, or schema, and classifies the candidate as non-breaking. The reviewed candidate is promoted to the committed v1 baseline.
+- Verification: 9 targeted unit tests and 5 assertion lifecycle integration tests pass. Locked restore and zero-warning Release build pass with 300 unit tests and 30 integration tests. The promoted runtime OpenAPI is semantically identical to its baseline; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
+- Follow-up: review whether assertion definition reads, run-history queries, and store purge coordination should remain grouped or move to narrower query/lifecycle boundaries.

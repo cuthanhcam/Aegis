@@ -95,6 +95,7 @@ namespace Aegis.UnitTests.Application.Services
             var detail = await reloadedService.GetRunAsync(store.Id, run.RunId);
 
             Assert.Equal(2, run.Summary.Total);
+            Assert.Equal(1, run.DefinitionRevision);
             Assert.Equal(1, run.Summary.Passed);
             Assert.Equal(1, run.Summary.Failed);
             Assert.NotEmpty(runs.Runs);

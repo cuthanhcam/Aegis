@@ -27,6 +27,7 @@ public sealed class RunAssertionsUseCaseTests
         var run = await useCase.ExecuteAsync(store.Id, model.Id);
 
         Assert.Equal(0, run.Summary.Total);
+        Assert.Equal(0, run.DefinitionRevision);
         Assert.Equal(0, run.Summary.Passed);
         Assert.Equal(0, run.Summary.Failed);
         Assert.Equal(run, await runStore.GetAsync(store.Id, run.RunId));

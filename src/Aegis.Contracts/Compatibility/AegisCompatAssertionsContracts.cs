@@ -48,6 +48,7 @@ namespace Aegis.Contracts.Compatibility
         [property: JsonPropertyName("run_id")] string RunId,
         [property: JsonPropertyName("store_id")] string StoreId,
         [property: JsonPropertyName("authorization_model_id")] string AuthorizationModelId,
+        [property: JsonPropertyName("definition_revision")] long DefinitionRevision,
         [property: JsonPropertyName("started_at")] DateTimeOffset StartedAt,
         [property: JsonPropertyName("completed_at")] DateTimeOffset CompletedAt,
         [property: JsonPropertyName("summary")] AegisAssertionRunSummaryDto Summary,
