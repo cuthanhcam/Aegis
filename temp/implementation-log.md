@@ -272,3 +272,15 @@ This append-only log records completed iterations and their evidence. Plans desc
 - Follow-up: extract assertion write/run/generate use cases, then make an additive contract decision for recording the executed definition revision in run history.
 - Verification: 15 targeted assertion/store tests and the assertion lifecycle endpoint integration test pass. Locked restore and zero-warning Release build pass with 293 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.
 - Merge evidence: feature commit `f759d8e` was merged locally into `develop` as `c5dd3d0` and pushed. GitHub Actions `.NET CI` run `33192371166` passed without modifying the workflow.
+
+## 2026-08-29 — Governed contracts B1, iteration 20
+
+- Branch: `refactor/assertion-write-use-case-b1`
+- Status: In progress
+- Intended result: make assertion replacement an explicit command and establish one validation component for persisted and audit-generated assertions.
+- Boundary: `StoreAssertionsController` retains store-tenant authorization and HTTP mapping. `WriteAssertionsUseCase` owns store/model scope validation, capacity, tuple/model-reference validation, cancellation, and the repository replace call.
+- Validation consistency: `AssertionValidator` is stateless and shared by write and audit generation. Invalid tuple, contextual tuple, type, or relation input is rejected before repository mutation.
+- Interface cleanup: remove `WriteAsync` from `IAssertionAppService` and `AssertionAppService` after the controller and tests migrate to the command.
+- Contract impact: none intended; routes, request/response payloads, error codes, tenant/store guards, and OpenAPI remain unchanged.
+- Follow-up: extract run orchestration against one captured assertion snapshot, then extract audit generation and decide how snapshot revision is recorded.
+- Verification: 14 targeted write, assertion-service, and dependency-injection tests plus the assertion lifecycle endpoint integration test pass. Locked restore and zero-warning Release build pass with 296 unit tests and 30 integration tests. The runtime OpenAPI remains semantically compatible; all five lifecycle fixtures, generated TypeScript strict compilation, and npm audit pass.

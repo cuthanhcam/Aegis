@@ -1,4 +1,5 @@
 using Aegis.Application.DomainEvents;
+using Aegis.Application.Features.Assertions;
 using Aegis.Application.Features.Permissions;
 using Aegis.Application.Services;
 using Aegis.Authorization.Core.Engine;
@@ -44,7 +45,8 @@ namespace Aegis.UnitTests.Application.Services
                 checker,
                 new InMemoryAssertionRepository(),
                 new InMemoryAssertionRunStore(),
-                auditStore);
+                auditStore,
+                new AssertionValidator());
             var service = new StoreAppService(
                 storeRegistry,
                 relationshipStore,

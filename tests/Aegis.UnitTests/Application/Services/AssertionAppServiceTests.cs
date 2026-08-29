@@ -1,3 +1,4 @@
+using Aegis.Application.Features.Assertions;
 using Aegis.Application.Features.Permissions;
 using Aegis.Application.Services;
 using Aegis.Authorization.Core.Engine;
@@ -75,8 +76,10 @@ namespace Aegis.UnitTests.Application.Services
             var runStore = new InMemoryAssertionRunStore();
             var assertionRepository = new InMemoryAssertionRepository();
             var auditStore = new InMemoryAuditStore();
-            var service = new AssertionAppService(registry, registry, checker, assertionRepository, runStore, auditStore);
-            await service.WriteAsync(
+            var validator = new AssertionValidator();
+            var service = new AssertionAppService(registry, registry, checker, assertionRepository, runStore, auditStore, validator);
+            var writeUseCase = new WriteAssertionsUseCase(registry, registry, assertionRepository, validator);
+            await writeUseCase.ExecuteAsync(
                 store.Id,
                 model.Id,
                 new AegisCompatWriteAssertionsRequestDto(
@@ -86,7 +89,7 @@ namespace Aegis.UnitTests.Application.Services
                 ]));
 
             var run = await service.RunAsync(store.Id, model.Id);
-            var reloadedService = new AssertionAppService(registry, registry, checker, assertionRepository, runStore, auditStore);
+            var reloadedService = new AssertionAppService(registry, registry, checker, assertionRepository, runStore, auditStore, validator);
             var runs = await reloadedService.ListRunsAsync(store.Id, model.Id);
             var detail = await reloadedService.GetRunAsync(store.Id, run.RunId);
 
@@ -164,7 +167,8 @@ namespace Aegis.UnitTests.Application.Services
                 checker,
                 new InMemoryAssertionRepository(),
                 new InMemoryAssertionRunStore(),
-                auditStore);
+                auditStore,
+                new AssertionValidator());
         }
     }
 }

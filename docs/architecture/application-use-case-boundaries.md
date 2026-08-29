@@ -20,7 +20,8 @@ The API adapter authenticates and authorizes the caller, resolves tenant/actor c
 | User create | `CreateUserUseCase` | RBAC administration repository insert | Extracted |
 | User update | `UpdateUserUseCase` | RBAC administration repository update-and-return | Extracted |
 | User delete | `DeleteUserUseCase` | RBAC administration repository transaction | Extracted |
-| Assertion write/run/generate | Broad assertion application service | Versioned assertion repository; command extraction pending | Repository foundation complete |
+| Assertion write | `WriteAssertionsUseCase` | Versioned assertion repository replace | Extracted |
+| Assertion run/generate | Broad assertion application service | Versioned definition repository and append-only run/audit stores | Extraction pending |
 
 ## Store-create flow
 
@@ -74,7 +75,11 @@ Assertion definitions now use `IAssertionRepository`; the process-local static d
 
 The PostgreSQL provider stores one JSONB assertion set per `(store_id, authorization_model_id)` through migration 014. A transaction-scoped advisory lock serializes both first-write and existing-row mutations, avoiding the missing-row race that `SELECT ... FOR UPDATE` alone cannot prevent. The in-memory provider uses an equivalent per-key critical section. Both implementations deduplicate audit-generated assertions and enforce the 100-item capacity before committing, so a rejected append leaves the prior revision unchanged. Store purge removes definition snapshots as well as append-only run history.
 
-`AssertionAppService` still owns validation and orchestration temporarily, but read, write, run, and audit generation all consume the same repository snapshot. Its permission checker, definition repository, run-history store, and audit store are mandatory dependencies. The next extraction may therefore introduce explicit write, run, and generate use cases without inventing transaction ownership. A subsequent additive contract decision is still required before exposing the internal definition revision or recording it on public run DTOs.
+`AssertionAppService` temporarily retains read, run, history, generation, and purge orchestration, all backed by the same repository snapshot. Its permission checker, definition repository, run-history store, audit store, and shared validator are mandatory dependencies. The next extraction can therefore introduce explicit run and generate use cases without inventing transaction ownership. A subsequent additive contract decision is still required before exposing the internal definition revision or recording it on public run DTOs.
+
+Assertion replacement now enters through `WriteAssertionsUseCase` rather than the broad service. The controller retains store-tenant authorization and HTTP response mapping. The use case validates store/model scope, the 100-item command limit, tuple shapes, contextual tuples, and model type/relation references before invoking one repository replace. Failed validation never mutates or advances the assertion snapshot.
+
+`AssertionValidator` is the single stateless owner of assertion tuple and model-reference validation. Audit generation consumes the same validator when filtering candidate events, preventing write and generated assertions from drifting into different validity rules. The write delegate has been removed from `IAssertionAppService`; run, history queries, generation, and purge remain until their callers are migrated.
 
 ## Review checklist
 

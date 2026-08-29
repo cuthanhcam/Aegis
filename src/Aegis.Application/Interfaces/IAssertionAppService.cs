@@ -9,12 +9,6 @@ namespace Aegis.Application.Interfaces
             string authorizationModelId,
             CancellationToken cancellationToken = default);
 
-        Task WriteAsync(
-            string storeId,
-            string authorizationModelId,
-            AegisCompatWriteAssertionsRequestDto request,
-            CancellationToken cancellationToken = default);
-
         Task<AegisAssertionRunRecordDto> RunAsync(
             string storeId,
             string authorizationModelId,
